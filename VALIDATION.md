@@ -2,6 +2,15 @@
 
 The local PAL PS2 extraction contains 24 disc files and 18,754 entries from 11 RCF archives. The original ISO was only read.
 
+## September 8, 2026
+
+- Reproduced the Kwik-E-Mart fall by entering through the tutorial objective and holding backwards for two seconds. The player crossed the back wall and fell below the original floor. The missing data was the separate static physics hierarchy.
+- Converted 487 static shape leaves from all 19 interior files: 427 boxes, 43 rounded cylinders and 17 spheres. Each output records its source hash. Zero conversion errors; existing terrain buffers are unchanged.
+- Added capsule collision against the original floor and solid shapes, with movement split into short steps. All 19 room-entry, exit-approach and eight-direction sprint checks pass. The Kwik-E-Mart wall/jump regression passes at 60 Hz and 15 Hz.
+- The full local suite passes 73 TypeScript tests and seven Python tests. The Pages production build passes; the existing bundle-size warning remains.
+- In the browser, the original entry interaction advanced to Talk to Apu. The previously failing two-second backward walk stopped at `(499.4, -19.9, 305.5)`. Sprinting and jumping into that wall also stayed on the floor. Exit, re-entry and Apu's conversation passed, advancing to the ice cream/cola objective. Objective-position assistance was used to reach the entrance and Apu. The browser reported zero warnings or errors for this run.
+- Ghidra imported the PAL executable using the R5900 extension. Four targeted passes exported 119 distinct physical-code functions with zero export failures, in addition to the initial 24-function export. Collision-loader dispatch, recursive volume loading, box dimensions and rounded-cylinder dimensions were checked in the output. See [native analysis](docs/NATIVE_ANALYSIS.md) for addresses, hashes and coverage limits.
+
 ## September 7, 2026
 
 - TypeScript and Vite production build passed. The combined renderer/game bundle still produces a size warning.

@@ -1,0 +1,9 @@
+# PAL SLES_518.97 string addresses, verified against its loaded ELF segments.
+0045a680 InteriorEntryEnd
+0045a610 InteriorOrigin
+0045a640 InteriorLightGroup
+0045aa18 15InteriorManager
+00451560 Q212ActionButton13EnterInterior
+0045ac90 12InteriorExit
+00483340 Q23sim21CollisionObjectLoader
+0045adb8 Q23sim15CollisionObject

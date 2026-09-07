@@ -1,0 +1,2 @@
+# CollisionObjectLoader vtable at 00483284 points to loader 002cb7c8.
+range:002cb000:002cc300

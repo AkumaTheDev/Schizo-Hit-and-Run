@@ -2,7 +2,7 @@
 
 A Three.js reconstruction of The Simpsons: Hit & Run using assets converted from a local PS2 disc image. It runs without PS2 emulation. New Game starts the original campaign. Story progression, bonus missions and races run from the converted mission scripts. The engine is still a reconstruction, and full playthrough testing is ongoing.
 
-[Play in your browser](https://vheissu.github.io/hit-and-run-web/) · [How the port was built](docs/PORTING.md)
+[Play in your browser](https://vheissu.github.io/hit-and-run-web/) · [How the port was built](docs/PORTING.md) · [Native executable findings](docs/NATIVE_ANALYSIS.md)
 
 [![Watch the gameplay showcase](docs/media/showcase-poster.jpg)](https://raw.githubusercontent.com/Vheissu/hit-and-run-web/main/docs/media/showcase.mp4)
 
@@ -49,6 +49,7 @@ Touch driving controls and standard gamepad steering/triggers are available. Ful
 - Seven level variants and five player characters, with original geometry, character animations, UI artwork, bitmap fonts, and the animated living-room menu.
 - Driving, walking, road traffic, coins, vehicle damage, local saves, and an added five-stop time trial.
 - Interpolated player and NPC motion, continuous junction paths, and grass placement spread across frames.
+- Interior walls and furniture use 487 static collision shapes decoded from the original 19 room files, with primitive dimensions checked against the PS2 executable.
 - A Blender scenery pass over 100 exterior/interior files: preserved UVs and baked colors, rounded hard edges, and 11 surface-detail material classes covering 1,672 textures. Enlarging source artwork does not recover missing detail; signs and illustrations still retain their original designs and resolution limits.
 - 89 scripted missions across seven chapters: 49 story missions, the opening tutorial, four chapter transitions, seven bonus missions, 21 street races and seven wager races. The 610 stages include original objectives, timers, failure conditions, checkpoints, purchases, rewards and chapter progression.
 - Original mission dialogue, opening/campaign movies, briefings, NPC conversation animations, accessible interiors, delivery and destruction targets, multi-lap races and nuclear-waste/UFO objectives. There are 67 character models, 64 vehicle models and 549 dialogue clips, plus 55 original mission briefing pictures.
