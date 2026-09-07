@@ -1,0 +1,57 @@
+{
+  "durationSeconds": 50,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "fps": 30,
+  "sourceRevision": "18ae11b446195b650b69822cacbfa468b2e8bac5",
+  "capture": "Direct browser renderer; staged cameras and driving inputs. Traffic was cleared for the driving takes.",
+  "soundtrack": "Converted original Sunday Drive music",
+  "shots": [
+    {
+      "name": "evergreen-drive",
+      "frames": 225,
+      "seconds": 7.5
+    },
+    {
+      "name": "homer-marge",
+      "frames": 150,
+      "seconds": 5.0
+    },
+    {
+      "name": "downtown",
+      "frames": 195,
+      "seconds": 6.5
+    },
+    {
+      "name": "waterfront",
+      "frames": 210,
+      "seconds": 7.0
+    },
+    {
+      "name": "kwik-e-mart",
+      "frames": 150,
+      "seconds": 5.0
+    },
+    {
+      "name": "halloween",
+      "frames": 210,
+      "seconds": 7.0
+    },
+    {
+      "name": "springfield-hero",
+      "frames": 210,
+      "seconds": 7.0
+    }
+  ],
+  "verification": {
+    "videoFrames": 1500,
+    "audioDurationSeconds": 50,
+    "videoDurationSeconds": 50,
+    "colour": "BT.709, limited range",
+    "integratedLufs": -13.92,
+    "truePeakDbtp": -2.67,
+    "bytes": 38087780
+  }
+}

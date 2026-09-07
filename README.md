@@ -2,13 +2,17 @@
 
 A Three.js reconstruction of The Simpsons: Hit & Run using assets converted from a local PS2 disc image. It runs without PS2 emulation. New Game starts the original campaign. Story progression, bonus missions and races run from the converted mission scripts. The engine is still a reconstruction, and full playthrough testing is ongoing.
 
-[Play in your browser](https://vheissu.github.io/hit-and-run-web/)
+[Play in your browser](https://vheissu.github.io/hit-and-run-web/) · [How the port was built](docs/PORTING.md)
+
+[![Watch the gameplay showcase](docs/media/showcase-poster.jpg)](https://raw.githubusercontent.com/Vheissu/hit-and-run-web/main/docs/media/showcase.mp4)
+
+**Watch the showcase:** footage captured directly from the browser build, with staged cameras.
 
 The repository includes the converted browser assets, so you can clone it and play without running the extraction tools. The ISO, raw archives and extracted source files are excluded. This is an unofficial project, with no affiliation to the original developers or rights holders. Original game assets retain their existing copyrights.
 
 ## Build and play locally
 
-Install Node.js 24+ and clone the repository (the included assets are about 1.04 GB):
+Install Node.js 24+ and clone the repository (the included assets are about 1.09 GB):
 
 ```sh
 git clone https://github.com/Vheissu/hit-and-run-web.git
@@ -51,6 +55,24 @@ Touch driving controls and standard gamepad steering/triggers are available. Ful
 - Saves resume from the latest mission checkpoint and preserve coins, purchased cars, outfits and completed missions. Bonus missions return to the story checkpoint afterward.
 
 This is not yet a 1:1 port. Vehicle handling and traffic are reconstructed systems. Original police behavior, gags, general destructible physics, collectible-card gameplay and menu parity still need work. Mission AI and the UFO sequence use reconstructed behavior; their timing and difficulty have not been validated against complete original-game playthroughs. The original executable is not being recompiled.
+
+## Around Springfield
+
+| Evergreen Terrace | Downtown |
+| --- | --- |
+| ![Homer and Marge outside the Simpsons house](docs/media/homer-and-marge.jpg) | ![Bart driving through Downtown with the original HUD](docs/media/downtown.jpg) |
+
+| The waterfront | Kwik-E-Mart |
+| --- | --- |
+| ![Lisa at the Springfield waterfront](docs/media/waterfront.jpg) | ![Homer and Apu inside the Kwik-E-Mart](docs/media/kwik-e-mart.jpg) |
+
+## How this came together
+
+This began with a PAL PS2 ISO and the idea of driving around Springfield in a browser. The archives were extracted, Pure3D geometry and PS2 vertex data were decoded, and the original textures, skeletons, animations and mission scripts were converted for a new Three.js runtime. The PS2 executable is not being emulated or recompiled.
+
+The first build used custom menus and a custom HUD. Those were replaced with the original Scrooby artwork and bitmap fonts. Blender handled the scenery and vehicle passes; Codex worked through the reconstruction, and Claude improved loading with WebP textures and concurrent downloads.
+
+[Read the full porting backstory](docs/PORTING.md) for the format problems, the campaign pipeline and the work that remains.
 
 ## Rebuild assets from a disc
 
