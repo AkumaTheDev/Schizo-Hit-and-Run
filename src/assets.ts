@@ -76,8 +76,8 @@ export class Assets {
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
         texture.anisotropy = 16;
-        // Pure3D UVs use the lower-left origin; PNG rows start at the top.
-        texture.flipY = true;
+        // The converted Pure3D UVs already address image rows from the top.
+        texture.flipY = false;
       })),
       ...details.map(async url=>{detailMaps.set(url,await this.texture(url,texture=>{texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(6,6);texture.anisotropy=4;},`detail:${url}`));}),
     ]);

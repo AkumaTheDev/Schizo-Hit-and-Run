@@ -44,5 +44,8 @@ test('mission destructibles remain individually addressable after scenery batchi
   const assets=new Assets(json('catalog.json'));assets.sceneryScenes.add('l1z6');
   t.after(()=>{assets.dispose();globalThis.fetch=originalFetch;THREE.TextureLoader.prototype.loadAsync=originalLoader;});
   const scene=await assets.load('l1z6');
+  for(const texture of assets.textures.values())assert.equal(texture.flipY,false,'World textures must not be vertically flipped');
+  const {Character}=await import('../src/character.ts');const actor=new Character();await actor.load(assets,'homer');
+  const atlases=[...assets.textures].filter(([key])=>key.startsWith('character:'));assert(atlases.length>0);for(const [,texture] of atlases)assert.equal(texture.flipY,true,'Character atlases retain their own UV convention');actor.dispose();
   for(let i=1;i<=9;i++){const target=scene.root.getObjectByName(`powerbox${i}`);assert(target,`powerbox${i} was baked into static geometry`);assert(target.children.some(child=>child instanceof THREE.Mesh));}
 });
