@@ -1,3 +1,4 @@
+import { assetURL } from './assets';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export class Grass {
@@ -6,7 +7,7 @@ export class Grass {
   private origin=new THREE.Vector3();private down=new THREE.Vector3(0,-1,0);
   async load(group:THREE.Group){
     group.traverse(object=>{if(object instanceof THREE.Mesh&&/grass/i.test((object.material as THREE.Material).name)){object.geometry.computeBoundsTree();this.surfaces.push(object);}});
-    const gltf=await new GLTFLoader().loadAsync('/assets/remaster/grass.glb');let source:THREE.Mesh|undefined;
+    const gltf=await new GLTFLoader().loadAsync(assetURL('remaster/grass.glb'));let source:THREE.Mesh|undefined;
     gltf.scene.traverse(object=>{if(object instanceof THREE.Mesh)source=object;});if(!source)return;
     const geometry=source.geometry.clone();const material=(source.material as THREE.MeshStandardMaterial).clone();material.side=THREE.DoubleSide;material.color.set(0x8fbb4a);
     this.mesh=new THREE.InstancedMesh(geometry,material,1600);this.mesh.frustumCulled=false;this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

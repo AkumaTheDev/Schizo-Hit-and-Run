@@ -2,29 +2,20 @@
 
 A Three.js reconstruction of The Simpsons: Hit & Run using assets converted from a local PS2 disc image. It runs without PS2 emulation. It is a work in progress, with free roam working and campaign integration under development.
 
-The public repository contains the application and conversion tools. **You need your own game disc image to play.** Game artwork, audio, scripts, movies, extracted archives, and generated assets are excluded from Git. This is an unofficial project, with no affiliation to the original developers or rights holders.
+The repository includes the converted browser assets, so you can clone it and play without running the extraction tools. The ISO, raw archives and extracted source files are excluded. This is an unofficial project, with no affiliation to the original developers or rights holders. Original game assets retain their existing copyrights.
 
 ## Build and play locally
 
-Install Node.js 24+, Python 3.11+, 7-Zip (`7zz`), FFmpeg with AAC/IPU support, and Blender 5.1+. The conversion has been tested against the PAL PS2 disc; other releases have not been verified.
+Install Node.js 24+ and clone the repository (the included assets are about 985 MB):
 
 ```sh
 git clone https://github.com/Vheissu/hit-and-run-web.git
 cd hit-and-run-web
 npm ci
-python3 -m pip install -r requirements.txt
-npm run extract -- --iso '/path/to/your/Hit and Run.iso'
-npm run convert
-npm run campaign:convert
-npm run remaster
-blender --background --factory-startup --python tools/campaign_cars.py
-blender --background --factory-startup --python tools/scenery_remaster.py
 npm run dev -- --port 5174
 ```
 
-Open the address printed by Vite. The server binds to `127.0.0.1`. Asset conversion takes time and several gigabytes of disk space. The input ISO is only read.
-
-On macOS, `npm run remaster` detects `/Applications/Blender.app`. Set `BLENDER_PATH` for another installation. For the two direct Blender commands, use your Blender executable's full path if it is not on `PATH`.
+Open the address printed by Vite. The server binds to `127.0.0.1`.
 
 Press Start, then New Game. Escape opens the pause menu. Options contains the level, vehicle, lighting and rendering settings.
 
@@ -54,6 +45,22 @@ Touch driving controls and standard gamepad steering/triggers are available. Ful
 - A campaign compiler that reads the original mission scripts, locators, objectives, conditions and rewards. Dialogue, mission vehicles, NPCs, props, and all 16 movies can be converted locally. The campaign runtime is being connected to gameplay.
 
 This is not yet a 1:1 port. Vehicle handling and traffic are reconstructed systems. Original police behavior, gags, destructible props, collectible-card gameplay, menu parity and complete campaign behavior still need work and verification. The original executable is not being recompiled.
+
+## Rebuild assets from a disc
+
+The included browser assets are already converted. To regenerate them, install Python 3.11+, 7-Zip (`7zz`), FFmpeg with AAC/IPU support, and Blender 5.1+. Conversion is tested against the PAL PS2 disc; other releases have not been verified.
+
+```sh
+python3 -m pip install -r requirements.txt
+npm run extract -- --iso '/path/to/your/Hit and Run.iso'
+npm run convert
+npm run campaign:convert
+npm run remaster
+blender --background --factory-startup --python tools/campaign_cars.py
+blender --background --factory-startup --python tools/scenery_remaster.py
+```
+
+The input ISO is only read. On macOS, `npm run remaster` detects `/Applications/Blender.app`. Set `BLENDER_PATH` for another installation. Use Blender's full executable path in the two direct commands if it is not on `PATH`.
 
 ## Tests
 

@@ -1,0 +1,467 @@
+{
+  "levels": [
+    {
+      "id": 1,
+      "missions": [
+        {
+          "id": "m0",
+          "title": "The Cola Caper",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m1",
+          "title": "S-M-R-T",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m2",
+          "title": "Petty Theft Homer",
+          "transition": false,
+          "stages": 12
+        },
+        {
+          "id": "m3",
+          "title": "Office Spaced",
+          "transition": false,
+          "stages": 4
+        },
+        {
+          "id": "m4",
+          "title": "Blind Big Brother",
+          "transition": false,
+          "stages": 4
+        },
+        {
+          "id": "m5",
+          "title": "Flowers By Irene",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m6",
+          "title": "Bonestorm Storm",
+          "transition": false,
+          "stages": 4
+        },
+        {
+          "id": "m7",
+          "title": "The Fat and Furious",
+          "transition": false,
+          "stages": 3
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "missions": [
+        {
+          "id": "m1",
+          "title": "Detention Deficit Disorder",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m2",
+          "title": "Weapons of Mass Delinquency",
+          "transition": false,
+          "stages": 21
+        },
+        {
+          "id": "m3",
+          "title": "Vox Nerduli",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m4",
+          "title": "Bart 'n' Frink",
+          "transition": false,
+          "stages": 8
+        },
+        {
+          "id": "m5",
+          "title": "Better Than Beef",
+          "transition": false,
+          "stages": 7
+        },
+        {
+          "id": "m6",
+          "title": "Monkey See Monkey D'oh",
+          "transition": false,
+          "stages": 7
+        },
+        {
+          "id": "m7",
+          "title": "Cell-Outs",
+          "transition": false,
+          "stages": 8
+        },
+        {
+          "id": "m8",
+          "title": "Race 1:  Time Trial",
+          "transition": true,
+          "stages": 1
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "missions": [
+        {
+          "id": "m1",
+          "title": "Nerd Race Queen",
+          "transition": false,
+          "stages": 5
+        },
+        {
+          "id": "m2",
+          "title": "Clueless",
+          "transition": false,
+          "stages": 12
+        },
+        {
+          "id": "m3",
+          "title": "Bonfire of the Manatees",
+          "transition": false,
+          "stages": 5
+        },
+        {
+          "id": "m4",
+          "title": "Operation Hellfish",
+          "transition": false,
+          "stages": 8
+        },
+        {
+          "id": "m5",
+          "title": "Slithery Sleuthing",
+          "transition": false,
+          "stages": 4
+        },
+        {
+          "id": "m6",
+          "title": "Fishy Deals",
+          "transition": false,
+          "stages": 2
+        },
+        {
+          "id": "m7",
+          "title": "The Old Pirate and the Sea",
+          "transition": false,
+          "stages": 8
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "missions": [
+        {
+          "id": "m1",
+          "title": "For A Few Donuts More",
+          "transition": false,
+          "stages": 8
+        },
+        {
+          "id": "m2",
+          "title": "Redneck Roundup",
+          "transition": false,
+          "stages": 2
+        },
+        {
+          "id": "m3",
+          "title": "Ketchup Logic",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m4",
+          "title": "Return of the Nearly-Dead",
+          "transition": false,
+          "stages": 1
+        },
+        {
+          "id": "m5",
+          "title": "Wolves Stole My Pills",
+          "transition": false,
+          "stages": 19
+        },
+        {
+          "id": "m6",
+          "title": "The Cola Wars",
+          "transition": false,
+          "stages": 1
+        },
+        {
+          "id": "m7",
+          "title": "From Outer Space",
+          "transition": false,
+          "stages": 9
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "missions": [
+        {
+          "id": "m1",
+          "title": "Incriminating Caffeine",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m2",
+          "title": ". . . and Baby Makes 8",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m3",
+          "title": "Eight is Too Much",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m4",
+          "title": "This Little Piggy",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m5",
+          "title": "Never Trust a Snake",
+          "transition": false,
+          "stages": 8
+        },
+        {
+          "id": "m6",
+          "title": "Kwik Cash",
+          "transition": false,
+          "stages": 9
+        },
+        {
+          "id": "m7",
+          "title": "Curious Curator",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m8",
+          "title": "Race 1:  Time Trial",
+          "transition": true,
+          "stages": 1
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "missions": [
+        {
+          "id": "m1",
+          "title": "Going to the Lu'",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m2",
+          "title": "Getting Down with the Clown",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m3",
+          "title": "Lab Coat Caper",
+          "transition": false,
+          "stages": 2
+        },
+        {
+          "id": "m4",
+          "title": "Duff for Me, Duff for You",
+          "transition": false,
+          "stages": 5
+        },
+        {
+          "id": "m5",
+          "title": "Full Metal Jackass",
+          "transition": false,
+          "stages": 1
+        },
+        {
+          "id": "m6",
+          "title": "Set to Kill",
+          "transition": false,
+          "stages": 6
+        },
+        {
+          "id": "m7",
+          "title": "Kang and Kodos Strike Back",
+          "transition": false,
+          "stages": 1
+        },
+        {
+          "id": "m8",
+          "title": "Race 1:  Time Trial",
+          "transition": true,
+          "stages": 1
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "missions": [
+        {
+          "id": "m1",
+          "title": "Rigor Motors",
+          "transition": false,
+          "stages": 11
+        },
+        {
+          "id": "m2",
+          "title": "Long Black Probes",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m3",
+          "title": "Pocket Protector",
+          "transition": false,
+          "stages": 3
+        },
+        {
+          "id": "m4",
+          "title": "There's Something About Monty",
+          "transition": false,
+          "stages": 5
+        },
+        {
+          "id": "m5",
+          "title": "Alien \"Auto\"topsy Part I",
+          "transition": false,
+          "stages": 5
+        },
+        {
+          "id": "m6",
+          "title": "Alien \"Auto\"topsy Part II",
+          "transition": false,
+          "stages": 5
+        },
+        {
+          "id": "m7",
+          "title": "Alien \"Auto\"topsy Part III",
+          "transition": false,
+          "stages": 7
+        },
+        {
+          "id": "m8",
+          "title": "Race 1:  Time Trial",
+          "transition": true,
+          "stages": 1
+        }
+      ]
+    }
+  ],
+  "missionCount": 54,
+  "stageCount": 466,
+  "objectiveTypes": {
+    "talkto": 80,
+    "dialogue": 91,
+    "getin": 29,
+    "goto": 141,
+    "interior": 15,
+    "race": 9,
+    "gooutside": 4,
+    "buycar": 6,
+    "destroy": 13,
+    "delivery": 10,
+    "fmv": 3,
+    "follow": 7,
+    "timer": 21,
+    "dump": 12,
+    "losetail": 13,
+    "buyskin": 4,
+    "pickupitem": 4,
+    "destroyboss": 4
+  },
+  "conditionTypes": {
+    "race": 8,
+    "timeout": 112,
+    "outofvehicle": 61,
+    "damage": 70,
+    "followdistance": 11,
+    "position": 3,
+    "keepbarrel": 10
+  },
+  "commandCounts": {
+    "SetMaxTraffic": 109,
+    "SetHUDIcon": 318,
+    "SetStageMessageIndex": 362,
+    "AddObjective": 466,
+    "AddNPC": 198,
+    "AddObjectiveNPCWaypoint": 174,
+    "SetTalkToTarget": 80,
+    "CloseObjective": 466,
+    "SetPresentationBitmap": 53,
+    "AmbientAnimationRandomize": 182,
+    "SetConversationCam": 241,
+    "AddAmbientNpcAnimation": 328,
+    "AddAmbientPcAnimation": 330,
+    "SetCamBestSide": 79,
+    "SetDialogueInfo": 91,
+    "SetDialoguePositions": 73,
+    "SetObjTargetVehicle": 74,
+    "RESET_TO_HERE": 79,
+    "ShowStageComplete": 87,
+    "SetDestination": 160,
+    "SetCollectibleEffect": 108,
+    "TurnGotoDialogOff": 32,
+    "SetCompletionDialog": 34,
+    "AddStageVehicle": 87,
+    "ActivateVehicle": 35,
+    "AddStageWaypoint": 202,
+    "AddCollectible": 319,
+    "AddCondition": 275,
+    "SetCondTargetVehicle": 85,
+    "CloseCondition": 275,
+    "AddStageMusicChange": 11,
+    "SetStageMusicAlwaysOn": 12,
+    "SetStageTime": 69,
+    "AddStageTime": 45,
+    "AllowMissionAbort": 3,
+    "SetCondTime": 61,
+    "SetCondMinHealth": 66,
+    "SetVehicleAIParams": 27,
+    "StageStartMusicEvent": 14,
+    "MustActionTrigger": 8,
+    "SetFMVInfo": 3,
+    "SetStageAITargetCatchupParams": 5,
+    "SetFollowDistances": 11,
+    "SetFadeOut": 12,
+    "StayInBlack": 4,
+    "AddStageCharacter": 11,
+    "SetDurationTime": 21,
+    "StartCountdown": 14,
+    "AddToCountdownSequence": 56,
+    "SwapInDefaultCar": 9,
+    "SetSwapDefaultCarLocator": 9,
+    "SetSwapForcedCarLocator": 9,
+    "SetSwapPlayerLocator": 9,
+    "SetStageAIRaceCatchupParams": 7,
+    "SetObjDistance": 13,
+    "SetMusicState": 9,
+    "SetIrisWipe": 6,
+    "RemoveDriver": 5,
+    "PutMFPlayerInCar": 1,
+    "RemoveNPC": 3,
+    "AddDriver": 1,
+    "SetConditionPosition": 3,
+    "DisableHitAndRun": 2,
+    "BindCollectibleTo": 36,
+    "SetCharacterToHide": 1,
+    "SetLevelOver": 1,
+    "AddCollectibleStateProp": 2,
+    "SetPickupTarget": 4,
+    "SetObjTargetBoss": 4,
+    "AllowRockOut": 1
+  },
+  "missingLocators": []
+}

@@ -1,7 +1,6 @@
 node_modules/
 dist/
 source/
-public/assets/
 references/
 __pycache__/
 .DS_Store

@@ -1,8 +1,9 @@
+import { assetURL } from './assets';
 export class Sound {
   enabled=false;
-  private engine=new Audio('/assets/audio/engine.m4a');
-  private music=new Audio('/assets/audio/sunday-drive.m4a');
-  private voice=new Audio('/assets/audio/homer-start.m4a');
+  private engine=new Audio(assetURL('audio/engine.m4a'));
+  private music=new Audio(assetURL('audio/sunday-drive.m4a'));
+  private voice=new Audio(assetURL('audio/homer-start.m4a'));
   constructor(){this.engine.loop=this.music.loop=true;this.engine.volume=0.12;this.music.volume=0.15;this.voice.volume=0.55;this.engine.preservesPitch=false;}
   async toggle(){this.enabled=!this.enabled;if(this.enabled) await this.resume();else this.pause();return this.enabled;}
   async resume(){if(this.enabled)await Promise.all([this.engine.play(),this.music.play()]).catch(()=>{this.enabled=false;});}

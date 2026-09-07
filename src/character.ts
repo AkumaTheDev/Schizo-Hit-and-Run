@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { json, type Assets } from './assets';
+import { assetURL,json, type Assets } from './assets';
 interface CharacterData {placement?:number[];bones:{name:string;parent:number;matrix:number[]}[];primitives:{shader:string;attributes:Record<string,[number,number]>}[];materials:Record<string,{textureUrl:string}>;animations:{name:string;duration:number;tracks:{bone:string;kind:string;times:number[];values:number[]}[]}[]}
 export class Character {
   group=new THREE.Group();private mixer=new THREE.AnimationMixer(this.group);private actions=new Map<string,THREE.AnimationAction>();private active='';
   private bones:THREE.Bone[]=[];private skeleton!:THREE.Skeleton;
   private meshes:THREE.SkinnedMesh[]=[];
   async load(assets:Assets,asset="homer"){
-    const [data,response]=await Promise.all([json<CharacterData>(`${asset}.json`),fetch(`/assets/${asset}.bin`)]);
+    const [data,response]=await Promise.all([json<CharacterData>(`${asset}.json`),fetch(assetURL(`${asset}.bin`))]);
     if(!response.ok)throw new Error('Homer geometry is missing');const binary=await response.arrayBuffer();
     this.bones=data.bones.map(source=>{const bone=new THREE.Bone();bone.name=source.name;bone.applyMatrix4(new THREE.Matrix4().fromArray(source.matrix));return bone;});
     data.bones.forEach((source,i)=>{if(i===0)this.group.add(this.bones[i]);else this.bones[source.parent].add(this.bones[i]);});
@@ -14,7 +14,7 @@ export class Character {
     const loader=new THREE.TextureLoader();
     for(const primitive of data.primitives){
       const source=data.materials[primitive.shader];let texture=assets.textures.get(source.textureUrl);
-      if(!texture){texture=await loader.loadAsync(`/assets/${source.textureUrl}`);texture.colorSpace=THREE.SRGBColorSpace;texture.flipY=true;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;assets.textures.set(source.textureUrl,texture);}
+      if(!texture){texture=await loader.loadAsync(assetURL(source.textureUrl));texture.colorSpace=THREE.SRGBColorSpace;texture.flipY=true;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;assets.textures.set(source.textureUrl,texture);}
       const geometry=new THREE.BufferGeometry();
       for(const [name,[offset,length]] of Object.entries(primitive.attributes)){
         if(name==='indices')geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(binary,offset,length),1));

@@ -1,3 +1,4 @@
+import { assetURL } from '../assets';
 import { originalArt } from '../original-ui';
 export interface VoiceClip {line:number;actor:string;kind:string;file:string;mission:string}
 export class Presentation {
@@ -14,13 +15,13 @@ export class Presentation {
     if(!clips.length){this.root.setAttribute('aria-label','Dialogue recording unavailable');originalArt.label(this.skip,'CONTINUE',18,120,38);return;}
     originalArt.label(this.skip,'SKIP',18,120,38);
     for(const clip of clips){
-      if(token!==this.token)return;this.root.setAttribute('aria-label',`${clip.actor.toUpperCase()} speaking. Original recorded dialogue.`);this.audio.src='/assets/'+clip.file;
+      if(token!==this.token)return;this.root.setAttribute('aria-label',`${clip.actor.toUpperCase()} speaking. Original recorded dialogue.`);this.audio.src=assetURL(clip.file);
       await new Promise<void>(resolve=>{this.audio.onended=()=>resolve();this.audio.onerror=()=>resolve();this.audio.onpause=()=>{if(token!==this.token)resolve();};void this.audio.play().catch(()=>{this.resumeButton.hidden=false;});});
     }
     if(token===this.token)this.finish();
   }
   async playMovie(file:string){
-    const token=this.begin(true);this.video.src='/assets/'+file;this.video.onended=()=>{if(token===this.token)this.finish();};this.video.onerror=()=>{this.root.setAttribute('aria-label','Movie could not be loaded');this.resumeButton.hidden=false;};
+    const token=this.begin(true);this.video.src=assetURL(file);this.video.onended=()=>{if(token===this.token)this.finish();};this.video.onerror=()=>{this.root.setAttribute('aria-label','Movie could not be loaded');this.resumeButton.hidden=false;};
     try{await this.video.play();}catch{this.resumeButton.hidden=false;}
   }
   setPaused(paused:boolean){if(paused===this.paused)return;this.paused=paused;if(!this.active)return;const media=this.movie?this.video:this.audio;if(paused)media.pause();else void media.play().catch(()=>{this.resumeButton.hidden=false;});}

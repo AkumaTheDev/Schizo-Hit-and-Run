@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Assets,json,type Catalog,type LevelData } from './assets';
+import { Assets,assetURL,json,type Catalog,type LevelData } from './assets';
 import type { CarState } from './physics';
 import type { Challenge } from './challenge';
 import type { Traffic } from './traffic';
@@ -7,7 +7,7 @@ import { element } from './hud';
 import { Character } from './character';
 interface Glyph{x:number;y:number;width:number;height:number;advance:number;left:number}
 interface Font{file:string;size:number;height:number;baseline:number;glyphs:Record<string,Glyph>}
-const source='/assets/ui/';
+const source=assetURL('ui/');
 export class OriginalArt {
   images=new Map<string,HTMLImageElement>();fonts:Record<string,Font>={};layouts:Record<string,any[]>={};ready=false;
   async load(){
@@ -85,7 +85,7 @@ interface MenuCallbacks {start:()=>void;run:()=>void;save:()=>void;load:()=>void
 export class OriginalMenu {
   mode:'splash'|'main'|'pause'|'options'|'cards'|'progress'|'missions'='splash';private stage:HTMLDivElement;private actions:HTMLDivElement;private index=0;private previous:'main'|'pause'='main';private callbacks:MenuCallbacks;private controller=new AbortController();
   constructor(callbacks:MenuCallbacks){
-    this.callbacks=callbacks;this.stage=document.createElement('div');this.stage.className='original-stage';this.stage.innerHTML='<canvas class="original-board" width="640" height="480"></canvas><img class="original-tv" src="/assets/ui/tvframe.png" alt="Original TV frame"><img class="original-logo" src="/assets/ui/gamelogo.png" alt="The Simpsons Hit and Run"><div class="original-actions"></div><button class="original-back" aria-label="Back"><img src="/assets/ui/back.png" alt=""> BACK</button><div class="original-note"></div>';
+    this.callbacks=callbacks;this.stage=document.createElement('div');this.stage.className='original-stage';this.stage.innerHTML='<canvas class="original-board" width="640" height="480"></canvas><img class="original-tv" src="/assets/ui/tvframe.png" alt="Original TV frame"><img class="original-logo" src="/assets/ui/gamelogo.png" alt="The Simpsons Hit and Run"><div class="original-actions"></div><button class="original-back" aria-label="Back"><img src="/assets/ui/back.png" alt=""> BACK</button><div class="original-note"></div>'.replaceAll('/assets/ui/',source);
     element('menu').append(this.stage);
     const board=this.stage.querySelector<HTMLCanvasElement>('.original-board')!.getContext('2d')!;board.fillStyle='rgba(3,15,75,.82)';board.fillRect(60,50,517,376);
     for(const [name,x,y,w,h] of [['frame_t.png',88,44,461,12],['frame_b.png',88,428,461,12],['frame_l.png',50,84,13,316],['frame_r.png',574,84,13,316],['frame_tl.png',50,44,38,40],['frame_tr.png',549,44,38,40],['frame_bl.png',50,400,38,40],['frame_br.png',549,400,38,40]] as [string,number,number,number,number][])originalArt.draw(board,name,x,y,w,h);

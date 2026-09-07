@@ -15,8 +15,9 @@ interface MaterialData {scenery?:SceneryMaterial; texture: string; textureUrl?: 
 interface Primitive { shader: string; attributes: Record<string,[number,number]> }
 interface AssetData { collision: [number,number] | null; objects: { name: string; mesh: string; matrix: number[] }[]; meshes: Record<string,Primitive[]>; materials: Record<string,MaterialData> }
 
+export const assetURL=(path:string)=>`${import.meta.env?.BASE_URL??'/'}assets/${path}`;
 export async function json<T>(file: string): Promise<T> {
-  const response = await fetch(`/assets/${file}`);
+  const response = await fetch(assetURL(file));
   if (!response.ok) throw new Error(`Could not load ${file} (${response.status})`);
   return response.json();
 }
@@ -33,7 +34,7 @@ export class Assets {
 
   async load(name: string, vehicle = false) {
     if(vehicle){
-      const gltf=await new GLTFLoader().loadAsync(`/assets/remaster/${name}.glb`);
+      const gltf=await new GLTFLoader().loadAsync(assetURL(`remaster/${name}.glb`));
       const root=(gltf.scene.children[0]??gltf.scene) as THREE.Group;
       root.traverse(object=>{
         if(object.userData.p3dName)object.name=object.userData.p3dName;
@@ -48,7 +49,7 @@ export class Assets {
       return {root,collision:null};
     }
     const path=this.sceneryScenes.has(name)?`remaster/scenes/${name}`:name;
-    const [meta, response] = await Promise.all([json<AssetData>(`${path}.json`), fetch(`/assets/${path}.bin`)]);
+    const [meta, response] = await Promise.all([json<AssetData>(`${path}.json`), fetch(assetURL(`${path}.bin`))]);
     if (!response.ok) throw new Error(`Missing geometry: ${name}`);
     const binary = await response.arrayBuffer();
     for(const mat of Object.values(meta.materials)){const url=mat.textureUrl??this.catalog.textures[mat.texture];if(this.sceneryMaterials[url]){mat.scenery=this.sceneryMaterials[url];mat.textureUrl=mat.scenery.albedo;}else if(this.surfaceOverrides[url])mat.textureUrl=this.surfaceOverrides[url];}
@@ -56,7 +57,7 @@ export class Assets {
     await Promise.all(textures.map(async url => {
       if (this.textures.has(url)) return;
       if(this.pendingTextures.has(url))return this.pendingTextures.get(url);
-      const pending=(async()=>{const texture = await this.loader.loadAsync(`/assets/${url}`);
+      const pending=(async()=>{const texture = await this.loader.loadAsync(assetURL(url));
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.anisotropy = 16;
@@ -67,7 +68,7 @@ export class Assets {
     }));
     const detailMaps=new Map<string,THREE.Texture>();
     await Promise.all([...new Set(Object.values(meta.materials).map(m=>m.scenery?.detail).filter((p):p is string=>!!p))].map(async url=>{
-      const key=`detail:${url}`;let texture=this.textures.get(key);if(!texture){texture=await this.loader.loadAsync(`/assets/${url}`);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(6,6);texture.anisotropy=4;this.textures.set(key,texture);}detailMaps.set(url,texture);
+      const key=`detail:${url}`;let texture=this.textures.get(key);if(!texture){texture=await this.loader.loadAsync(assetURL(url));texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(6,6);texture.anisotropy=4;this.textures.set(key,texture);}detailMaps.set(url,texture);
     }));
     const material = (shader: string) => {
       const source = meta.materials[shader];
