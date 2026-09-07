@@ -6,7 +6,7 @@ export interface Condition{type:string;args:(string|number)[];commands:Command[]
 export interface Stage{index:number;args:(string|number)[];commands:Command[];objective:{type:ObjectiveType;mode:string};conditions:Condition[];checkpoint:boolean;message?:string;messageIndex?:number;icon?:string}
 export interface Mission{id:string;level:number;title:string;setup:Command[];stages:Stage[];intro:Mission|null;load:Command[];introLoad:Command[];transition:boolean;optional?:boolean;source:string}
 export interface Interior{name:string;scene:string;locators:Record<string,Locator>;start:Locator|null;exit:Locator|null}
-export interface Chapter{id:number;missions:Mission[];initial:Command[];schedule:Command[];locators:Record<string,Locator>;interiors:Interior[]}
+export interface Chapter{id:number;endMovie?:string|null;missions:Mission[];initial:Command[];schedule:Command[];locators:Record<string,Locator>;interiors:Interior[]}
 export interface Reward{id:string;path:string;type:'car'|'skin';quest:string;level:number;cost:number;seller:string}
 export interface EntityState{id:string;position:Vec3;health:number;finished?:boolean;waypoint?:number;progress?:number;interior?:string}
 export interface Snapshot{position:Vec3;onFoot:boolean;vehicle:string;health:number;interior:string|null;entities:Record<string,EntityState>;interact?:boolean;hitVehicle?:string;dialogueDone?:boolean;movieDone?:boolean;bossHit?:boolean;cargoLost?:boolean;parkedPosition?:Vec3;brokenCollectibles?:number[];collectibles?:Record<number,Vec3>}

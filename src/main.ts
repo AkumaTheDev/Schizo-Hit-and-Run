@@ -93,7 +93,7 @@ async function setCar(id:string){
 async function loadLevel(nextLevel:number){
   lock(true);paused=true;element('loading').hidden=false;element('hud').hidden=true;challenge.stop();
   campaign?.dispose();campaign=undefined;nativeHUD.campaign=null;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
-  level=nextLevel;levelSelect.value=String(nextLevel);world=new World(scene,catalog);
+  level=nextLevel;levelSelect.value=String(nextLevel);lighting.value=level===7?'night':level>=4?'golden':'day';world=new World(scene,catalog);
   try{
     await world.load(level,progress);coins=new Coins(scene,world.data);progress(0.9,'Getting the cars ready…');
     locationSelect.replaceChildren(...world.data.locations.map((place,i)=>new Option(place.name,String(i))));

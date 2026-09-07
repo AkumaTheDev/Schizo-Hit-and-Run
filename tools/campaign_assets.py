@@ -6,6 +6,7 @@ from convert import Converter,GAME,OUT
 from characters import convert_homer
 from p3d import read,walk,string
 from campaign import bible
+from frontend import sprite
 
 def resource_audit(chapters):
     models={}
@@ -76,8 +77,11 @@ def main():
                     for c in stage['commands']:
                         if c['op']!='SetPresentationBitmap':continue
                         path=str(c['args'][0]).replace('\\','/').lower();root=read(GAME/path);converter.resources(root)
+                        picture=next((t for t in walk(root) if t.id==0x19005),None)
                         texture=next((string(t.data)[0].lower() for t in walk(root) if t.id==0x19000),None)
-                        if texture:manifest['presentations'][path]=converter.textures[texture]
+                        if picture:manifest['presentations'][path]='ui/'+sprite(picture)['file']
+                        elif texture:manifest['presentations'][path]=converter.textures[texture]
+                        else:raise RuntimeError(f'No presentation artwork in {path}')
     # Match original conversation IDs and line ordering. Prefer mission-specific
     # recordings at runtime; a level-only recording is the original fallback.
     wanted={(n,name) for n,name in audit['conversations']};dest=OUT/'campaign/dialogue';dest.mkdir(exist_ok=True)

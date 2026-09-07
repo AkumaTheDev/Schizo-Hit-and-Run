@@ -169,7 +169,7 @@ export class Campaign {
         if(effect.type==='failed')this.callbacks.toast(`${effect.message} · Enter to retry`);
         if(effect.type==='stage-complete'&&this.engine.stage.commands.some(c=>c.op==='ShowStageComplete'))this.callbacks.toast('STAGE COMPLETE');
         if(effect.type==='mission-complete'){this.callbacks.toast(`MISSION COMPLETE · ${effect.title}`);this.callbacks.save();}
-        if(effect.type==='chapter-complete'){this.progress.level=effect.nextLevel;await this.callbacks.chapter(effect.nextLevel,this.progress);}
+        if(effect.type==='chapter-complete'){if(this.data.endMovie){await this.presentation.playMovie(`campaign/movies/${this.data.endMovie}.mp4`);await this.presentation.waitForFinish();if(this.disposed)return;}this.progress.level=effect.nextLevel;await this.callbacks.chapter(effect.nextLevel,this.progress);}
         if(effect.type==='campaign-complete'){this.callbacks.toast('GAME COMPLETE');void this.presentation.playMovie('campaign/movies/fmv7.mp4');this.callbacks.save();}
         if(effect.type==='collect'){this.items.get(effect.index)?.removeFromParent();for(const part of this.destructibles.get(effect.index)??[])part.visible=false;}
         if(effect.type==='drop'){const item=this.items.get(effect.index);if(item){item.position.fromArray(effect.position);item.visible=true;}}

@@ -43,6 +43,7 @@ test('campaign resource references resolve to shipped assets',()=>{
   for(const clips of Object.values(assets.dialogue) as any[][])for(const clip of clips)assert(existsSync(resolve(root,clip.file)),clip.file);
   for(const path of Object.values(assets.presentations) as string[])assert(existsSync(resolve(root,path)),path);
   for(let level=1;level<=7;level++)for(const mission of (json(`campaign/level${level}.json`) as Chapter).missions)for(const phase of [mission.intro,mission])if(phase)for(const stage of phase.stages){
+    const bitmap=key(arg(stage.commands,'SetPresentationBitmap')[0]).replaceAll('\\','/');if(bitmap)assert(assets.presentations[bitmap],`${level}:${mission.id} missing briefing ${bitmap}`);
     const info=arg(stage.commands,'SetDialogueInfo');if(info.length){const clips=assets.dialogue[`${level}:${key(info[2])}`]??[];assert(clips.some((c:any)=>!c.mission||c.mission===mission.id),`${level}:${mission.id}:${info[2]} has no dialogue`);}
   }
 });

@@ -110,7 +110,7 @@ def main():
     OUT.mkdir(parents=True,exist_ok=True);get,strings=bible();levels=[];mission_count=stage_count=0;types=Counter();conditions=Counter();ops=Counter();all_missions=[];missing=[]
     for level in range(1,8):
         root=GAME/f'scripts/missions/level0{level}';schedule=parse((root/'level.mfk').read_text());initial=parse((root/'leveli.mfk').read_text());names=[str(c['args'][0]) for c in schedule if c['op'] in ['AddMission','AddBonusMission']]
-        data=dict(id=level,initial=initial,schedule=schedule,missions=[],locators={},duplicateLocators=[],interiors=[])
+        data=dict(id=level,endMovie={2:'fmv3',5:'fmv5'}.get(level),initial=initial,schedule=schedule,missions=[],locators={},duplicateLocators=[],interiors=[])
         paths=[GAME/f'art/l{level}_terra.p3d',*sorted((GAME/'art').glob(f'l{level}[rz]*.p3d')),*sorted((GAME/'art').glob(f'l{level}i*.p3d')),*sorted((GAME/f'art/missions/level0{level}').glob('*.p3d')),*sorted((GAME/'art/missions/generic').glob('*.p3d'))]
         for file in paths:
             file_locators=locators(file)
