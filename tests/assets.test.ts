@@ -37,3 +37,12 @@ for(const character of ['homer','bart','lisa','marge','apu'])test(`${character} 
   }
   assert(meta.animations.some((a:any)=>a.name.endsWith('_in_car_idle')));assert(meta.animations.some((a:any)=>a.name.endsWith('_dialogue_thinking')));assert(meta.animations.some((a:any)=>a.name.endsWith('_loco_walk')));for(const animation of meta.animations)for(const track of animation.tracks)assert(names.has(track.bone));
 });
+test('mission destructibles remain individually addressable after scenery batching',async(t)=>{
+  const {Assets}=await import('../src/assets.ts');const originalFetch=globalThis.fetch,originalLoader=THREE.TextureLoader.prototype.loadAsync;
+  globalThis.fetch=async(input)=>{const path=new URL(String(input),'http://localhost').pathname.replace(/^\/assets\//,'');return new Response(Uint8Array.from(readFileSync(resolve(root,path))));};
+  THREE.TextureLoader.prototype.loadAsync=async()=>new THREE.Texture();
+  const assets=new Assets(json('catalog.json'));assets.sceneryScenes.add('l1z6');
+  t.after(()=>{assets.dispose();globalThis.fetch=originalFetch;THREE.TextureLoader.prototype.loadAsync=originalLoader;});
+  const scene=await assets.load('l1z6');
+  for(let i=1;i<=9;i++){const target=scene.root.getObjectByName(`powerbox${i}`);assert(target,`powerbox${i} was baked into static geometry`);assert(target.children.some(child=>child instanceof THREE.Mesh));}
+});
