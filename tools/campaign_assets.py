@@ -7,6 +7,7 @@ from characters import convert_homer
 from p3d import read,walk,string
 from campaign import bible
 from frontend import sprite
+from vehicle_tuning import read_tuning
 
 def resource_audit(chapters):
     models={}
@@ -54,7 +55,7 @@ def main():
         if not (OUT/f'car-{car}.json').exists():converter.export(GAME/f'art/cars/{car}.p3d','car-'+car,vehicle=True)
         manifest['cars'][car]='car-'+car
         con=GAME/f'scripts/cars/{car}.con'
-        if con.exists():manifest['tuning'][car]={n:float(v) for n,v in re.findall(r'(\w+)\s*\(\s*([\d.-]+)\s*\)',con.read_text())}
+        if con.exists():manifest['tuning'][car]=read_tuning(con)
     for chapter in chapters:
         for interior in chapter['interiors']:
             if not (OUT/(interior['scene']+'.json')).exists():converter.export(GAME/f"art/{interior['scene']}.p3d",interior['scene'])
@@ -68,7 +69,7 @@ def main():
             if level_match:manifest['props'][level_match[1]+':'+alias.lower()]=output
             manifest['props'].setdefault(alias.lower(),output)
     for con in (GAME/'scripts/cars').rglob('*.con'):
-        manifest['missionTuning'][str(con.relative_to(GAME/'scripts/cars')).lower()]={n:float(v) for n,v in re.findall(r'(\w+)\s*\(\s*([\d.-]+)\s*\)',con.read_text())}
+        manifest['missionTuning'][str(con.relative_to(GAME/'scripts/cars')).lower()]=read_tuning(con)
     for chapter in chapters:
         for mission in chapter['missions']:
             for phase in [mission.get('intro'),mission]:

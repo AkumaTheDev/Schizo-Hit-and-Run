@@ -3,7 +3,11 @@ from pathlib import Path
 from p3d import decompress,chunks,Chunk
 from extract import extract_rcf
 from interiors import leaves,VOLUME,VECTOR
+from vehicle_tuning import numeric_tuning
 class FormatTests(unittest.TestCase):
+    def test_vehicle_tuning_ignores_commented_experiments(self):
+        tuning=numeric_tuning('SetMass(1750); // SetMass(750);\n/* SetGasScale(99); */\nSetGasScale(10);\nSetGasScale(12);\nSetDriver("homer");')
+        self.assertEqual(tuning,{'SetMass':1750.,'SetGasScale':12.})
     def test_interior_nested_volume_exports_only_solid_leaf(self):
         center=Chunk(VECTOR,struct.pack('<3f',2,3,4),[])
         sphere=Chunk(0x7010002,struct.pack('<f',.5),[center])

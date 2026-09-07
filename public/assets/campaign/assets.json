@@ -12440,7 +12440,7 @@
       "SetHitPoints": 1.0
     },
     "missions/level03/m2chase.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 14.0,
       "SetSlipGasScale": 15.0,
       "SetBrakeScale": 8.0,
@@ -12739,7 +12739,7 @@
       "SetHitPoints": 100.0
     },
     "missions/level04/m3evade.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 14.0,
       "SetSlipGasScale": 15.0,
       "SetBrakeScale": 8.0,
@@ -13061,7 +13061,7 @@
       "SetHitPoints": 7.0
     },
     "missions/level04/m1evade.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 9.0,
       "SetSlipGasScale": 10.0,
       "SetBrakeScale": 8.0,
@@ -13084,7 +13084,7 @@
       "SetHitPoints": 5.0
     },
     "missions/level04/m7evade.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 14.0,
       "SetSlipGasScale": 15.0,
       "SetBrakeScale": 8.0,
@@ -13567,7 +13567,7 @@
       "SetHitPoints": 100.0
     },
     "missions/level02/m2chase.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 12.0,
       "SetSlipGasScale": 15.0,
       "SetBrakeScale": 8.0,
@@ -13590,7 +13590,7 @@
       "SetHitPoints": 5.0
     },
     "missions/level02/m5chase.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 10.0,
       "SetSlipGasScale": 15.0,
       "SetBrakeScale": 8.0,
@@ -13797,7 +13797,7 @@
       "SetHitPoints": 30.0
     },
     "missions/level02/m1chase.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 12.0,
       "SetSlipGasScale": 15.0,
       "SetBrakeScale": 8.0,
@@ -14005,7 +14005,7 @@
       "SetHitPoints": 7.0
     },
     "pursuit/easycop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 14.0,
       "SetSlipGasScale": 15.0,
       "SetBrakeScale": 8.0,
@@ -14028,7 +14028,7 @@
       "SetHitPoints": 5.0
     },
     "pursuit/l2cop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 12.0,
       "SetSlipGasScale": 10.0,
       "SetBrakeScale": 8.0,
@@ -14051,7 +14051,7 @@
       "SetHitPoints": 1.5
     },
     "pursuit/l4cop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 12.0,
       "SetSlipGasScale": 10.0,
       "SetBrakeScale": 8.0,
@@ -14074,7 +14074,7 @@
       "SetHitPoints": 2.5
     },
     "pursuit/l6cop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 14.0,
       "SetSlipGasScale": 10.0,
       "SetBrakeScale": 8.0,
@@ -14097,7 +14097,7 @@
       "SetHitPoints": 2.5
     },
     "pursuit/l3cop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 12.0,
       "SetSlipGasScale": 10.0,
       "SetBrakeScale": 8.0,
@@ -14120,7 +14120,7 @@
       "SetHitPoints": 1.5
     },
     "pursuit/l1cop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 10.0,
       "SetSlipGasScale": 10.0,
       "SetBrakeScale": 8.0,
@@ -14143,7 +14143,7 @@
       "SetHitPoints": 0.5
     },
     "pursuit/l5cop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 14.0,
       "SetSlipGasScale": 10.0,
       "SetBrakeScale": 8.0,
@@ -14189,7 +14189,7 @@
       "SetHitPoints": 7.0
     },
     "pursuit/l7cop.con": {
-      "SetMass": 750.0,
+      "SetMass": 1750.0,
       "SetGasScale": 14.0,
       "SetSlipGasScale": 11.0,
       "SetBrakeScale": 8.0,
