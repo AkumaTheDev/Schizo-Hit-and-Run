@@ -16,13 +16,6 @@ interface Primitive { shader: string; attributes: Record<string,[number,number]>
 interface AssetData { collision: [number,number] | null; objects: { name: string; mesh: string; matrix: number[] }[]; meshes: Record<string,Primitive[]>; materials: Record<string,MaterialData> }
 
 export const assetURL=(path:string)=>`${import.meta.env?.BASE_URL??'/'}assets/${path}`;
-const textureLoader=new THREE.TextureLoader();
-/** Load a converted texture, preferring its smaller WebP twin and falling back to the PNG. */
-export async function loadTexture(url:string){
-  const webp=url.replace(/\.png$/,'.webp');
-  if(webp!==url)try{return await textureLoader.loadAsync(assetURL(webp));}catch{/* fall through */}
-  return textureLoader.loadAsync(assetURL(url));
-}
 export async function json<T>(file: string): Promise<T> {
   const response = await fetch(assetURL(file));
   if (!response.ok) throw new Error(`Could not load ${file} (${response.status})`);
@@ -33,18 +26,11 @@ export class Assets {
   textures = new Map<string,THREE.Texture>();
   materials = new Map<string,THREE.Material>();
   geometries = new Set<THREE.BufferGeometry>();
-  private pendingTextures=new Map<string,Promise<THREE.Texture>>();
+  private loader = new THREE.TextureLoader();
+  private pendingTextures=new Map<string,Promise<void>>();
   surfaceOverrides:Record<string,string>={};
   sceneryMaterials:Record<string,SceneryMaterial>={};sceneryScenes=new Set<string>();
   constructor(public catalog: Catalog) {}
-
-  /** Fetch a texture once, even when several regions request it before the first download finishes. */
-  async texture(url:string,configure:(texture:THREE.Texture)=>void,key=url){
-    const cached=this.textures.get(key);if(cached)return cached;
-    let pending=this.pendingTextures.get(key);
-    if(!pending){pending=(async()=>{const texture=await loadTexture(url);configure(texture);this.textures.set(key,texture);return texture;})();this.pendingTextures.set(key,pending);}
-    return pending;
-  }
 
   async load(name: string, vehicle = false) {
     if(vehicle){
@@ -68,19 +54,22 @@ export class Assets {
     const binary = await response.arrayBuffer();
     for(const mat of Object.values(meta.materials)){const url=mat.textureUrl??this.catalog.textures[mat.texture];if(this.sceneryMaterials[url]){mat.scenery=this.sceneryMaterials[url];mat.textureUrl=mat.scenery.albedo;}else if(this.surfaceOverrides[url])mat.textureUrl=this.surfaceOverrides[url];}
     const textures = [...new Set(Object.values(meta.materials).map(m => m.textureUrl ?? this.catalog.textures[m.texture]).filter(Boolean))];
-    const details=[...new Set(Object.values(meta.materials).map(m=>m.scenery?.detail).filter((p):p is string=>!!p))];
+    await Promise.all(textures.map(async url => {
+      if (this.textures.has(url)) return;
+      if(this.pendingTextures.has(url))return this.pendingTextures.get(url);
+      const pending=(async()=>{const texture = await this.loader.loadAsync(assetURL(url));
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = 16;
+      // Pure3D UVs use the lower-left origin; PNG rows start at the top.
+      texture.flipY = true;
+      this.textures.set(url,texture);})();
+      this.pendingTextures.set(url,pending);await pending;
+    }));
     const detailMaps=new Map<string,THREE.Texture>();
-    // Albedo and detail maps download together; regions loading at the same time share one request per texture.
-    await Promise.all([
-      ...textures.map(url=>this.texture(url,texture=>{
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.anisotropy = 16;
-        // Pure3D UVs use the lower-left origin; PNG rows start at the top.
-        texture.flipY = true;
-      })),
-      ...details.map(async url=>{detailMaps.set(url,await this.texture(url,texture=>{texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(6,6);texture.anisotropy=4;},`detail:${url}`));}),
-    ]);
+    await Promise.all([...new Set(Object.values(meta.materials).map(m=>m.scenery?.detail).filter((p):p is string=>!!p))].map(async url=>{
+      const key=`detail:${url}`;let texture=this.textures.get(key);if(!texture){texture=await this.loader.loadAsync(assetURL(url));texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(6,6);texture.anisotropy=4;this.textures.set(key,texture);}detailMaps.set(url,texture);
+    }));
     const material = (shader: string) => {
       const source = meta.materials[shader];
       const url = source?.textureUrl ?? this.catalog.textures[source?.texture];
