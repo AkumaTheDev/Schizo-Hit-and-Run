@@ -35,7 +35,7 @@ def convert_homer(model='art/chars/homer_m.p3d',animation_file='art/chars/homer_
     for animation in walk(read(GAME/animation_file)):
         if animation.id!=0x121000:continue
         name,p=string(animation.data,4)
-        if output!='menu-homer' and name.partition('_')[2] not in [item.partition('_')[2] for item in chosen]:continue
+        if output!='menu-homer' and '_dialogue_' not in name and name.partition('_')[2] not in [item.partition('_')[2] for item in chosen]:continue
         frames,fps,cyclic=struct.unpack_from('<ffI',animation.data,p+4);tracks=[]
         for group in walk(animation):
             if group.id!=0x121001:continue

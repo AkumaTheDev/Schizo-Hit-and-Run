@@ -28,3 +28,5 @@
 .campaign-skip,.campaign-play{position:absolute;pointer-events:auto;right:4vw;bottom:-7vh;width:130px;height:40px;border:0;background:transparent;cursor:pointer}
 .movie .campaign-skip{bottom:3vh}.campaign-play{left:calc(50% - 110px);top:45%;width:220px;height:50px;background:#163c7c;border:3px solid #ffc300}
 .campaign-actions{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;width:84%;margin:auto}.campaign-actions .original-button{min-height:32px}
+.campaign-briefing{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,620px);text-align:center;padding:24px;background:#153879;border:10px solid #efb20d;box-sizing:border-box}
+.campaign-briefing>img{width:100%;height:auto;margin:12px 0}.campaign-briefing>button{width:280px;height:48px;background:none;border:0;cursor:pointer}.campaign-briefing>button:focus-visible{outline:3px solid #ffdf00}

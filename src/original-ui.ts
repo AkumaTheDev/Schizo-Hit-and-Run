@@ -1,3 +1,4 @@
+import type { CampaignHUD } from './campaign/runtime';
 import * as THREE from 'three';
 import { Assets,assetURL,json,type Catalog,type LevelData } from './assets';
 import type { CarState } from './physics';
@@ -9,7 +10,7 @@ interface Glyph{x:number;y:number;width:number;height:number;advance:number;left
 interface Font{file:string;size:number;height:number;baseline:number;glyphs:Record<string,Glyph>}
 const source=assetURL('ui/');
 export class OriginalArt {
-  images=new Map<string,HTMLImageElement>();fonts:Record<string,Font>={};layouts:Record<string,any[]>={};ready=false;
+  images=new Map<string,HTMLImageElement>();private textCache=new Map<string,{canvas:HTMLCanvasElement;width:number}>();fonts:Record<string,Font>={};layouts:Record<string,any[]>={};ready=false;
   async load(){
     this.fonts=await json<Record<string,Font>>('ui/fonts.json');this.layouts=await json<Record<string,any[]>>('ui/layouts.json');
     const names=['gamelogo.png','tvframe.png','larrow.png','rarrow.png','accept.png','back.png','radar.png','radartop.png','hrmetter.png','hrsector.png','hitnrun0.png','hitnrun1.png','hitnrun2.png','damage.png','greybar.png','coins.png','user.png','aicar.png','mission.png','phone.png','checkflag.png','collect.png','helptext.png','frame_t.png','frame_b.png','frame_l.png','frame_r.png','frame_tl.png','frame_tr.png','frame_bl.png','frame_br.png','qhomer.png','check.png',...Array.from({length:10},(_,i)=>`${i}.png`),'colon.png','slash.png',...Object.values(this.fonts).map(f=>f.file)];
@@ -19,13 +20,15 @@ export class OriginalArt {
   draw(c:CanvasRenderingContext2D,name:string,x:number,y:number,w?:number,h?:number){const image=this.images.get(name);if(image)c.drawImage(image,x,y,w??image.width,h??image.height);}
   text(c:CanvasRenderingContext2D,text:string,x:number,y:number,size=24,align:'left'|'center'|'right'='left',color='#fff'){
     const font=this.fonts.boulder_24;if(!font)return;const image=this.images.get(font.file);if(!image)return;
-    const factor=size/font.size;const glyphs=[...text].map(char=>font.glyphs[char]??font.glyphs['?']);
-    const width=glyphs.reduce((a,g)=>a+g.advance*factor,0);
-    if(align==='center')x-=width/2;if(align==='right')x-=width;
-    const scratch=document.createElement('canvas');scratch.width=Math.max(1,Math.ceil(width+8));scratch.height=Math.ceil(font.height*factor+4);const ctx=scratch.getContext('2d')!;
-    let cursor=0;ctx.imageSmoothingEnabled=false;
-    for(const glyph of glyphs){ctx.drawImage(image,glyph.x,glyph.y,glyph.width,glyph.height,cursor+glyph.left*factor,0,glyph.width*factor,glyph.height*factor);cursor+=glyph.advance*factor;}
-    ctx.globalCompositeOperation='source-in';ctx.fillStyle=color;ctx.fillRect(0,0,scratch.width,scratch.height);
+    const cacheKey=JSON.stringify([text,size,color]);let cached=this.textCache.get(cacheKey);
+    if(!cached){
+      const factor=size/font.size,glyphs=[...text].map(char=>font.glyphs[char]??font.glyphs['?']);const width=glyphs.reduce((a,g)=>a+g.advance*factor,0);
+      const scratch=document.createElement('canvas');scratch.width=Math.max(1,Math.ceil(width+8));scratch.height=Math.ceil(font.height*factor+4);const ctx=scratch.getContext('2d')!;let cursor=0;ctx.imageSmoothingEnabled=false;
+      for(const glyph of glyphs){ctx.drawImage(image,glyph.x,glyph.y,glyph.width,glyph.height,cursor+glyph.left*factor,0,glyph.width*factor,glyph.height*factor);cursor+=glyph.advance*factor;}
+      ctx.globalCompositeOperation='source-in';ctx.fillStyle=color;ctx.fillRect(0,0,scratch.width,scratch.height);cached={canvas:scratch,width};this.textCache.set(cacheKey,cached);
+      if(this.textCache.size>256)this.textCache.delete(this.textCache.keys().next().value!);
+    }
+    const {canvas:scratch,width}=cached;if(align==='center')x-=width/2;if(align==='right')x-=width;
     c.save();c.shadowColor='#000';c.shadowBlur=0;c.shadowOffsetX=2;c.shadowOffsetY=2;c.drawImage(scratch,x,y);c.restore();return width;
   }
   label(button:HTMLElement,text:string,size=22,width=280,height=Math.ceil(size*1.4+8)){
@@ -40,7 +43,7 @@ export class OriginalArt {
 }
 export const originalArt=new OriginalArt();
 export class OriginalHUD {
-  canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private lastDamage=0;private heat=0;
+  campaign:CampaignHUD|null=null;canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private lastDamage=0;private heat=0;
   constructor(){this.canvas.id='original-hud';this.canvas.setAttribute('role','img');element('hud').append(this.canvas);}
   draw(dt:number,state:CarState,data:LevelData,challenge:Challenge,traffic:Traffic|undefined,bigMap=false,onFoot=false){
     if(!originalArt.ready)return;
@@ -53,6 +56,7 @@ export class OriginalHUD {
     c.save();c.beginPath();c.arc(cx,cy,51,0,Math.PI*2);c.clip();c.translate(cx,cy);c.scale(bigMap?.17:.58,bigMap?.17:.58);c.translate(-state.position.x,-state.position.z);
     c.strokeStyle='#86cc73';c.lineWidth=7;c.lineCap='round';c.beginPath();for(const [a,b] of data.roads){c.moveTo(a[0],a[2]);c.lineTo(b[0],b[2]);}c.stroke();
     c.fillStyle='#ffca17';for(const vehicle of traffic?.cars??[]){c.beginPath();c.arc(vehicle.mesh.position.x,vehicle.mesh.position.z,3,0,Math.PI*2);c.fill();}
+    if(this.campaign?.target){const p=this.campaign.target;originalArt.draw(c,'mission.png',p[0]-10,p[2]-10,20,20);}
     if(challenge.active){const p=challenge.route[challenge.index].position;originalArt.draw(c,'mission.png',p[0]-10,p[2]-10,20,20);}
     c.restore();
     this.heat=Math.max(0,this.heat-dt*3.5)+Math.max(0,state.damage-this.lastDamage)*1.8;this.heat=Math.min(100,this.heat);this.lastDamage=state.damage;
@@ -66,8 +70,18 @@ export class OriginalHUD {
       originalArt.draw(c,'greybar.png',144,56,117,23);c.save();c.beginPath();c.rect(144,56,117*state.damage/100,23);c.clip();c.filter='sepia(1) saturate(8) hue-rotate(315deg)';originalArt.draw(c,'greybar.png',144,56,117,23);c.restore();originalArt.draw(c,'damage.png',140,54,129,30);
     }
     if(challenge.active){originalArt.draw(c,'checkflag.png',35,48,42,42);originalArt.digits(c,element('timer').textContent??'',86,23,40);originalArt.text(c,challenge.route[challenge.index].name,35,103,16);}
+    if(this.campaign){
+      const mission=this.campaign;originalArt.text(c,mission.title,w/2,20,16,'center');
+      const words=(mission.failure||mission.message).split(/\s+/);let line='',lines:string[]=[];for(const word of words){if((line+' '+word).trim().length>49){lines.push(line);line=word;}else line=(line+' '+word).trim();}if(line)lines.push(line);
+      lines.slice(0,3).forEach((line,i)=>originalArt.text(c,line,w/2,96+i*19,15,'center',mission.failure?'#ffda1c':'#fff'));
+      if(mission.remaining!==null){const seconds=Math.max(0,Math.ceil(mission.remaining));originalArt.digits(c,`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`,35,29,40);}
+      if(mission.items)originalArt.text(c,`${mission.collected} / ${mission.items}`,w/2,161,20,'center');
+      if(mission.countdown>0)originalArt.digits(c,String(Math.ceil(mission.countdown)),w/2-16,h*.4,60);
+      if(mission.targetHealth!==undefined){c.fillStyle='#171d4b';c.fillRect(w/2-65,165,130,12);c.fillStyle='#e14432';c.fillRect(w/2-65,165,130*mission.targetHealth,12);}
+      originalArt.text(c,mission.hint,w/2,h-31,12,'center');
+    }
     const message=element('toast');if(message.classList.contains('visible')){originalArt.draw(c,'helptext.png',(w-330)/2,h*.26,330,88);originalArt.text(c,(message.textContent??'').slice(0,50),w/2,h*.26+25,13,'center');}
-    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour.`);
+    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour.${this.campaign?` Mission: ${this.campaign.title}. ${this.campaign.failure||this.campaign.message}. ${this.campaign.hint}`:''}`);
   }
 }
 
@@ -81,7 +95,7 @@ export class FrontendRoom {
   async load(){const asset=await this.assets.load('frontend-room');this.scene.add(asset.root);this.actor=new Character();await this.actor.load(this.assets,'menu-homer');this.scene.add(this.actor.group);}
   dispose(){this.actor?.dispose();this.assets.dispose();this.scene.clear();}
 }
-interface MenuCallbacks {start:()=>void;run:()=>void;save:()=>void;load:()=>void;main:()=>void}
+interface MenuCallbacks {newGame:()=>void;missions:()=>{title:string;enabled:boolean;select:()=>void}[];start:()=>void;run:()=>void;save:()=>void;load:()=>void;main:()=>void}
 export class OriginalMenu {
   mode:'splash'|'main'|'pause'|'options'|'cards'|'progress'|'missions'='splash';private stage:HTMLDivElement;private actions:HTMLDivElement;private index=0;private previous:'main'|'pause'='main';private callbacks:MenuCallbacks;private controller=new AbortController();
   constructor(callbacks:MenuCallbacks){
@@ -109,7 +123,7 @@ export class OriginalMenu {
     if(mode==='splash'){
       const start=this.button('PRESS START',()=>this.show('main'),21);start.classList.add('press-start');this.actions.append(start);
     }else if(mode==='main'){
-      const entries=[['NEW GAME',this.callbacks.start],['LOAD GAME',this.callbacks.load],['SCRAP BOOK',()=>this.show('cards')],['OPTIONS',()=>this.show('options')],['MINI GAME',()=>this.show('missions')],['RESUME GAME',this.callbacks.start]] as const;
+      const entries=[['NEW GAME',this.callbacks.newGame],['LOAD GAME',this.callbacks.load],['SCRAP BOOK',()=>this.show('cards')],['OPTIONS',()=>this.show('options')],['MINI GAME',()=>this.show('missions')],['RESUME GAME',this.callbacks.start]] as const;
       const row=document.createElement('div');row.className='original-carousel';
       for(const [direction,file] of [[-1,'larrow.png'],[1,'rarrow.png']] as const){const b=document.createElement('button');b.className='original-arrow';b.setAttribute('aria-label',direction<0?'Previous menu item':'Next menu item');b.innerHTML=`<img src="${source+file}" alt="">`;b.onclick=()=>{this.index=(this.index+direction+entries.length)%entries.length;this.show('main');};if(direction<0)row.append(b);else{row.append(this.button(entries[this.index][0],entries[this.index][1],28),b);}}
       this.actions.append(row);this.stage.querySelector('.original-note')!.textContent='← → CHOOSE     ENTER / CLICK SELECT';
@@ -132,8 +146,10 @@ export class OriginalMenu {
       this.actions.append(this.button('LEVEL PROGRESS',()=>{},27),this.button(`COINS: ${element('coin-count').textContent??'0'}`,()=>{},21));
       this.stage.querySelector('.original-note')!.textContent='Coin progress is saved in this browser.';
     }else{
-      this.actions.append(this.button('MISSION SELECT',()=>{},27),this.button('SPRINGFIELD RUN',this.callbacks.run,23));
-      this.stage.querySelector('.original-note')!.textContent='Browser time trial. Original story missions are not yet playable.';
+      this.actions.append(this.button('MISSION SELECT',()=>{},27));const list=document.createElement('div');list.className='campaign-actions';
+      for(const mission of this.callbacks.missions()){const button=this.button(mission.title,mission.select,17);button.disabled=!mission.enabled;list.append(button);}
+      list.append(this.button('SPRINGFIELD RUN',this.callbacks.run,18));this.actions.append(list);
+      this.stage.querySelector('.original-note')!.textContent='Choose an unlocked mission to replay.';
     }
     this.stage.querySelector<HTMLButtonElement>('.original-back')!.hidden=mode==='splash'||mode==='main';
     this.actions.querySelector<HTMLButtonElement>('.original-button')?.focus();

@@ -6,15 +6,17 @@ export interface Controls {steer:number;throttle:number;brake:number;handbrake:b
 export interface CarState {position:THREE.Vector3;heading:number;speed:number;verticalSpeed:number;steer:number;distance:number;damage:number}
 const up=new THREE.Vector3(0,1,0), down=new THREE.Vector3(0,-1,0);
 
-export function drive(state:CarState,control:Controls,dt:number) {
-  const acceleration=control.throttle*13 - control.brake*(state.speed>1?24:7);
+export function drive(state:CarState,control:Controls,dt:number,tuning?:Record<string,number>) {
+  const gas=(tuning?.SetGasScale??4.5)/4.5,brakes=(tuning?.SetBrakeScale??8)/8,topSpeed=(tuning?.SetTopSpeedKmh??154.8)/3.6;
+  const acceleration=control.throttle*13*gas - control.brake*(state.speed>1?24:7)*brakes;
   state.speed+=acceleration*dt;
   const drag=control.handbrake?4.5:(control.throttle||control.brake?0.14:0.7);
   state.speed*=Math.exp(-drag*dt);
-  state.speed=THREE.MathUtils.clamp(state.speed,-12,43);
+  state.speed=THREE.MathUtils.clamp(state.speed,-12,topSpeed);
   if (Math.abs(state.speed)<0.03) state.speed=0;
   state.steer=THREE.MathUtils.damp(state.steer,control.steer,8,dt);
-  const turning=state.steer*Math.min(Math.abs(state.speed)/6,1)*Math.sign(state.speed)*(control.handbrake?1.9:1.25)/(1+Math.abs(state.speed)*0.012);
+  const steering=(tuning?.SetMaxWheelTurnAngle??30)/30;
+  const turning=state.steer*steering*Math.min(Math.abs(state.speed)/6,1)*Math.sign(state.speed)*(control.handbrake?1.9:1.25)/(1+Math.abs(state.speed)*0.012);
   state.heading-=turning*dt;
   state.position.x+=Math.sin(state.heading)*state.speed*dt;
   state.position.z+=Math.cos(state.heading)*state.speed*dt;
@@ -22,7 +24,7 @@ export function drive(state:CarState,control:Controls,dt:number) {
 }
 
 export class Terrain {
-  mesh:THREE.Mesh;
+  mesh:THREE.Mesh;readonly bottom:number;
   private ray=new THREE.Raycaster();
   private origin=new THREE.Vector3();
   private fences:LevelData['fences'];
@@ -30,7 +32,7 @@ export class Terrain {
   constructor(geometries:THREE.BufferGeometry[],data:LevelData) {
     const geometry=mergeGeometries(geometries);
     if(!geometry)throw new Error('No terrain collision data was converted.');
-    geometry.computeBoundsTree();
+    geometry.computeBoundsTree();geometry.computeBoundingBox();this.bottom=geometry.boundingBox!.min.y;
     this.mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
     this.mesh.updateMatrixWorld();
     this.ray.firstHitOnly=true;
@@ -47,12 +49,15 @@ export class Terrain {
     this.origin.set(x,nearY+range,z);this.ray.set(this.origin,down);this.ray.far=range+20;
     return this.ray.intersectObject(this.mesh,false)[0];
   }
-  resolve(state:CarState,previous:THREE.Vector3,dt:number) {
+  resolve(state:CarState,previous:THREE.Vector3,dt:number,radius=1.2,collideMesh=false) {
     let impact=false;
     const candidates=new Set<number>();
     const gx=Math.floor(state.position.x/20),gz=Math.floor(state.position.z/20);
     for(let x=gx-1;x<=gx+1;x++)for(let z=gz-1;z<=gz+1;z++)this.grid.get(`${x},${z}`)?.forEach(n=>candidates.add(n));
-    const radius=1.2;
+    if(collideMesh){
+      const direction=state.position.clone().sub(previous);direction.y=0;const travel=direction.length();
+      if(travel>0){this.ray.set(previous.clone().add(new THREE.Vector3(0,.8,0)),direction.normalize());this.ray.far=travel+radius;const wall=this.ray.intersectObject(this.mesh,false)[0];if(wall&&wall.face&&Math.abs(wall.face.normal.y)<.5){state.position.x=previous.x+direction.x*Math.max(0,wall.distance-radius);state.position.z=previous.z+direction.z*Math.max(0,wall.distance-radius);}}
+    }
     for(const id of candidates){
       const [a,b]=this.fences[id];const dx=b[0]-a[0],dz=b[2]-a[2],len=dx*dx+dz*dz;
       if(len<0.001)continue;
@@ -70,7 +75,7 @@ export class Terrain {
         if(approach < -0.0001)impact=true;
       }
     }
-    if(impact){state.damage=Math.min(100,state.damage+Math.abs(state.speed)*0.55);state.speed*=-0.25;}
+    if(impact){if(radius>=1){state.damage=Math.min(100,state.damage+Math.abs(state.speed)*0.55);state.speed*=-0.25;}else state.speed=0;}
     const ground=this.ground(state.position.x,state.position.z,previous.y,2.4);
     if(ground){
       const target=ground.point.y+0.06;

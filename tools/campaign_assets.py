@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from convert import Converter,GAME,OUT
 from characters import convert_homer
 from p3d import read,walk,string
+from campaign import bible
 
 def resource_audit(chapters):
     models={}
@@ -45,7 +46,7 @@ def main():
         if animation is None:
             base={'h':'homer','b':'bart','l':'lisa','m':'marge','a':'apu'}.get(name.partition('_')[0]);animation=GAME/f'art/chars/{base}_a.p3d' if base else GAME/'art/chars/npd_a.p3d'
         output=name if name in ['homer','bart','lisa','marge','apu'] else 'npc-'+name
-        if not (OUT/(output+'.json')).exists():convert_homer(model,str(animation.relative_to(GAME)),output)
+        if not (OUT/(output+'.json')).exists() or not any('_dialogue_' in a['name'] for a in json.loads((OUT/(output+'.json')).read_text())['animations']):convert_homer(model,str(animation.relative_to(GAME)),output)
         manifest['characters'][name]=output
     cars=sorted(set(catalog['cars'])|set(audit['cars'])|{r['id'] for r in rewards if r['type']=='car'})
     for car in cars:
@@ -82,9 +83,12 @@ def main():
     wanted={(n,name) for n,name in audit['conversations']};dest=OUT/'campaign/dialogue';dest.mkdir(exist_ok=True)
     clips=[]
     for source in sorted((GAME/'conversations').glob('c_*.rsd')):
-        match=re.fullmatch(r'c_(.+)_(\d+)_(.+)_([^_]+)_l(\d)(m\d+)?\.rsd',source.name,re.I)
+        match=re.fullmatch(r'c_(.+)_(\d+)_(.+)_([^_]+)_l(\d)([mrbg]\d+)?\.rsd',source.name,re.I)
         if not match:continue
         name,line,kind,actor,level,mission=match.groups();level=int(level)
+        if mission and mission.startswith('r'):mission='s'+mission
+        if mission and mission.startswith('b'):mission='bm'+mission[1:]
+        if mission and mission.startswith('g'):mission='gr'+mission[1:]
         if (level,name) not in wanted:continue
         out=dest/(source.stem+'.m4a');clip={'line':int(line),'actor':actor,'kind':kind,'file':str(out.relative_to(OUT)),'mission':mission or ''}
         manifest['dialogue'].setdefault(f'{level}:{name}',[]).append(clip);clips.append((source,out))
@@ -93,7 +97,8 @@ def main():
         if not out.exists():subprocess.run(['ffmpeg','-v','error','-nostdin','-y','-i',str(source),'-c:a','aac','-b:a','96k',str(out)],check=True)
     with ThreadPoolExecutor(max_workers=4) as pool:list(pool.map(convert,clips))
     for entries in manifest['dialogue'].values():entries.sort(key=lambda c:c['line'])
-    catalog['cars']=cars;catalog['textures'].update(converter.textures)
+    get,_=bible();manifest['names']={name:get(name.upper()) or name for name in set(models)|set(cars)}
+    catalog['carNames']={name:manifest['names'][name] for name in cars};catalog['cars']=cars;catalog['textures'].update(converter.textures)
     (OUT/'catalog.json').write_text(json.dumps(catalog,indent=2));(OUT/'campaign/assets.json').write_text(json.dumps(manifest,indent=2))
     print(json.dumps({'characters':len(characters),'cars':len(cars),'propAliases':len(manifest['props']),'dialogueClips':len(clips),'textureErrors':converter.texture_errors}))
 if __name__=='__main__':main()

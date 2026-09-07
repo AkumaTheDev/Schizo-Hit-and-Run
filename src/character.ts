@@ -20,7 +20,7 @@ export class Character {
         if(name==='indices')geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(binary,offset,length),1));
         else geometry.setAttribute(name,new THREE.BufferAttribute(new Float32Array(binary,offset,length),name==='uv'?2:name.startsWith('skin')?4:3));
       }
-      const material=new THREE.MeshLambertMaterial({map:texture,side:THREE.DoubleSide});assets.materials.set(`homer-${primitive.shader}`,material);assets.geometries.add(geometry);
+      const material=new THREE.MeshLambertMaterial({map:texture,side:THREE.DoubleSide});assets.materials.set(`${asset}-${primitive.shader}-${material.uuid}`,material);assets.geometries.add(geometry);
       const mesh=new THREE.SkinnedMesh(geometry,material);mesh.name=`homer-${primitive.shader}`;mesh.frustumCulled=false;mesh.castShadow=true;mesh.receiveShadow=true;
       this.group.add(mesh);mesh.bind(this.skeleton);mesh.normalizeSkinWeights();this.meshes.push(mesh);
     }

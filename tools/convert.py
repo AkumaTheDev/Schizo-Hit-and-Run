@@ -112,6 +112,27 @@ class Converter:
         root=read(path);self.resources(root)
         meshes={sname(c):c for c in walk(root) if c.id==0x10000}
         placements=[]
+        composites={}
+        skeletons={sname(c):c for c in walk(root) if c.id==0x4500}
+        for composite in (c for c in walk(root) if c.id==0x4512):
+            name,p=string(composite.data);skeleton_name,_=string(composite.data,p)
+            skeleton=skeletons.get(skeleton_name)
+            if skeleton is None:continue
+            joints=[]
+            for c in skeleton.children:
+                if c.id!=0x4501:continue
+                _,p=string(c.data);parent,=struct.unpack_from('<I',c.data,p);matrix=mat(c.data,p+24)
+                joints.append(matrix@joints[parent] if joints and parent<len(joints) else matrix)
+            parts=[]
+            for c in walk(composite):
+                if c.id!=0x4516:continue
+                drawable,p=string(c.data);_,joint=struct.unpack_from('<II',c.data,p)
+                if drawable in meshes and joint<len(joints):parts.append((drawable,joints[joint]))
+            composites[name]=parts
+        for c in walk(root):
+            if c.id not in (0x3f0000e,0x3f00010,0x3f0000c):continue
+            compound=next((x for x in walk(c) if x.id==0x4512),None)
+            if compound is not None:composites[sname(c)]=composites.get(sname(compound),[])
         if vehicle:
             composite=next((c for c in root.children if c.id==0x4512),None)
             if composite:
@@ -129,13 +150,15 @@ class Converter:
                         if name in meshes:placements.append((name,joints[joint],jointnames[joint]))
             else:placements=[(n,I,n) for n in meshes]
         else:
-            def instances(c,matrix=I):
+            def instances(c,matrix=I,instance_name=''):
                 if c.id==0x120103:
-                    _,p=string(c.data);matrix=mat(c.data,p+4)@matrix
+                    instance_name,p=string(c.data);matrix=mat(c.data,p+4)@matrix
                 if c.id==0x120107:
                     label,p=string(c.data);name,_=string(c.data,p)
                     if name in meshes:placements.append((name,matrix,label))
-                for sub in c.children:instances(sub,matrix)
+                    elif name in composites:
+                        for drawable,local in composites[name]:placements.append((drawable,local@matrix,instance_name or label))
+                for sub in c.children:instances(sub,matrix,instance_name)
             for c in root.children:
                 if c.id==0x3f00000:
                     for mesh in c.children:

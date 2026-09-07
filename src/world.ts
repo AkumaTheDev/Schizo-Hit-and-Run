@@ -27,7 +27,8 @@ export class World {
   }
   async load(level:number,progress:(value:number,message:string)=>void){
     this.data=await json<LevelData>(`level${level}.json`);
-    const [surfaces,scenery]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json')]);
+    const [surfaces,scenery,ground]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json'),json<Record<string,string>>('remaster/surfaces.json')]);
+    for(const [source,albedo] of Object.entries(ground))if(surfaces[source])surfaces[source].albedo=albedo;
     this.assets.sceneryMaterials=surfaces;this.assets.sceneryScenes=new Set(scenery.scenes);
     const collision:THREE.BufferGeometry[]=[];
     for(let i=0;i<this.data.scenes.length;i++){

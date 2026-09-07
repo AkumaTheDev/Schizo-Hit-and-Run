@@ -9,7 +9,7 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 export interface Place { name: string; position: [number, number, number] }
 export interface LevelData { id: number; scenes: string[]; locations: Place[]; locators: (Place & { kind: number })[]; roads: number[][][]; fences: number[][][] }
-export interface Catalog { levels: number[]; cars: string[]; textures: Record<string,string>; stats: Record<string,number> }
+export interface Catalog { carNames?:Record<string,string>;levels: number[]; cars: string[]; textures: Record<string,string>; stats: Record<string,number> }
 export interface SceneryMaterial {albedo:string;kind:string;detail:string;roughness:number;metalness:number;bump:number;scale:number}
 interface MaterialData {scenery?:SceneryMaterial; texture: string; textureUrl?: string; alpha: boolean; blend: number; lit: boolean; translucent: boolean }
 interface Primitive { shader: string; attributes: Record<string,[number,number]> }

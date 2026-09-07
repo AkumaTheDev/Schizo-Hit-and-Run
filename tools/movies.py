@@ -1,6 +1,6 @@
 """Convert the supplied PAL RMV PS2 movies to browser H.264/AAC."""
 from pathlib import Path
-import concurrent.futures,json,struct,subprocess,tempfile
+import concurrent.futures,json,struct,subprocess,tempfile,platform
 ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'public/assets/campaign/movies'
 
 def convert(path):
@@ -16,7 +16,8 @@ def convert(path):
         tmp=Path(tmp);ipu=tmp/'video.ipu';audio=tmp/'audio.rsd'
         ipu.write_bytes(b'ipum'+struct.pack('<IHHI',len(video)+16,width,height,frames)+video)
         audio.write_bytes(data[offsets[0]:offsets[0]+sizes[0]])
-        result=subprocess.run(['ffmpeg','-y','-v','error','-i',str(ipu),'-i',str(audio),'-map','0:v:0','-map','1:a:0','-vf',f'setsar={4*height}/{3*width}','-c:v','h264_videotoolbox','-b:v','3000k','-allow_sw','1','-c:a','aac','-b:a','128k','-movflags','+faststart','-shortest',str(target)],capture_output=True,text=True)
+        encoder=['-c:v','h264_videotoolbox','-b:v','3000k','-allow_sw','1'] if platform.system()=='Darwin' else ['-c:v','libx264','-preset','fast','-crf','21']
+        result=subprocess.run(['ffmpeg','-y','-v','error','-i',str(ipu),'-i',str(audio),'-map','0:v:0','-map','1:a:0','-vf',f'setsar={4*height}/{3*width}',*encoder,'-c:a','aac','-b:a','128k','-movflags','+faststart','-shortest',str(target)],capture_output=True,text=True)
         if result.returncode:raise ValueError(result.stderr)
     info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(target)]))
     duration=float(info['format']['duration']);expected=frames/25

@@ -1,5 +1,24 @@
 import * as THREE from 'three';
 import type { Vec3 } from './types';
+/** Rounded corners with distance-based sampling keep scripted vehicles moving continuously. */
+export class MissionRoute {
+  private curve=new THREE.CurvePath<THREE.Vector3>();private travelled=0;readonly length:number;
+  constructor(points:THREE.Vector3[]){
+    let previous=points[0].clone();
+    for(let i=1;i<points.length-1;i++){
+      const point=points[i],incoming=point.clone().sub(points[i-1]),outgoing=points[i+1].clone().sub(point);
+      const radius=Math.min(6,incoming.length()*.35,outgoing.length()*.35);incoming.normalize();outgoing.normalize();
+      const start=point.clone().addScaledVector(incoming,-radius),end=point.clone().addScaledVector(outgoing,radius);
+      if(previous.distanceTo(start)>.001)this.curve.add(new THREE.LineCurve3(previous,start));
+      if(start.distanceTo(end)>.001)this.curve.add(new THREE.QuadraticBezierCurve3(start,point,end));previous=end;
+    }
+    const end=points.at(-1)!;if(previous.distanceTo(end)>.001)this.curve.add(new THREE.LineCurve3(previous,end));
+    if(!this.curve.curves.length)this.curve.add(new THREE.LineCurve3(previous,previous.clone().add(new THREE.Vector3(0,0,.001))));
+    this.length=this.curve.getLength();
+  }
+  get finished(){return this.travelled>=this.length;}
+  advance(metres:number,position:THREE.Vector3){this.travelled=Math.min(this.length,this.travelled+metres);const t=this.travelled/this.length;this.curve.getPoint(t,position);const tangent=this.curve.getTangent(t);return Math.atan2(tangent.x,tangent.z);}
+}
 /** Routes scripted AI waypoints over the roads extracted from the level. */
 export class RoadNetwork {
   private nodes:THREE.Vector3[]=[];private edges:{to:number;cost:number}[][]=[];

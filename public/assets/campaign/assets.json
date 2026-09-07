@@ -1026,6 +1026,7 @@
     "wplanks_geo": "prop-wplanks-201592"
   },
   "cars": {
+    "ambul": "car-ambul",
     "apu_v": "car-apu_v",
     "bart_v": "car-bart_v",
     "bbman_v": "car-bbman_v",
@@ -1045,9 +1046,12 @@
     "cklimo": "car-cklimo",
     "cletu_v": "car-cletu_v",
     "climo": "car-climo",
+    "cmilk": "car-cmilk",
     "cnerd": "car-cnerd",
     "cnonup": "car-cnonup",
+    "coffin": "car-coffin",
     "comic_v": "car-comic_v",
+    "compacta": "car-compacta",
     "cpolice": "car-cpolice",
     "csedan": "car-csedan",
     "cvan": "car-cvan",
@@ -1068,16 +1072,21 @@
     "minivana": "car-minivana",
     "moe_v": "car-moe_v",
     "mrplo_v": "car-mrplo_v",
+    "nuctruck": "car-nuctruck",
     "otto_v": "car-otto_v",
     "pickupa": "car-pickupa",
     "pizza": "car-pizza",
     "plowk_v": "car-plowk_v",
     "schoolbu": "car-schoolbu",
     "scorp_v": "car-scorp_v",
+    "sedanb": "car-sedanb",
+    "ship": "car-ship",
     "skinn_v": "car-skinn_v",
     "smith_v": "car-smith_v",
     "snake_v": "car-snake_v",
     "sportsa": "car-sportsa",
+    "taxia": "car-taxia",
+    "votetruc": "car-votetruc",
     "wiggu_v": "car-wiggu_v",
     "willi_v": "car-willi_v",
     "zombi_v": "car-zombi_v"
@@ -1164,6 +1173,29 @@
         "kind": "noboxconv",
         "file": "campaign/dialogue/c_ashtray_1_noboxconv_hom_l7m5.m4a",
         "mission": "m5"
+      }
+    ],
+    "3:aspic": [
+      {
+        "line": 1,
+        "actor": "skn",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_aspic_1_convinit_skn_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_aspic_2_convinit_lis_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "skn",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_aspic_3_convinit_skn_l3b1.m4a",
+        "mission": "bm1"
       }
     ],
     "4:baby": [
@@ -1654,6 +1686,15 @@
         "mission": "m3"
       }
     ],
+    "1:cityboy": [
+      {
+        "line": 1,
+        "actor": "clt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_cityboy_1_convinit_clt_l1b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "5:clown": [
       {
         "line": 1,
@@ -1815,6 +1856,29 @@
         "mission": "m2"
       }
     ],
+    "3:cream": [
+      {
+        "line": 1,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_cream_1_convinit_lis_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "nic",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_cream_2_convinit_nic_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_cream_3_convinit_lis_l3b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "1:culprit": [
       {
         "line": 1,
@@ -1866,6 +1930,15 @@
         "kind": "convinit",
         "file": "campaign/dialogue/c_cure_2_convinit_wig_l4m1.m4a",
         "mission": "m1"
+      }
+    ],
+    "6:deal": [
+      {
+        "line": 1,
+        "actor": "snk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_deal_1_convinit_snk_l6b1.m4a",
+        "mission": "bm1"
       }
     ],
     "4:decrapitude": [
@@ -1972,6 +2045,22 @@
         "kind": "convinit",
         "file": "campaign/dialogue/c_dmv_2_convinit_apu_l5m5.m4a",
         "mission": "m5"
+      }
+    ],
+    "4:done": [
+      {
+        "line": 1,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_done_1_convinit_mrg_l4b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "cbg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_done_2_convinit_cbg_l4b1.m4a",
+        "mission": "bm1"
       }
     ],
     "2:doodad": [
@@ -2087,6 +2176,29 @@
         "kind": "noboxconv",
         "file": "campaign/dialogue/c_empty_1_noboxconv_lis_l3m4.m4a",
         "mission": "m4"
+      }
+    ],
+    "7:errands": [
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_errands_1_convinit_hom_l7.m4a",
+        "mission": ""
+      },
+      {
+        "line": 2,
+        "actor": "smi",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_errands_2_convinit_smi_l7.m4a",
+        "mission": ""
+      },
+      {
+        "line": 3,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_errands_3_convinit_hom_l7.m4a",
+        "mission": ""
       }
     ],
     "4:evil": [
@@ -2301,6 +2413,22 @@
         "mission": "m6"
       }
     ],
+    "2:fries": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_fries_1_convinit_brt_l2b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "svt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_fries_2_convinit_svt_l2b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "2:frog": [
       {
         "line": 1,
@@ -2340,6 +2468,29 @@
         "mission": "m3"
       }
     ],
+    "7:garters": [
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_garters_1_convinit_hom_l7b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "smi",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_garters_2_convinit_smi_l7b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_garters_3_convinit_hom_l7b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "2:gator": [
       {
         "line": 1,
@@ -2370,6 +2521,45 @@
         "kind": "convinit",
         "file": "campaign/dialogue/c_gimme_3_convinit_brt_l2m4.m4a",
         "mission": "m4"
+      }
+    ],
+    "2:goat": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_goat_1_convinit_brt_l2b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "moe",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_goat_2_convinit_moe_l2b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_goat_3_convinit_brt_l2b1.m4a",
+        "mission": "bm1"
+      }
+    ],
+    "3:heart": [
+      {
+        "line": 1,
+        "actor": "lis",
+        "kind": "noboxconv",
+        "file": "campaign/dialogue/c_heart_1_noboxconv_lis_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "skn",
+        "kind": "noboxconv",
+        "file": "campaign/dialogue/c_heart_2_noboxconv_skn_l3b1.m4a",
+        "mission": "bm1"
       }
     ],
     "5:hideout": [
@@ -2441,6 +2631,57 @@
         "mission": "m5"
       }
     ],
+    "5:hovercar": [
+      {
+        "line": 1,
+        "actor": "frk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_hovercar_1_convinit_frk_l5.m4a",
+        "mission": ""
+      },
+      {
+        "line": 2,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_hovercar_2_convinit_apu_l5.m4a",
+        "mission": ""
+      },
+      {
+        "line": 3,
+        "actor": "frk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_hovercar_3_convinit_frk_l5.m4a",
+        "mission": ""
+      },
+      {
+        "line": 4,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_hovercar_4_convinit_apu_l5.m4a",
+        "mission": ""
+      },
+      {
+        "line": 5,
+        "actor": "frk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_hovercar_5_convinit_frk_l5.m4a",
+        "mission": ""
+      },
+      {
+        "line": 6,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_hovercar_6_convinit_apu_l5.m4a",
+        "mission": ""
+      },
+      {
+        "line": 7,
+        "actor": "frk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_hovercar_7_convinit_frk_l5.m4a",
+        "mission": ""
+      }
+    ],
     "1:icecream": [
       {
         "line": 1,
@@ -2457,6 +2698,36 @@
         "mission": ""
       }
     ],
+    "2:incontinent": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_incontinent_1_convinit_brt_l2.m4a",
+        "mission": ""
+      },
+      {
+        "line": 2,
+        "actor": "grp",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_incontinent_2_convinit_grp_l2.m4a",
+        "mission": ""
+      },
+      {
+        "line": 3,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_incontinent_3_convinit_brt_l2.m4a",
+        "mission": ""
+      },
+      {
+        "line": 4,
+        "actor": "grp",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_incontinent_4_convinit_grp_l2.m4a",
+        "mission": ""
+      }
+    ],
     "1:inhaler": [
       {
         "line": 1,
@@ -2464,6 +2735,370 @@
         "kind": "noboxconv",
         "file": "campaign/dialogue/c_inhaler_1_noboxconv_hom_l1m2.m4a",
         "mission": "m2"
+      }
+    ],
+    "5:intro": [
+      {
+        "line": 1,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_apu_l5r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_apu_l5r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_apu_l5r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_mil_l5r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "nel",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_nel_l5r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 2,
+        "actor": "ral",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_ral_l5r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 3,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_3_convinit_apu_l5r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 4,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_4_convinit_mil_l5r1.m4a",
+        "mission": "sr1"
+      }
+    ],
+    "2:intro": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_brt_l2r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_brt_l2r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "ral",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_ral_l2r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_brt_l2r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_mil_l2r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "nel",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_nel_l2r2.m4a",
+        "mission": "sr2"
+      }
+    ],
+    "6:intro": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_brt_l6r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_brt_l6r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "ral",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_ral_l6r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_mil_l6r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "nel",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_nel_l6r2.m4a",
+        "mission": "sr2"
+      }
+    ],
+    "1:intro": [
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_hom_l1r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_hom_l1r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_hom_l1r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_mil_l1r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "nel",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_nel_l1r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 2,
+        "actor": "ral",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_ral_l1r3.m4a",
+        "mission": "sr3"
+      }
+    ],
+    "7:intro": [
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_hom_l7r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_hom_l7r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_hom_l7r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "zm1",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_zm1_l7r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "zm2",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_zm2_l7r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "zm3",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_zm3_l7r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 3,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_3_convinit_hom_l7r1.m4a",
+        "mission": "sr1"
+      }
+    ],
+    "3:intro": [
+      {
+        "line": 1,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_lis_l3r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_lis_l3r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_lis_l3r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_mil_l3r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "nel",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_nel_l3r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 2,
+        "actor": "ral",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_ral_l3r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 3,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_3_convinit_lis_l3r3.m4a",
+        "mission": "sr3"
+      }
+    ],
+    "4:intro": [
+      {
+        "line": 1,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_mrg_l4r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_mrg_l4r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 1,
+        "actor": "nel",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_1_convinit_nel_l4r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 2,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_mil_l4r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_mrg_l4r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 2,
+        "actor": "ral",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_2_convinit_ral_l4r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 3,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_3_convinit_mrg_l4r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 3,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_3_convinit_mrg_l4r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 4,
+        "actor": "mil",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_4_convinit_mil_l4r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 4,
+        "actor": "ral",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_4_convinit_ral_l4r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 5,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_intro_5_convinit_mrg_l4r1.m4a",
+        "mission": "sr1"
       }
     ],
     "5:italian": [
@@ -2533,6 +3168,50 @@
         "kind": "noboxconv",
         "file": "campaign/dialogue/c_jerkwater_2_noboxconv_apu_l3m3.m4a",
         "mission": "m3"
+      }
+    ],
+    "1:jug": [
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_jug_1_convinit_hom_l1.m4a",
+        "mission": ""
+      },
+      {
+        "line": 2,
+        "actor": "clt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_jug_2_convinit_clt_l1.m4a",
+        "mission": ""
+      },
+      {
+        "line": 3,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_jug_3_convinit_hom_l1.m4a",
+        "mission": ""
+      },
+      {
+        "line": 4,
+        "actor": "clt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_jug_4_convinit_clt_l1.m4a",
+        "mission": ""
+      },
+      {
+        "line": 5,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_jug_5_convinit_hom_l1.m4a",
+        "mission": ""
+      },
+      {
+        "line": 6,
+        "actor": "clt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_jug_6_convinit_clt_l1.m4a",
+        "mission": ""
       }
     ],
     "3:kaiser": [
@@ -2614,6 +3293,36 @@
         "kind": "convinit",
         "file": "campaign/dialogue/c_krustylu_6_convinit_oto_l6m1.m4a",
         "mission": "m1"
+      }
+    ],
+    "3:laundromat": [
+      {
+        "line": 1,
+        "actor": "skn",
+        "kind": "noboxconv",
+        "file": "campaign/dialogue/c_laundromat_1_noboxconv_skn_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "lis",
+        "kind": "noboxconv",
+        "file": "campaign/dialogue/c_laundromat_2_noboxconv_lis_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "skn",
+        "kind": "noboxconv",
+        "file": "campaign/dialogue/c_laundromat_3_noboxconv_skn_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 4,
+        "actor": "lis",
+        "kind": "noboxconv",
+        "file": "campaign/dialogue/c_laundromat_4_noboxconv_lis_l3b1.m4a",
+        "mission": "bm1"
       }
     ],
     "2:life": [
@@ -2895,6 +3604,29 @@
         "mission": "m5"
       }
     ],
+    "7:muscles": [
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_muscles_1_convinit_hom_l7b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "smi",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_muscles_2_convinit_smi_l7b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_muscles_3_convinit_hom_l7b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "5:museum": [
       {
         "line": 1,
@@ -3162,6 +3894,22 @@
         "mission": "m2"
       }
     ],
+    "6:porkbag": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_porkbag_1_convinit_brt_l6b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "snk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_porkbag_2_convinit_snk_l6b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "7:probe": [
       {
         "line": 1,
@@ -3298,6 +4046,29 @@
         "mission": "m1"
       }
     ],
+    "5:relief": [
+      {
+        "line": 1,
+        "actor": "frk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_relief_1_convinit_frk_l5b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_relief_2_convinit_apu_l5b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "frk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_relief_3_convinit_frk_l5b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "1:return": [
       {
         "line": 1,
@@ -3402,6 +4173,36 @@
         "kind": "convinit",
         "file": "campaign/dialogue/c_sacrifice_6_convinit_grp_l7m7.m4a",
         "mission": "m7"
+      }
+    ],
+    "3:sandwich": [
+      {
+        "line": 1,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_sandwich_1_convinit_lis_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "svt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_sandwich_2_convinit_svt_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_sandwich_3_convinit_lis_l3b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 4,
+        "actor": "svt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_sandwich_4_convinit_svt_l3b1.m4a",
+        "mission": "bm1"
       }
     ],
     "2:satellite": [
@@ -3693,6 +4494,57 @@
         "mission": "m7"
       }
     ],
+    "4:spherical": [
+      {
+        "line": 1,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_spherical_1_convinit_mrg_l4.m4a",
+        "mission": ""
+      },
+      {
+        "line": 2,
+        "actor": "cbg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_spherical_2_convinit_cbg_l4.m4a",
+        "mission": ""
+      },
+      {
+        "line": 3,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_spherical_3_convinit_mrg_l4.m4a",
+        "mission": ""
+      },
+      {
+        "line": 4,
+        "actor": "cbg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_spherical_4_convinit_cbg_l4.m4a",
+        "mission": ""
+      },
+      {
+        "line": 5,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_spherical_5_convinit_mrg_l4.m4a",
+        "mission": ""
+      },
+      {
+        "line": 6,
+        "actor": "cbg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_spherical_6_convinit_cbg_l4.m4a",
+        "mission": ""
+      },
+      {
+        "line": 7,
+        "actor": "mrg",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_spherical_7_convinit_mrg_l4.m4a",
+        "mission": ""
+      }
+    ],
     "2:stash": [
       {
         "line": 1,
@@ -3827,6 +4679,202 @@
         "mission": "m5"
       }
     ],
+    "1:success": [
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l1r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l1r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l1r3.m4a",
+        "mission": "sr3"
+      }
+    ],
+    "2:success": [
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l2r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l2r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l2r3.m4a",
+        "mission": "sr3"
+      }
+    ],
+    "3:success": [
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l3r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l3r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l3r3.m4a",
+        "mission": "sr3"
+      }
+    ],
+    "4:success": [
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l4r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l4r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l4r3.m4a",
+        "mission": "sr3"
+      }
+    ],
+    "5:success": [
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l5r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l5r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l5r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_2_convinit_apu_l5r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 2,
+        "actor": "apu",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_2_convinit_apu_l5r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 3,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_3_convinit_pat_l5r2.m4a",
+        "mission": "sr2"
+      }
+    ],
+    "6:success": [
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l6r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l6r2.m4a",
+        "mission": "sr2"
+      },
+      {
+        "line": 1,
+        "actor": "pat",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_pat_l6r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 2,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_2_convinit_brt_l6r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 2,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_2_convinit_brt_l6r2.m4a",
+        "mission": "sr2"
+      }
+    ],
+    "7:success": [
+      {
+        "line": 1,
+        "actor": "zm1",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_zm1_l7r3.m4a",
+        "mission": "sr3"
+      },
+      {
+        "line": 1,
+        "actor": "zm2",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_zm2_l7r1.m4a",
+        "mission": "sr1"
+      },
+      {
+        "line": 1,
+        "actor": "zm3",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_success_1_convinit_zm3_l7r2.m4a",
+        "mission": "sr2"
+      }
+    ],
     "4:tainted": [
       {
         "line": 1,
@@ -3889,6 +4937,29 @@
         "mission": "m2"
       }
     ],
+    "7:tooth": [
+      {
+        "line": 1,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_tooth_1_convinit_hom_l7b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "smi",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_tooth_2_convinit_smi_l7b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "hom",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_tooth_3_convinit_hom_l7b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "7:toxic": [
       {
         "line": 1,
@@ -3896,6 +4967,36 @@
         "kind": "noboxconv",
         "file": "campaign/dialogue/c_toxic_1_noboxconv_hom_l7m3.m4a",
         "mission": "m3"
+      }
+    ],
+    "3:tragedy": [
+      {
+        "line": 1,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_tragedy_1_convinit_lis_l3.m4a",
+        "mission": ""
+      },
+      {
+        "line": 2,
+        "actor": "skn",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_tragedy_2_convinit_skn_l3.m4a",
+        "mission": ""
+      },
+      {
+        "line": 3,
+        "actor": "lis",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_tragedy_3_convinit_lis_l3.m4a",
+        "mission": ""
+      },
+      {
+        "line": 4,
+        "actor": "skn",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_tragedy_4_convinit_skn_l3.m4a",
+        "mission": ""
       }
     ],
     "5:trust": [
@@ -3935,6 +5036,15 @@
         "kind": "convinit",
         "file": "campaign/dialogue/c_tushie_2_convinit_hib_l5m3.m4a",
         "mission": "m3"
+      }
+    ],
+    "2:vampire": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "noboxconv",
+        "file": "campaign/dialogue/c_vampire_1_noboxconv_brt_l2b1.m4a",
+        "mission": "bm1"
       }
     ],
     "5:victim": [
@@ -3983,6 +5093,29 @@
         "mission": "m6"
       }
     ],
+    "2:warm": [
+      {
+        "line": 1,
+        "actor": "grp",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_warm_1_convinit_grp_l2b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 2,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_warm_2_convinit_brt_l2b1.m4a",
+        "mission": "bm1"
+      },
+      {
+        "line": 3,
+        "actor": "grp",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_warm_3_convinit_grp_l2b1.m4a",
+        "mission": "bm1"
+      }
+    ],
     "6:warn": [
       {
         "line": 1,
@@ -4027,6 +5160,50 @@
         "kind": "convinit",
         "file": "campaign/dialogue/c_weasel_4_convinit_mil_l3m2.m4a",
         "mission": "m2"
+      }
+    ],
+    "6:wheelman": [
+      {
+        "line": 1,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_wheelman_1_convinit_brt_l6.m4a",
+        "mission": ""
+      },
+      {
+        "line": 2,
+        "actor": "snk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_wheelman_2_convinit_snk_l6.m4a",
+        "mission": ""
+      },
+      {
+        "line": 3,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_wheelman_3_convinit_brt_l6.m4a",
+        "mission": ""
+      },
+      {
+        "line": 4,
+        "actor": "snk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_wheelman_4_convinit_snk_l6.m4a",
+        "mission": ""
+      },
+      {
+        "line": 5,
+        "actor": "brt",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_wheelman_5_convinit_brt_l6.m4a",
+        "mission": ""
+      },
+      {
+        "line": 6,
+        "actor": "snk",
+        "kind": "convinit",
+        "file": "campaign/dialogue/c_wheelman_6_convinit_snk_l6.m4a",
+        "mission": ""
       }
     ],
     "6:wolf": [
@@ -4084,6 +5261,40 @@
     ]
   },
   "tuning": {
+    "ambul": {
+      "SetMass": 2500.0,
+      "SetGasScale": 5.0,
+      "SetSlipGasScale": 6.0,
+      "SetBrakeScale": 6.0,
+      "SetTopSpeedKmh": 130.0,
+      "SetMaxWheelTurnAngle": 25.0,
+      "SetHighSpeedSteeringDrop": 0.267,
+      "SetTireGrip": 2.5,
+      "SetNormalSteering": 90.0,
+      "SetSlipSteering": 55.0,
+      "SetEBrakeEffect": 0.3,
+      "SetSlipSteeringNoEBrake": 50.0,
+      "SetSlipEffectNoEBrake": 0.14,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": -0.1,
+      "SetCMOffsetZ": 0.6,
+      "SetSuspensionLimit": 0.55,
+      "SetSpringK": 0.5,
+      "SetDamperC": 0.25,
+      "SetSuspensionYOffset": 0.0,
+      "SetHitPoints": 3.0,
+      "SetBurnoutRange": 0.08,
+      "SetMaxSpeedBurstTime": 1.0,
+      "SetDonutTorque": 2.0,
+      "SetWeebleOffset": -0.6,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.5,
+      "SetCharactersVisible": 1.0,
+      "SetIrisTransition": 1.0,
+      "SetCharacterScale": 0.9,
+      "SetGamblingOdds": 3.0
+    },
     "apu_v": {
       "SetMass": 1500.0,
       "SetGasScale": 7.5,
@@ -4732,6 +5943,36 @@
       "SetCharacterScale": 0.9,
       "SetGamblingOdds": 2.0
     },
+    "cmilk": {
+      "SetMass": 2000.0,
+      "SetGasScale": 3.5,
+      "SetSlipGasScale": 4.2,
+      "SetBrakeScale": 6.0,
+      "SetTopSpeedKmh": 115.0,
+      "SetMaxWheelTurnAngle": 28.0,
+      "SetHighSpeedSteeringDrop": 0.3,
+      "SetTireGrip": 1.85,
+      "SetNormalSteering": 75.0,
+      "SetSlipSteering": 45.0,
+      "SetEBrakeEffect": 0.45,
+      "SetSlipSteeringNoEBrake": 45.0,
+      "SetSlipEffectNoEBrake": 0.15,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": 0.38,
+      "SetCMOffsetZ": 0.35,
+      "SetSuspensionLimit": 0.75,
+      "SetSpringK": 0.45,
+      "SetDamperC": 0.18,
+      "SetSuspensionYOffset": 0.0,
+      "SetHitPoints": 5.0,
+      "SetBurnoutRange": 0.06,
+      "SetMaxSpeedBurstTime": 0.0,
+      "SetDonutTorque": 2.0,
+      "SetWeebleOffset": -0.6,
+      "SetCharactersVisible": 1.0,
+      "SetIrisTransition": 1.0,
+      "SetGamblingOdds": 3.0
+    },
     "cnerd": {
       "SetMass": 1000.0,
       "SetGasScale": 6.0,
@@ -4799,6 +6040,39 @@
       "SetCharacterScale": 0.9,
       "SetGamblingOdds": 3.0
     },
+    "coffin": {
+      "SetMass": 1000.0,
+      "SetGasScale": 6.5,
+      "SetSlipGasScale": 7.2,
+      "SetBrakeScale": 8.0,
+      "SetTopSpeedKmh": 135.0,
+      "SetMaxWheelTurnAngle": 25.0,
+      "SetHighSpeedSteeringDrop": 0.32,
+      "SetTireGrip": 2.5,
+      "SetNormalSteering": 90.0,
+      "SetSlipSteering": 50.0,
+      "SetEBrakeEffect": 0.4,
+      "SetSlipSteeringNoEBrake": 50.0,
+      "SetSlipEffectNoEBrake": 0.15,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": 0.0,
+      "SetCMOffsetZ": 0.18,
+      "SetSuspensionLimit": 0.55,
+      "SetSpringK": 0.4,
+      "SetDamperC": 0.25,
+      "SetHitPoints": 0.5,
+      "SetWeebleOffset": -0.65,
+      "SetBurnoutRange": 0.18,
+      "SetMaxSpeedBurstTime": 1.8,
+      "SetDonutTorque": 4.0,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.6,
+      "SetCharactersVisible": 1.0,
+      "SetHasDoors": 0.0,
+      "SetGamblingOdds": 2.0,
+      "SetHighRoof": 1.0
+    },
     "comic_v": {
       "SetMass": 1200.0,
       "SetGasScale": 6.0,
@@ -4832,6 +6106,40 @@
       "SetHasDoors": 1.0,
       "SetCharacterScale": 0.93,
       "SetShininess": 0.05,
+      "SetGamblingOdds": 2.0
+    },
+    "compacta": {
+      "SetMass": 1000.0,
+      "SetGasScale": 5.0,
+      "SetSlipGasScale": 6.0,
+      "SetBrakeScale": 8.5,
+      "SetTopSpeedKmh": 125.0,
+      "SetMaxWheelTurnAngle": 30.0,
+      "SetHighSpeedSteeringDrop": 0.25,
+      "SetTireGrip": 2.7,
+      "SetNormalSteering": 100.0,
+      "SetSlipSteering": 60.0,
+      "SetEBrakeEffect": 0.55,
+      "SetSlipSteeringNoEBrake": 50.0,
+      "SetSlipEffectNoEBrake": 0.13,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": 0.0,
+      "SetCMOffsetZ": 0.5,
+      "SetSuspensionLimit": 0.55,
+      "SetSpringK": 0.35,
+      "SetDamperC": 0.2,
+      "SetSuspensionYOffset": 0.0,
+      "SetHitPoints": 0.5,
+      "SetBurnoutRange": 0.1,
+      "SetMaxSpeedBurstTime": 1.0,
+      "SetDonutTorque": 2.5,
+      "SetWeebleOffset": -0.75,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.6,
+      "SetCharactersVisible": 1.0,
+      "SetIrisTransition": 1.0,
+      "SetCharacterScale": 0.9,
       "SetGamblingOdds": 2.0
     },
     "cpolice": {
@@ -5529,6 +6837,40 @@
       "SetShininess": 0.15,
       "SetGamblingOdds": 2.0
     },
+    "nuctruck": {
+      "SetMass": 2500.0,
+      "SetGasScale": 4.0,
+      "SetSlipGasScale": 5.0,
+      "SetBrakeScale": 5.0,
+      "SetTopSpeedKmh": 130.0,
+      "SetMaxWheelTurnAngle": 25.0,
+      "SetHighSpeedSteeringDrop": 0.222,
+      "SetTireGrip": 2.1,
+      "SetNormalSteering": 75.0,
+      "SetSlipSteering": 55.0,
+      "SetEBrakeEffect": 0.4,
+      "SetSlipSteeringNoEBrake": 50.0,
+      "SetSlipEffectNoEBrake": 0.17,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": 0.16,
+      "SetCMOffsetZ": 0.55,
+      "SetSuspensionLimit": 0.65,
+      "SetSpringK": 0.4,
+      "SetDamperC": 0.2,
+      "SetSuspensionYOffset": 0.0,
+      "SetHitPoints": 1.0,
+      "SetBurnoutRange": 0.08,
+      "SetMaxSpeedBurstTime": 1.0,
+      "SetDonutTorque": 2.0,
+      "SetWeebleOffset": -0.6,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.5,
+      "SetCharactersVisible": 1.0,
+      "SetIrisTransition": 1.0,
+      "SetCharacterScale": 0.9,
+      "SetGamblingOdds": 2.0
+    },
     "otto_v": {
       "SetMass": 3500.0,
       "SetGasScale": 4.5,
@@ -5736,6 +7078,73 @@
       "SetGamblingOdds": 1.0,
       "SetHighRoof": 1.0
     },
+    "sedanb": {
+      "SetMass": 1500.0,
+      "SetGasScale": 5.0,
+      "SetSlipGasScale": 6.0,
+      "SetBrakeScale": 8.0,
+      "SetTopSpeedKmh": 130.0,
+      "SetMaxWheelTurnAngle": 30.0,
+      "SetHighSpeedSteeringDrop": 0.28,
+      "SetTireGrip": 2.5,
+      "SetNormalSteering": 95.0,
+      "SetSlipSteering": 55.0,
+      "SetEBrakeEffect": 0.5,
+      "SetSlipSteeringNoEBrake": 50.0,
+      "SetSlipEffectNoEBrake": 0.15,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": 0.05,
+      "SetCMOffsetZ": 0.4,
+      "SetSuspensionLimit": 0.65,
+      "SetSpringK": 0.4,
+      "SetDamperC": 0.25,
+      "SetSuspensionYOffset": 0.0,
+      "SetHitPoints": 0.7,
+      "SetBurnoutRange": 0.1,
+      "SetMaxSpeedBurstTime": 1.2,
+      "SetDonutTorque": 2.0,
+      "SetWeebleOffset": -0.75,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.8,
+      "SetCharactersVisible": 1.0,
+      "SetIrisTransition": 1.0,
+      "SetCharacterScale": 0.9,
+      "SetGamblingOdds": 2.0
+    },
+    "ship": {
+      "SetMass": 1000.0,
+      "SetGasScale": 4.5,
+      "SetSlipGasScale": 7.0,
+      "SetBrakeScale": 8.0,
+      "SetTopSpeedKmh": 125.0,
+      "SetMaxWheelTurnAngle": 25.0,
+      "SetHighSpeedSteeringDrop": 0.275,
+      "SetTireGrip": 1.5,
+      "SetNormalSteering": 65.0,
+      "SetSlipSteering": 50.0,
+      "SetEBrakeEffect": 0.4,
+      "SetSlipSteeringNoEBrake": 67.0,
+      "SetSlipEffectNoEBrake": 0.05,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": 0.15,
+      "SetCMOffsetZ": 0.25,
+      "SetSuspensionLimit": 0.75,
+      "SetSpringK": 0.45,
+      "SetDamperC": 0.2,
+      "SetHitPoints": 0.6,
+      "SetWeebleOffset": -0.7,
+      "SetBurnoutRange": 0.0,
+      "SetMaxSpeedBurstTime": 0.0,
+      "SetDonutTorque": 4.0,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.5,
+      "SetCharactersVisible": 1.0,
+      "SetHasDoors": 0.0,
+      "SetGamblingOdds": 3.0,
+      "SetHighRoof": 1.0
+    },
     "skinn_v": {
       "SetMass": 1500.0,
       "SetGasScale": 6.0,
@@ -5878,6 +7287,74 @@
       "SetIrisTransition": 1.0,
       "SetCharacterScale": 0.9,
       "SetGamblingOdds": 2.0
+    },
+    "taxia": {
+      "SetMass": 1500.0,
+      "SetGasScale": 5.5,
+      "SetSlipGasScale": 6.5,
+      "SetBrakeScale": 8.0,
+      "SetTopSpeedKmh": 135.0,
+      "SetMaxWheelTurnAngle": 30.0,
+      "SetHighSpeedSteeringDrop": 0.27,
+      "SetTireGrip": 2.7,
+      "SetNormalSteering": 95.0,
+      "SetSlipSteering": 55.0,
+      "SetEBrakeEffect": 0.5,
+      "SetSlipSteeringNoEBrake": 50.0,
+      "SetSlipEffectNoEBrake": 0.12,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": 0.05,
+      "SetCMOffsetZ": 0.25,
+      "SetSuspensionLimit": 0.6,
+      "SetSpringK": 0.35,
+      "SetDamperC": 0.2,
+      "SetSuspensionYOffset": 0.0,
+      "SetHitPoints": 0.5,
+      "SetBurnoutRange": 0.12,
+      "SetMaxSpeedBurstTime": 1.2,
+      "SetDonutTorque": 2.0,
+      "SetWeebleOffset": -0.75,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.5,
+      "SetCharactersVisible": 1.0,
+      "SetHasDoors": 0.0,
+      "SetIrisTransition": 1.0,
+      "SetGamblingOdds": 2.0
+    },
+    "votetruc": {
+      "SetMass": 2500.0,
+      "SetGasScale": 3.5,
+      "SetSlipGasScale": 4.5,
+      "SetBrakeScale": 5.0,
+      "SetTopSpeedKmh": 120.0,
+      "SetMaxWheelTurnAngle": 25.0,
+      "SetHighSpeedSteeringDrop": 0.2,
+      "SetTireGrip": 1.8,
+      "SetNormalSteering": 85.0,
+      "SetSlipSteering": 50.0,
+      "SetEBrakeEffect": 0.4,
+      "SetSlipSteeringNoEBrake": 50.0,
+      "SetSlipEffectNoEBrake": 0.2,
+      "SetCMOffsetX": 0.0,
+      "SetCMOffsetY": -0.35,
+      "SetCMOffsetZ": 1.0,
+      "SetSuspensionLimit": 0.65,
+      "SetSpringK": 0.4,
+      "SetDamperC": 0.3,
+      "SetSuspensionYOffset": 0.0,
+      "SetHitPoints": 1.0,
+      "SetBurnoutRange": 0.05,
+      "SetMaxSpeedBurstTime": 0.5,
+      "SetDonutTorque": 1.0,
+      "SetWeebleOffset": -0.75,
+      "SetWheelieRange": 0.15,
+      "SetWheelieOffsetY": 0.0,
+      "SetWheelieOffsetZ": -0.5,
+      "SetCharactersVisible": 1.0,
+      "SetIrisTransition": 1.0,
+      "SetCharacterScale": 0.95,
+      "SetGamblingOdds": 3.0
     },
     "wiggu_v": {
       "SetMass": 2000.0,
@@ -12826,5 +14303,184 @@
       "SetHitPoints": 5.0
     }
   },
-  "presentations": {}
+  "presentations": {},
+  "names": {
+    "cletu_v": "Pickup Truck",
+    "nelson": "nelson",
+    "sail3": "sail3",
+    "h_scuzzy": "Homer - Dirty",
+    "willi_v": "Tractor",
+    "cletus": "cletus",
+    "milhouse": "milhouse",
+    "rednk2": "rednk2",
+    "cpolice": "Police Car",
+    "comic_v": "Kremlin",
+    "male5": "male5",
+    "skinner": "skinner",
+    "cdonut": "Donut Truck",
+    "cduff": "Duff Truck",
+    "a_army": "Apu - Army",
+    "const2": "const2",
+    "eddie": "eddie",
+    "coffin": "Coffin Car",
+    "male3": "male3",
+    "h_stcrobe": "Homer - Chosen One",
+    "snake": "snake",
+    "witch": "witch",
+    "carmor": "Armored Truck",
+    "frink": "frink",
+    "zmale1": "zmale1",
+    "gil": "gil",
+    "istruck": "Itchy and Scratchy Movie Truck",
+    "honor_v": "Honor Roller",
+    "cnerd": "Nerd Car",
+    "nuclear": "nuclear",
+    "snake_v": "Bandit",
+    "cvan": "Surveillance Van",
+    "brn_unf": "brn_unf",
+    "busm2": "busm2",
+    "krusty": "krusty",
+    "m_police": "Marge - Police",
+    "a_besharp": "Apu - B-sharps",
+    "cbone": "cbone",
+    "girl1": "girl1",
+    "cbg": "cbg",
+    "wiggum": "wiggum",
+    "jasper": "jasper",
+    "skinn_v": "Sedan",
+    "askinner": "askinner",
+    "wiggu_v": "Police Car",
+    "compacta": "Compact Car",
+    "bart_v": "Ferrini - Red",
+    "const1": "const1",
+    "moleman": "moleman",
+    "burns": "burns",
+    "csedan": "Chase Sedan",
+    "fem2": "fem2",
+    "willie": "willie",
+    "barney": "barney",
+    "male4": "male4",
+    "b_hugo": "Bart - Hugo",
+    "gramp_v": "WWII Vehicle",
+    "burns_v": "36 Stutz Bearcat",
+    "patty": "patty",
+    "selma": "selma",
+    "scorp_v": "Globex Super Villain Car",
+    "boy4": "boy4",
+    "fone_v": "Open Wheel Race Car",
+    "moe_v": "Sedan",
+    "nuctruck": "Nuclear Waste Truck",
+    "farmr1": "farmr1",
+    "busm1": "busm1",
+    "b_man": "Bart - Bartman",
+    "sail4": "sail4",
+    "male6": "male6",
+    "climo": "Limo",
+    "hbike_v": "Hover Bike",
+    "sportsa": "Sports Car A",
+    "pickupa": "Pickup",
+    "npd": "npd",
+    "cmilk": "Milk Truck",
+    "marge": "Marge - Normal",
+    "moe": "moe",
+    "boy2": "boy2",
+    "homer_v": "70's Sports Car",
+    "elect_v": "Electaurus",
+    "ralph": "ralph",
+    "b_ninja": "Bart - Ninja",
+    "carl": "carl",
+    "zombi_v": "Zombie Car",
+    "nps": "nps",
+    "frink_v": "Hover Car",
+    "beeman": "beeman",
+    "girl4": "girl4",
+    "ambul": "Ambulance",
+    "apu": "Apu - Normal",
+    "ship": "Ghost Ship",
+    "m_prison": "Marge - Inmate",
+    "teen": "teen",
+    "lou": "lou",
+    "mrplo_v": "Mr. Plow",
+    "garbage": "Garbage Truck",
+    "louie": "louie",
+    "pizza": "Pizza Van",
+    "carhom_v": "Car Built For Homer",
+    "joger1": "joger1",
+    "h_undrwr": "Homer - Casual",
+    "h_evil": "Homer - Evil",
+    "l_florida": "Lisa - Floreda",
+    "gramr_v": "WWII Vehicle w/Rocket",
+    "smithers": "smithers",
+    "zmale3": "zmale3",
+    "ned": "ned",
+    "male2": "male2",
+    "ccella": "Cell Phone Car A",
+    "marge_v": "Canyonero",
+    "captain": "captain",
+    "fem1": "fem1",
+    "grandpa": "grandpa",
+    "cklimo": "Krusty's Limo",
+    "apu_v": "Longhorn",
+    "bart": "Bart - Normal",
+    "boy1": "boy1",
+    "kearney": "kearney",
+    "plowk_v": "Plow King",
+    "m_pink": "Marge - Classy",
+    "l_jersey": "Lisa - Hockey",
+    "lisa_v": "Malibu Stacy Car",
+    "l_cool": "Lisa - Cool",
+    "a_american": "Apu - American",
+    "schoolbu": "Mini School Bus",
+    "joger2": "joger2",
+    "h_donut": "Homer - Donut",
+    "frankenstein": "frankenstein",
+    "hooker": "hooker",
+    "lenny": "lenny",
+    "homer": "Homer - Normal",
+    "bookb_v": "Book Burning Van",
+    "ccurator": "Curator",
+    "dolph": "dolph",
+    "mobstr": "mobstr",
+    "boy3": "boy3",
+    "busw1": "busw1",
+    "girl2": "girl2",
+    "otto_v": "School Bus",
+    "cfire_v": "Fire Truck",
+    "ndr": "ndr",
+    "sail1": "sail1",
+    "zfem5": "zfem5",
+    "rednk1": "rednk1",
+    "olady1": "olady1",
+    "taxia": "Taxi",
+    "jimbo": "jimbo",
+    "ccola": "Cola Truck",
+    "sedanb": "Sedan B",
+    "hibbert": "hibbert",
+    "nriviera": "nriviera",
+    "cblbart": "Ferrini - Black",
+    "fem3": "fem3",
+    "olady3": "olady3",
+    "smith_v": "Mr. Burns' Limo",
+    "sail2": "sail2",
+    "krust_v": "Clown Car",
+    "zfem1": "zfem1",
+    "cnonup": "Nonuplets Minivan",
+    "otto": "otto",
+    "chears": "Hearse",
+    "zmale4": "zmale4",
+    "minivana": "Minivan",
+    "male1": "male1",
+    "b_military": "Bart - Cadet",
+    "b_tall": "Bart - Tall",
+    "h_fat": "Homer - Muumuu",
+    "bum": "bum",
+    "bbman_v": "El Carro Loco",
+    "girl3": "girl3",
+    "b_football": "Bart - Football",
+    "votetruc": "\"Vote Quimby\" Truck",
+    "fem4": "fem4",
+    "olady2": "olady2",
+    "famil_v": "Family Sedan",
+    "lisa": "Lisa - Normal"
+  }
 }

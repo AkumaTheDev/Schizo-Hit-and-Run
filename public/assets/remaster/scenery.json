@@ -102,22 +102,22 @@
     "l7i07"
   ],
   "materials": {
-    "glass": 91,
+    "art": 1117,
     "paint": 107,
-    "wood": 49,
-    "art": 1080,
-    "concrete": 26,
-    "metal": 107,
-    "brick": 79,
     "roof": 32,
-    "foliage": 19,
     "asphalt": 31,
-    "grass": 9
+    "wood": 52,
+    "metal": 108,
+    "foliage": 20,
+    "concrete": 26,
+    "brick": 79,
+    "grass": 9,
+    "glass": 91
   },
   "geometry": {
     "l1_terra": {
-      "sourceTriangles": 0,
-      "triangles": 0,
+      "sourceTriangles": 484,
+      "triangles": 484,
       "bevelledParts": 0,
       "collisionPreserved": true
     },
@@ -128,14 +128,14 @@
       "collisionPreserved": true
     },
     "l1r2": {
-      "sourceTriangles": 12270,
-      "triangles": 26007,
+      "sourceTriangles": 12420,
+      "triangles": 26157,
       "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l1r3": {
-      "sourceTriangles": 18403,
-      "triangles": 37973,
+      "sourceTriangles": 18729,
+      "triangles": 38299,
       "bevelledParts": 25,
       "collisionPreserved": true
     },
@@ -146,38 +146,38 @@
       "collisionPreserved": true
     },
     "l1r4b": {
-      "sourceTriangles": 7664,
-      "triangles": 10637,
+      "sourceTriangles": 7772,
+      "triangles": 10745,
       "bevelledParts": 9,
       "collisionPreserved": true
     },
     "l1r6": {
-      "sourceTriangles": 8642,
-      "triangles": 16511,
-      "bevelledParts": 22,
+      "sourceTriangles": 9096,
+      "triangles": 17407,
+      "bevelledParts": 29,
       "collisionPreserved": true
     },
     "l1r7": {
-      "sourceTriangles": 16290,
-      "triangles": 26018,
+      "sourceTriangles": 16616,
+      "triangles": 26344,
       "bevelledParts": 23,
       "collisionPreserved": true
     },
     "l1z1": {
-      "sourceTriangles": 13589,
-      "triangles": 27606,
+      "sourceTriangles": 13697,
+      "triangles": 27714,
       "bevelledParts": 30,
       "collisionPreserved": true
     },
     "l1z2": {
-      "sourceTriangles": 13497,
-      "triangles": 21428,
+      "sourceTriangles": 13823,
+      "triangles": 21754,
       "bevelledParts": 19,
       "collisionPreserved": true
     },
     "l1z3": {
-      "sourceTriangles": 10949,
-      "triangles": 16926,
+      "sourceTriangles": 11177,
+      "triangles": 17154,
       "bevelledParts": 19,
       "collisionPreserved": true
     },
@@ -188,14 +188,14 @@
       "collisionPreserved": true
     },
     "l1z6": {
-      "sourceTriangles": 10631,
-      "triangles": 27032,
-      "bevelledParts": 5,
+      "sourceTriangles": 11391,
+      "triangles": 28554,
+      "bevelledParts": 6,
       "collisionPreserved": true
     },
     "l1z7": {
-      "sourceTriangles": 10779,
-      "triangles": 19201,
+      "sourceTriangles": 10927,
+      "triangles": 19349,
       "bevelledParts": 27,
       "collisionPreserved": true
     },
@@ -224,51 +224,51 @@
       "collisionPreserved": true
     },
     "l2r1": {
-      "sourceTriangles": 10820,
-      "triangles": 16343,
+      "sourceTriangles": 11489,
+      "triangles": 17012,
       "bevelledParts": 21,
       "collisionPreserved": true
     },
     "l2r2": {
-      "sourceTriangles": 11511,
-      "triangles": 23547,
+      "sourceTriangles": 12180,
+      "triangles": 24216,
       "bevelledParts": 20,
       "collisionPreserved": true
     },
     "l2r3": {
-      "sourceTriangles": 17613,
-      "triangles": 25044,
+      "sourceTriangles": 18054,
+      "triangles": 25485,
       "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l2r4": {
-      "sourceTriangles": 5414,
-      "triangles": 7191,
+      "sourceTriangles": 5975,
+      "triangles": 7752,
       "bevelledParts": 7,
       "collisionPreserved": true
     },
     "l2z1": {
-      "sourceTriangles": 21931,
-      "triangles": 29443,
+      "sourceTriangles": 24199,
+      "triangles": 31710,
       "bevelledParts": 24,
       "collisionPreserved": true
     },
     "l2z2": {
-      "sourceTriangles": 13998,
-      "triangles": 25101,
+      "sourceTriangles": 14645,
+      "triangles": 25748,
       "bevelledParts": 27,
       "collisionPreserved": true
     },
     "l2z3": {
-      "sourceTriangles": 9881,
-      "triangles": 16915,
-      "bevelledParts": 24,
+      "sourceTriangles": 10620,
+      "triangles": 18097,
+      "bevelledParts": 31,
       "collisionPreserved": true
     },
     "l2z4": {
-      "sourceTriangles": 17048,
-      "triangles": 25988,
-      "bevelledParts": 23,
+      "sourceTriangles": 17845,
+      "triangles": 27338,
+      "bevelledParts": 33,
       "collisionPreserved": true
     },
     "l2i03": {
@@ -290,32 +290,32 @@
       "collisionPreserved": true
     },
     "l3r1": {
-      "sourceTriangles": 12994,
-      "triangles": 19038,
+      "sourceTriangles": 13653,
+      "triangles": 19697,
       "bevelledParts": 24,
       "collisionPreserved": true
     },
     "l3r2": {
-      "sourceTriangles": 7411,
-      "triangles": 12123,
+      "sourceTriangles": 7852,
+      "triangles": 12564,
       "bevelledParts": 17,
       "collisionPreserved": true
     },
     "l3r3": {
-      "sourceTriangles": 4558,
-      "triangles": 8005,
+      "sourceTriangles": 5233,
+      "triangles": 8680,
       "bevelledParts": 15,
       "collisionPreserved": true
     },
     "l3r4": {
-      "sourceTriangles": 10515,
-      "triangles": 18254,
+      "sourceTriangles": 10956,
+      "triangles": 18695,
       "bevelledParts": 4,
       "collisionPreserved": true
     },
     "l3r5": {
-      "sourceTriangles": 6337,
-      "triangles": 14257,
+      "sourceTriangles": 6886,
+      "triangles": 14806,
       "bevelledParts": 5,
       "collisionPreserved": true
     },
@@ -326,32 +326,32 @@
       "collisionPreserved": true
     },
     "l3z1": {
-      "sourceTriangles": 7699,
-      "triangles": 12017,
+      "sourceTriangles": 8368,
+      "triangles": 12686,
       "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l3z2": {
-      "sourceTriangles": 8587,
-      "triangles": 12350,
+      "sourceTriangles": 9148,
+      "triangles": 12911,
       "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l3z3": {
-      "sourceTriangles": 11404,
-      "triangles": 25853,
-      "bevelledParts": 36,
+      "sourceTriangles": 12917,
+      "triangles": 27589,
+      "bevelledParts": 37,
       "collisionPreserved": true
     },
     "l3z4": {
-      "sourceTriangles": 14639,
-      "triangles": 20731,
-      "bevelledParts": 11,
+      "sourceTriangles": 15348,
+      "triangles": 21498,
+      "bevelledParts": 13,
       "collisionPreserved": true
     },
     "l3z5": {
-      "sourceTriangles": 9581,
-      "triangles": 14654,
+      "sourceTriangles": 10250,
+      "triangles": 15323,
       "bevelledParts": 8,
       "collisionPreserved": true
     },
@@ -374,80 +374,80 @@
       "collisionPreserved": true
     },
     "l4r1": {
-      "sourceTriangles": 11729,
-      "triangles": 24913,
-      "bevelledParts": 20,
+      "sourceTriangles": 12241,
+      "triangles": 25795,
+      "bevelledParts": 21,
       "collisionPreserved": true
     },
     "l4r2": {
-      "sourceTriangles": 12931,
-      "triangles": 26220,
-      "bevelledParts": 15,
+      "sourceTriangles": 13615,
+      "triangles": 27274,
+      "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l4r3": {
-      "sourceTriangles": 18223,
-      "triangles": 37280,
+      "sourceTriangles": 18990,
+      "triangles": 38047,
       "bevelledParts": 27,
       "collisionPreserved": true
     },
     "l4r4a": {
-      "sourceTriangles": 9345,
-      "triangles": 21416,
+      "sourceTriangles": 9786,
+      "triangles": 21857,
       "bevelledParts": 13,
       "collisionPreserved": true
     },
     "l4r4b": {
-      "sourceTriangles": 7982,
-      "triangles": 10999,
+      "sourceTriangles": 8090,
+      "triangles": 11107,
       "bevelledParts": 9,
       "collisionPreserved": true
     },
     "l4r6": {
-      "sourceTriangles": 8297,
-      "triangles": 9841,
-      "bevelledParts": 8,
+      "sourceTriangles": 9312,
+      "triangles": 11668,
+      "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l4r7": {
-      "sourceTriangles": 16377,
-      "triangles": 25949,
-      "bevelledParts": 22,
+      "sourceTriangles": 17215,
+      "triangles": 27157,
+      "bevelledParts": 23,
       "collisionPreserved": true
     },
     "l4z1": {
-      "sourceTriangles": 13283,
-      "triangles": 26914,
-      "bevelledParts": 29,
+      "sourceTriangles": 13903,
+      "triangles": 27904,
+      "bevelledParts": 30,
       "collisionPreserved": true
     },
     "l4z2": {
-      "sourceTriangles": 13420,
-      "triangles": 20958,
-      "bevelledParts": 18,
+      "sourceTriangles": 14258,
+      "triangles": 22166,
+      "bevelledParts": 19,
       "collisionPreserved": true
     },
     "l4z3": {
-      "sourceTriangles": 10755,
-      "triangles": 16336,
-      "bevelledParts": 18,
+      "sourceTriangles": 11495,
+      "triangles": 17446,
+      "bevelledParts": 19,
       "collisionPreserved": true
     },
     "l4z4": {
-      "sourceTriangles": 12218,
-      "triangles": 25179,
+      "sourceTriangles": 12659,
+      "triangles": 25620,
       "bevelledParts": 25,
       "collisionPreserved": true
     },
     "l4z6": {
-      "sourceTriangles": 10438,
-      "triangles": 26839,
-      "bevelledParts": 5,
+      "sourceTriangles": 11115,
+      "triangles": 28278,
+      "bevelledParts": 6,
       "collisionPreserved": true
     },
     "l4z7": {
-      "sourceTriangles": 10832,
-      "triangles": 19256,
+      "sourceTriangles": 11409,
+      "triangles": 19833,
       "bevelledParts": 27,
       "collisionPreserved": true
     },
@@ -482,51 +482,51 @@
       "collisionPreserved": true
     },
     "l5r1": {
-      "sourceTriangles": 10851,
-      "triangles": 16387,
-      "bevelledParts": 20,
+      "sourceTriangles": 11614,
+      "triangles": 17230,
+      "bevelledParts": 21,
       "collisionPreserved": true
     },
     "l5r2": {
-      "sourceTriangles": 11516,
-      "triangles": 23535,
+      "sourceTriangles": 12234,
+      "triangles": 24253,
       "bevelledParts": 20,
       "collisionPreserved": true
     },
     "l5r3": {
-      "sourceTriangles": 17496,
-      "triangles": 24371,
-      "bevelledParts": 12,
+      "sourceTriangles": 18170,
+      "triangles": 25510,
+      "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l5r4": {
-      "sourceTriangles": 5414,
-      "triangles": 6916,
-      "bevelledParts": 6,
+      "sourceTriangles": 6012,
+      "triangles": 7661,
+      "bevelledParts": 7,
       "collisionPreserved": true
     },
     "l5z1": {
-      "sourceTriangles": 21590,
-      "triangles": 28789,
-      "bevelledParts": 21,
+      "sourceTriangles": 24002,
+      "triangles": 31518,
+      "bevelledParts": 24,
       "collisionPreserved": true
     },
     "l5z2": {
-      "sourceTriangles": 14150,
-      "triangles": 25226,
-      "bevelledParts": 27,
+      "sourceTriangles": 14835,
+      "triangles": 25961,
+      "bevelledParts": 28,
       "collisionPreserved": true
     },
     "l5z3": {
-      "sourceTriangles": 9922,
-      "triangles": 10536,
-      "bevelledParts": 5,
+      "sourceTriangles": 10699,
+      "triangles": 11806,
+      "bevelledParts": 13,
       "collisionPreserved": true
     },
     "l5z4": {
-      "sourceTriangles": 18004,
-      "triangles": 26540,
-      "bevelledParts": 20,
+      "sourceTriangles": 19021,
+      "triangles": 28484,
+      "bevelledParts": 33,
       "collisionPreserved": true
     },
     "l5i03": {
@@ -548,32 +548,32 @@
       "collisionPreserved": true
     },
     "l6r1": {
-      "sourceTriangles": 13042,
-      "triangles": 19093,
+      "sourceTriangles": 13701,
+      "triangles": 19752,
       "bevelledParts": 25,
       "collisionPreserved": true
     },
     "l6r2": {
-      "sourceTriangles": 7132,
-      "triangles": 12045,
+      "sourceTriangles": 7693,
+      "triangles": 12606,
       "bevelledParts": 17,
       "collisionPreserved": true
     },
     "l6r3": {
-      "sourceTriangles": 4466,
-      "triangles": 7611,
-      "bevelledParts": 14,
+      "sourceTriangles": 5233,
+      "triangles": 8794,
+      "bevelledParts": 15,
       "collisionPreserved": true
     },
     "l6r4": {
-      "sourceTriangles": 10503,
-      "triangles": 10503,
+      "sourceTriangles": 10944,
+      "triangles": 10944,
       "bevelledParts": 0,
       "collisionPreserved": true
     },
     "l6r5": {
-      "sourceTriangles": 6332,
-      "triangles": 14516,
+      "sourceTriangles": 6881,
+      "triangles": 15065,
       "bevelledParts": 5,
       "collisionPreserved": true
     },
@@ -584,32 +584,32 @@
       "collisionPreserved": true
     },
     "l6z1": {
-      "sourceTriangles": 7648,
-      "triangles": 11982,
+      "sourceTriangles": 8317,
+      "triangles": 12651,
       "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l6z2": {
-      "sourceTriangles": 8587,
-      "triangles": 12295,
+      "sourceTriangles": 9028,
+      "triangles": 12736,
       "bevelledParts": 16,
       "collisionPreserved": true
     },
     "l6z3": {
-      "sourceTriangles": 12141,
-      "triangles": 27612,
-      "bevelledParts": 36,
+      "sourceTriangles": 13386,
+      "triangles": 29496,
+      "bevelledParts": 38,
       "collisionPreserved": true
     },
     "l6z4": {
-      "sourceTriangles": 14547,
-      "triangles": 20266,
-      "bevelledParts": 10,
+      "sourceTriangles": 15348,
+      "triangles": 21541,
+      "bevelledParts": 13,
       "collisionPreserved": true
     },
     "l6z5": {
-      "sourceTriangles": 9582,
-      "triangles": 14800,
+      "sourceTriangles": 10251,
+      "triangles": 15469,
       "bevelledParts": 8,
       "collisionPreserved": true
     },
@@ -632,15 +632,15 @@
       "collisionPreserved": true
     },
     "l7r1": {
-      "sourceTriangles": 11500,
-      "triangles": 24174,
-      "bevelledParts": 19,
+      "sourceTriangles": 12148,
+      "triangles": 25258,
+      "bevelledParts": 20,
       "collisionPreserved": true
     },
     "l7r2": {
-      "sourceTriangles": 13127,
-      "triangles": 25001,
-      "bevelledParts": 14,
+      "sourceTriangles": 13939,
+      "triangles": 26249,
+      "bevelledParts": 15,
       "collisionPreserved": true
     },
     "l7r3": {
@@ -650,44 +650,44 @@
       "collisionPreserved": true
     },
     "l7r6": {
-      "sourceTriangles": 9443,
-      "triangles": 10938,
-      "bevelledParts": 8,
-      "collisionPreserved": true
-    },
-    "l7r7": {
-      "sourceTriangles": 17154,
-      "triangles": 26441,
-      "bevelledParts": 21,
-      "collisionPreserved": true
-    },
-    "l7z1": {
-      "sourceTriangles": 13423,
-      "triangles": 26842,
-      "bevelledParts": 27,
-      "collisionPreserved": true
-    },
-    "l7z2": {
-      "sourceTriangles": 13010,
-      "triangles": 20423,
+      "sourceTriangles": 10419,
+      "triangles": 12792,
       "bevelledParts": 16,
       "collisionPreserved": true
     },
+    "l7r7": {
+      "sourceTriangles": 18164,
+      "triangles": 27887,
+      "bevelledParts": 22,
+      "collisionPreserved": true
+    },
+    "l7z1": {
+      "sourceTriangles": 14179,
+      "triangles": 28034,
+      "bevelledParts": 28,
+      "collisionPreserved": true
+    },
+    "l7z2": {
+      "sourceTriangles": 13930,
+      "triangles": 21779,
+      "bevelledParts": 17,
+      "collisionPreserved": true
+    },
     "l7z3": {
-      "sourceTriangles": 12792,
-      "triangles": 22947,
-      "bevelledParts": 20,
+      "sourceTriangles": 13614,
+      "triangles": 24205,
+      "bevelledParts": 21,
       "collisionPreserved": true
     },
     "l7z6": {
-      "sourceTriangles": 5306,
-      "triangles": 5686,
+      "sourceTriangles": 5534,
+      "triangles": 5914,
       "bevelledParts": 1,
       "collisionPreserved": true
     },
     "l7z7": {
-      "sourceTriangles": 10872,
-      "triangles": 19030,
+      "sourceTriangles": 11428,
+      "triangles": 19586,
       "bevelledParts": 26,
       "collisionPreserved": true
     },

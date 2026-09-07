@@ -26,3 +26,9 @@ test('dead-end traffic makes a continuous turn instead of changing lanes instant
   const path=new TrafficPath([[v(0,0),v(0,20)]],0,false,.99),position=v(0,0);path.sample(position);let previous=position.clone();
   for(let i=0;i<120;i++){path.advance(7/60);path.sample(position);assert(position.distanceTo(previous)<.15);previous.copy(position);}
 });
+
+test('mission cars follow rounded corners at a steady distance per frame',async()=>{
+  const {MissionRoute}=await import('../src/campaign/roads.ts');const route=new MissionRoute([new THREE.Vector3(),new THREE.Vector3(0,0,20),new THREE.Vector3(20,0,20)]),position=new THREE.Vector3();let previous=position.clone(),heading=0;
+  while(!route.finished){const next=route.advance(.1,position);const movement=position.distanceTo(previous);assert(movement<=.105);if(!route.finished)assert(movement>=.095);assert(Math.abs(next-heading)<.1);previous.copy(position);heading=next;}
+  assert(position.distanceTo(new THREE.Vector3(20,0,20))<.001);
+});

@@ -35,5 +35,5 @@ for(const character of ['homer','bart','lisa','marge','apu'])test(`${character} 
     for(let i=0;i<weights.length;i+=4)assert(Math.abs(weights[i]+weights[i+1]+weights[i+2]+weights[i+3]-1)<.001);
     const [io,il]=primitive.attributes.skinIndex;const indices=new Float32Array(bytes.buffer,bytes.byteOffset+io,il);assert([...indices].every(i=>i>=0&&i<meta.bones.length));
   }
-  assert.equal(meta.animations.length,8);for(const animation of meta.animations)for(const track of animation.tracks)assert(names.has(track.bone));
+  assert(meta.animations.some((a:any)=>a.name.endsWith('_in_car_idle')));assert(meta.animations.some((a:any)=>a.name.endsWith('_dialogue_thinking')));assert(meta.animations.some((a:any)=>a.name.endsWith('_loco_walk')));for(const animation of meta.animations)for(const track of animation.tracks)assert(names.has(track.bone));
 });

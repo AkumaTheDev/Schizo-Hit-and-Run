@@ -16,6 +16,8 @@ export class Coins {
     const material=new THREE.MeshStandardMaterial({color:0xf7c935,metalness:.55,roughness:.24,emissive:0xa45704,emissiveIntensity:.3});
     this.mesh=new THREE.InstancedMesh(geometry,material,this.total);this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);this.mesh.frustumCulled=false;scene.add(this.mesh);this.update(0,new THREE.Vector3(Infinity,Infinity,Infinity),false);
   }
+  get entries(){return [...this.found];}
+  reset(entries:number[]=[]){this.found=new Set(entries.filter(n=>Number.isInteger(n)&&n>=0&&n<this.total));this.collected=this.found.size;}
   update(dt:number,position:THREE.Vector3,collect=true){
     this.time+=dt;let gained=0;
     this.positions.forEach((point,i)=>{

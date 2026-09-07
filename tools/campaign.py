@@ -109,7 +109,7 @@ def first(calls,op,default=None):
 def main():
     OUT.mkdir(parents=True,exist_ok=True);get,strings=bible();levels=[];mission_count=stage_count=0;types=Counter();conditions=Counter();ops=Counter();all_missions=[];missing=[]
     for level in range(1,8):
-        root=GAME/f'scripts/missions/level0{level}';schedule=parse((root/'level.mfk').read_text());initial=parse((root/'leveli.mfk').read_text());names=[str(c['args'][0]) for c in schedule if c['op']=='AddMission']
+        root=GAME/f'scripts/missions/level0{level}';schedule=parse((root/'level.mfk').read_text());initial=parse((root/'leveli.mfk').read_text());names=[str(c['args'][0]) for c in schedule if c['op'] in ['AddMission','AddBonusMission']]
         data=dict(id=level,initial=initial,schedule=schedule,missions=[],locators={},duplicateLocators=[],interiors=[])
         paths=[GAME/f'art/l{level}_terra.p3d',*sorted((GAME/'art').glob(f'l{level}[rz]*.p3d')),*sorted((GAME/'art').glob(f'l{level}i*.p3d')),*sorted((GAME/f'art/missions/level0{level}').glob('*.p3d')),*sorted((GAME/'art/missions/generic').glob('*.p3d'))]
         for file in paths:
@@ -124,14 +124,27 @@ def main():
                 if key in data['locators']:data['duplicateLocators'].append(locator['name'])
                 data['locators'][key]=locator
         for name in names:
+            # The disc implements the card-unlocked cinema in executable code.
+            if name=='ismovie':continue
             mission=compile_mission(root/f'{name}i.mfk',level,get);mission['load']=parse((root/f'{name}l.mfk').read_text())
             mission['intro']=compile_mission(root/f'{name}sdi.mfk',level,get) if (root/f'{name}sdi.mfk').exists() else None
             mission['introLoad']=parse((root/f'{name}sdl.mfk').read_text()) if (root/f'{name}sdl.mfk').exists() else []
-            for key in [f'MISSION_TITLE_L{level}_{name.upper()}',f'MISSION_TITLE_L{level}{name.upper()}',f'MISSION_TITLE_{level}_{name[1:]}',f'MISSION_TITLE_{level:02d}_{int(name[1:]):02d}',f'MISSION_NAME_L{level}{name.upper()}',f'MISSION_NAME_{level}_{name[1:]}']:
+            mission['optional']=not name.startswith('m')
+            title_number={'sr1':8,'sr2':9,'sr3':10,'gr1':11,'bm1':12}.get(name,int(name[1:]) if name.startswith('m') else 0)
+            if mission['optional']:
+                npc=next((c for c in initial if c['op']=='AddNPCCharacterBonusMission' and c['args'][3]==name),None)
+                positions=next((c for c in initial if c['op']=='SetBonusMissionDialoguePos' and c['args'][0]==name),None)
+                if npc and positions and name!='gr1':
+                    a=npc['args'];player=first(initial,'AddCharacter',['homer'])[0]
+                    commands=[dict(op='AddNPC',args=[a[0],a[2]],line=npc['line']),dict(op='SetDialogueInfo',args=[player,a[0],a[5],0],line=npc['line']),dict(op='SetDialoguePositions',args=positions['args'][1:],line=positions['line'])]
+                    commands.extend(dict(c,args=c['args'][:-1]) for c in initial if c['op'] in ['SetConversationCam','AddAmbientPcAnimation','AddAmbientNpcAnimation'] and c['args'][-1]==name)
+                    mission['intro']=dict(id=name,level=level,source=str((root/'leveli.mfk').relative_to(GAME)),setup=[],stages=[dict(index=0,args=[],commands=commands,objective=dict(type='dialogue',mode=''),conditions=[],checkpoint=False)])
+            for key in [f'MISSION_TITLE_L{level}_M{title_number}']:
                 title=get(key)
                 if title:mission['title']=title;break
-            mission.setdefault('title','Tutorial' if name=='m0' else 'Level transition' if name=='m8' else f'Level {level} · Mission {name[1:]}')
+            mission.setdefault('title',f'Level {level} · {name}')
             mission['transition']=len(mission['stages'])==1 and mission['stages'][0]['objective']['type']=='timer' and name=='m8'
+            if mission['transition']:mission['title']='Level transition'
             data['missions'].append(mission);all_missions.append(mission);mission_count+=1;stage_count+=len(mission['stages'])+len(mission['intro']['stages'] if mission['intro'] else [])
             for stage in [*(mission['intro']['stages'] if mission['intro'] else []),*mission['stages']]:
                 types[stage['objective']['type']]+=1;conditions.update(c['type'] for c in stage['conditions']);ops.update(c['op'] for c in stage['commands'])

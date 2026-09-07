@@ -1,12 +1,14 @@
 # Hit & Run in the browser
 
-A Three.js reconstruction of The Simpsons: Hit & Run using assets converted from a local PS2 disc image. It runs without PS2 emulation. It is a work in progress, with free roam working and campaign integration under development.
+A Three.js reconstruction of The Simpsons: Hit & Run using assets converted from a local PS2 disc image. It runs without PS2 emulation. New Game starts the original campaign. Story progression, bonus missions and races run from the converted mission scripts. The engine is still a reconstruction, and full playthrough testing is ongoing.
+
+[Play in your browser](https://vheissu.github.io/hit-and-run-web/)
 
 The repository includes the converted browser assets, so you can clone it and play without running the extraction tools. The ISO, raw archives and extracted source files are excluded. This is an unofficial project, with no affiliation to the original developers or rights holders. Original game assets retain their existing copyrights.
 
 ## Build and play locally
 
-Install Node.js 24+ and clone the repository (the included assets are about 985 MB):
+Install Node.js 24+ and clone the repository (the included assets are about 1.04 GB):
 
 ```sh
 git clone https://github.com/Vheissu/hit-and-run-web.git
@@ -23,7 +25,9 @@ Press Start, then New Game. Escape opens the pause menu. Options contains the le
 | --- | --- |
 | W A S D / arrows | Drive or move on foot |
 | Space | Handbrake or jump |
-| E | Enter or leave your vehicle |
+| E | Talk, enter buildings, enter or leave your vehicle |
+| F | Kick on foot |
+| Enter | Retry a failed mission |
 | Shift | Run on foot |
 | C | Change camera |
 | B | Look behind |
@@ -41,10 +45,12 @@ Touch driving controls and standard gamepad steering/triggers are available. Ful
 - Seven level variants and five player characters, with original geometry, character animations, UI artwork, bitmap fonts, and the animated living-room menu.
 - Driving, walking, road traffic, coins, vehicle damage, local saves, and an added five-stop time trial.
 - Interpolated player and NPC motion, continuous junction paths, and grass placement spread across frames.
-- A Blender scenery pass over 100 exterior/interior files: preserved UVs and baked colors, rounded hard edges, and 11 surface-detail material classes covering 1,630 textures. Enlarging source artwork does not recover missing detail; signs and illustrations still retain their original designs and resolution limits.
-- A campaign compiler that reads the original mission scripts, locators, objectives, conditions and rewards. Dialogue, mission vehicles, NPCs, props, and all 16 movies can be converted locally. The campaign runtime is being connected to gameplay.
+- A Blender scenery pass over 100 exterior/interior files: preserved UVs and baked colors, rounded hard edges, and 11 surface-detail material classes covering 1,672 textures. Enlarging source artwork does not recover missing detail; signs and illustrations still retain their original designs and resolution limits.
+- 89 scripted missions across seven chapters: 49 story missions, the opening tutorial, four chapter transitions, seven bonus missions, 21 street races and seven wager races. The 610 stages include original objectives, timers, failure conditions, checkpoints, purchases, rewards and chapter progression.
+- Original mission dialogue, opening/campaign movies, briefings, NPC conversation animations, accessible interiors, delivery and destruction targets, multi-lap races and nuclear-waste/UFO objectives. There are 67 character models, 64 vehicle models and 549 dialogue clips.
+- Saves resume from the latest mission checkpoint and preserve coins, purchased cars, outfits and completed missions. Bonus missions return to the story checkpoint afterward.
 
-This is not yet a 1:1 port. Vehicle handling and traffic are reconstructed systems. Original police behavior, gags, destructible props, collectible-card gameplay, menu parity and complete campaign behavior still need work and verification. The original executable is not being recompiled.
+This is not yet a 1:1 port. Vehicle handling and traffic are reconstructed systems. Original police behavior, gags, general destructible physics, collectible-card gameplay and menu parity still need work. Mission AI and the UFO sequence use reconstructed behavior; their timing and difficulty have not been validated against complete original-game playthroughs. The original executable is not being recompiled.
 
 ## Rebuild assets from a disc
 
@@ -70,7 +76,7 @@ npm run build
 npm test           # Also checks locally converted assets
 ```
 
-CI builds the code and runs tests that do not require game data. Local asset checks cover extracted archives, geometry, collision datasets, skin weights, UI resources, textures, and Blender vehicle exports. The production build currently has a bundle-size warning.
+CI builds the code and runs tests that do not require game data. Local asset checks cover extracted archives, geometry, collision datasets, skin weights, UI resources, textures, and Blender vehicle exports. Campaign checks exercise every compiled stage with valid objective events and verify resource references; they do not establish that every mission has been played through in the browser. The production build currently has a bundle-size warning.
 
 ## Format references
 

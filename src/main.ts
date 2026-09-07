@@ -1,3 +1,7 @@
+import { devTools } from './dev-tools';
+import { Campaign,type CampaignAssets } from './campaign/runtime';
+import { newProgress,validateProgress } from './campaign/engine';
+import { arg,type Progress,type Vec3 } from './campaign/types';
 import { Motion } from './motion';
 import './style.css';
 import * as THREE from 'three';
@@ -34,7 +38,7 @@ const input=new Input(),hud=new HUD(),challenge=new Challenge(scene),sound=new S
 const state:CarState={position:new THREE.Vector3(220,3.5,172),heading:Math.PI/2,speed:0,verticalSpeed:0,steer:0,distance:0,damage:0};
 const motion=new Motion();motion.reset(state);
 let nativeMenu:OriginalMenu|undefined,menuRoom:FrontendRoom|undefined;const nativeHUD=new OriginalHUD();
-let coins:Coins|undefined;
+let coins:Coins|undefined;let campaign:Campaign|undefined,campaignAssets:CampaignAssets;let kickUntil=0;
 let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65;
 let catalog:Catalog, loading=true,paused=true,highQuality=true,cameraMode=0,debug=false;
 let onFoot=false,cruise=false,character:Character|undefined,footHeading=0;const parkedPosition=new THREE.Vector3();let parkedHeading=0;
@@ -51,7 +55,7 @@ const play=element<HTMLButtonElement>('play'),run=element<HTMLButtonElement>('ch
 function progress(value:number,message:string){element('load-progress').style.width=`${value*100}%`;element('load-message').textContent=message;}
 function lock(value:boolean){loading=value;for(const node of document.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('#menu button,#menu select'))node.disabled=value;}
 function pause(value:boolean){
-  if(loading)return;paused=value;input.clear();accumulator=0;motion.reset(state);traffic?.resetInterpolation();element('menu').hidden=!value;element('hud').hidden=value||photo;
+  if(loading)return;paused=value;input.clear();accumulator=0;motion.reset(state);traffic?.resetInterpolation();campaign?.resetInterpolation();campaign?.presentation.setPaused(value);element('menu').hidden=!value;element('hud').hidden=value||photo;
   if(value){nativeMenu?.show('pause');cruise=false;play.querySelector('span')!.textContent='Back to Springfield';sound.pause();play.focus();}
   else{metrics.reset();sound.start();renderer.domElement.focus();smoothLook.copy(state.position);}
 }
@@ -83,12 +87,12 @@ async function setCar(id:string){
   car.rotation.set(0,0,0);car.position.set(0,0,0);
   const box=new THREE.Box3().setFromObject(car);carOffset=-box.min.y+0.04;
   car.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});
-  scene.add(car);character?.drive(car);element('car-label').textContent=CAR_NAMES[id].toUpperCase();
-  element('scene-info').textContent=`${CAR_NAMES[id]} · ${LEVEL_NAMES[level-1]}`;
+  scene.add(car);character?.drive(car);element('car-label').textContent=(CAR_NAMES[id]??id).toUpperCase();
+  element('scene-info').textContent=`${CAR_NAMES[id]??id} · ${LEVEL_NAMES[level-1]}`;
 }
 async function loadLevel(nextLevel:number){
   lock(true);paused=true;element('loading').hidden=false;element('hud').hidden=true;challenge.stop();
-  traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
+  campaign?.dispose();campaign=undefined;nativeHUD.campaign=null;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
   level=nextLevel;levelSelect.value=String(nextLevel);world=new World(scene,catalog);
   try{
     await world.load(level,progress);coins=new Coins(scene,world.data);progress(0.9,'Getting the cars ready…');
@@ -103,9 +107,10 @@ async function loadLevel(nextLevel:number){
     progress(0,error instanceof Error?error.message:String(error));element('load-message').textContent+=' · Check the console, then reload to retry.';console.error(error);
   }
 }
-function startChallenge(){if(onFoot){onFoot=false;character?.drive(car!);}challenge.start(world.data);respawn(0);pause(false);element('mode-badge').textContent='SPRINGFIELD RUN';toast('Five stops. Five minutes. Make it home.');}
+function startChallenge(){campaign?.dispose();campaign=undefined;nativeHUD.campaign=null;world.leaveInterior();if(onFoot){onFoot=false;character?.drive(car!);}challenge.start(world.data);respawn(0);pause(false);element('mode-badge').textContent='SPRINGFIELD RUN';toast('Five stops. Five minutes. Make it home.');}
 function updateCamera(dt:number,snap=false){
   const position=motion.position;
+  const conversation=campaign?.conversationCamera;if(conversation&&!paused){camera.position.copy(conversation.position);smoothLook.copy(conversation.look);camera.lookAt(smoothLook);camera.fov=45;camera.updateProjectionMatrix();return;}
   if(paused&&nativeMenu?.mode==='pause'&&!snap)return;
   if(paused){
     const angle=motion.heading+0.6+Math.sin(time*0.07)*0.13;
@@ -136,11 +141,13 @@ function animate(now:number){
     if(input.consume('Escape')){if(!paused)pause(true);else if(nativeMenu?.mode==='pause')pause(false);else if(nativeMenu&&nativeMenu.mode!=='main'&&nativeMenu.mode!=='splash')nativeMenu.back();}
     if(input.consume('F3')){debug=!debug;element('debug').hidden=!debug;}
     if(!paused){
+      if(input.consume('Enter')&&campaign?.engine.status==='failed')campaign.retry();
+      if(input.consume('KeyF')&&onFoot&&!campaign?.frozen){campaign?.kick();character?.play('hom_jump_kick');kickUntil=time+.45;}
       if(input.consume('KeyR')){if(onFoot){onFoot=false;character?.drive(car!);}respawn();toast('Back on the road.');}
       if(input.consume('KeyH')&&!onFoot){cruise=!cruise;toast(cruise?'Cruise control · 50 km/h. Brake to cancel.':'Cruise control off.');}
-      if(input.consume('KeyE')&&character&&car){
+      if(input.consume('KeyE')&&character&&car&&!campaign?.frozen&&!campaign?.interact()){
         if(onFoot){
-          if(state.position.distanceTo(parkedPosition)<6){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;state.speed=0;character.drive(car);element('car-label').textContent=CAR_NAMES[carId].toUpperCase();element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Drive</span><span><kbd>SPACE</kbd> Drift</span><span><kbd>E</kbd> Get out</span><span><kbd>H</kbd> Cruise</span><span><kbd>C</kbd> Camera</span>';toast('Back behind the wheel.');}
+          if(state.position.distanceTo(parkedPosition)<6){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;state.speed=0;character.drive(car);element('car-label').textContent=(CAR_NAMES[carId]??carId).toUpperCase();element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Drive</span><span><kbd>SPACE</kbd> Drift</span><span><kbd>E</kbd> Get out</span><span><kbd>H</kbd> Cruise</span><span><kbd>C</kbd> Camera</span>';toast('Back behind the wheel.');}
           else toast('Get closer to your car.');
         }else if(Math.abs(state.speed)<2){
           onFoot=true;car.visible=true;cruise=false;parkedPosition.copy(state.position);parkedHeading=state.heading;footHeading=state.heading;
@@ -155,17 +162,18 @@ function animate(now:number){
       accumulator+=dt;
       while(accumulator>=1/60){
         const fixed=1/60;motion.capture(state);previous.copy(state.position);const controls=input.controls;
+        if(!campaign?.frozen){
         if(onFoot){
           const x=(input.down('KeyD','ArrowRight')?1:0)-(input.down('KeyA','ArrowLeft')?1:0),z=(input.down('KeyW','ArrowUp')?1:0)-(input.down('KeyS','ArrowDown')?1:0);
           const magnitude=Math.min(1,Math.hypot(x,z));state.speed=magnitude*(input.down('ShiftLeft','ShiftRight')?7.5:3.4);
           if(magnitude){footHeading=state.heading-Math.atan2(x,z);state.position.x+=Math.sin(footHeading)*state.speed*fixed;state.position.z+=Math.cos(footHeading)*state.speed*fixed;}
           if(input.consume('Space')&&Math.abs(state.verticalSpeed)<0.01){state.verticalSpeed=7;state.position.y+=0.22;}
-          world.terrain.resolve(state,previous,fixed);
-          character?.play(Math.abs(state.verticalSpeed)>1?'hom_jump_idle_in_air':state.speed>4?'hom_loco_run':state.speed>0.1?'hom_loco_walk':'hom_loco_idle_rest');
+          world.terrain.resolve(state,previous,fixed,.35,true);
+          if(time>kickUntil)character?.play(Math.abs(state.verticalSpeed)>1?'hom_jump_idle_in_air':state.speed>4?'hom_loco_run':state.speed>0.1?'hom_loco_walk':'hom_loco_idle_rest');
         }else{
           if(controls.brake||controls.handbrake)cruise=false;
           if(cruise)controls.throttle=state.speed<13.9?1:0;
-          drive(state,controls,fixed);
+          drive(state,controls,fixed,campaignAssets.tuning[carId]);
         }
         const hit=!onFoot&&world.terrain.resolve(state,previous,fixed);
         if(hit&&state.damage>65)toast('Easy on the paintwork. R resets the car.');
@@ -174,12 +182,14 @@ function animate(now:number){
         if(result==='checkpoint')toast(`Stop ${challenge.index} reached. Keep moving.`);
         if(result==='complete'){toast(`Home in ${Math.floor(challenge.elapsed/60)}:${String(Math.floor(challenge.elapsed%60)).padStart(2,'0')}. Nice driving.`);element('mode-badge').textContent='FREE DRIVE';}
         if(result==='failed'){toast('Time’s up. Try the Springfield Run again from the menu.');element('mode-badge').textContent='FREE DRIVE';}
-        if(state.position.y<-40||state.damage>=100){respawn();toast('A fresh start.');}
+        if(state.position.y<world.terrain.bottom-15||state.damage>=100){if(campaign?.active)campaign.engine.fail(state.damage>=100?'VEHICLE DESTROYED':'RETURN TO THE MISSION');else{respawn();toast('A fresh start.');}}
+        }
+        campaign?.update(fixed);
         accumulator-=fixed;
       }
       sound.update(state.speed,input.controls.throttle);
     }else{accumulator=0;motion.reset(state);}
-    motion.sample(state,paused?1:accumulator*60);traffic?.render(paused?0:dt,paused?1:accumulator*60,state.position);
+    const alpha=paused||campaign?.frozen?1:accumulator*60;motion.sample(state,alpha);traffic?.render(paused||campaign?.frozen?0:dt,alpha,state.position);campaign?.render(paused?0:dt,alpha);nativeHUD.campaign=campaign?.active?campaign.hud:null;
     if(car&&!onFoot){
       car.position.copy(motion.position);car.position.y+=carOffset;
       normal.copy(world.terrain.normal(state.position.x,state.position.z,state.position.y));
@@ -190,8 +200,9 @@ function animate(now:number){
       car.visible=paused||cameraMode!==2;
     }
     if(onFoot&&character){character.group.position.copy(motion.position);character.group.rotation.y+=THREE.MathUtils.euclideanModulo(footHeading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;}
-    character?.update(paused?dt*0.35:dt);
-    if(coins){const gained=coins.update(dt,state.position,!paused);if(gained)toast(`+${gained} coin${gained===1?'':'s'}`);element('coin-count').textContent=`${coins.collected} / ${coins.total}`;}
+    if(campaign?.playerAnimation)character?.play(campaign.playerAnimation);character?.update(paused?dt*0.35:dt);
+    if(car&&onFoot)car.visible=!campaign?.interior;if(coins)coins.mesh.visible=!campaign?.interior;if(traffic)traffic.group.visible=!campaign?.interior;sound.cinematic=!!campaign?.presentation.active;
+    if(coins){const gained=coins.update(dt,state.position,!paused);if(gained){campaign?.engine.earn(gained);if(campaign)campaign.progress.coins[String(level)]=coins.entries;toast(`+${gained} coin${gained===1?'':'s'}`);}element('coin-count').textContent=campaign?String(campaign.progress.money):`${coins.collected} / ${coins.total}`;}
     const worldStart=performance.now();world.update(state.position);const worldMs=performance.now()-worldStart;metrics.record(frameMs,worldMs);updateCamera(dt);
     if(now-metricTime>500){metricText=metrics.summary();metricTime=now;}
     hud.update(dt,state,world.data,challenge,traffic);nativeHUD.draw(dt,state,world.data,challenge,traffic,hud.bigMap,onFoot);
@@ -203,6 +214,46 @@ function animate(now:number){
     renderer.setScissorTest(false);renderer.setClearColor(0x000000);renderer.clear();renderer.setViewport((innerWidth-width)/2,(innerHeight-height)/2,width,height);renderer.setScissor((innerWidth-width)/2,(innerHeight-height)/2,width,height);renderer.setScissorTest(true);
     menuRoom.actor?.update(dt);renderer.render(menuRoom.scene,menuRoom.camera);renderer.setScissorTest(false);renderer.setViewport(0,0,innerWidth,innerHeight);
   }else if(highQuality)composer.render();else renderer.render(scene,camera);
+}
+function placePlayer(position:Vec3,heading:number,foot:boolean,parked?:Vec3){
+  state.position.fromArray(position);state.heading=heading;state.speed=0;state.verticalSpeed=0;state.steer=0;cruise=false;onFoot=foot;footHeading=heading;
+  if(parked)parkedPosition.fromArray(parked);else if(!foot)parkedPosition.copy(state.position);parkedHeading=heading;
+  if(car){car.position.copy(foot?parkedPosition:state.position);car.position.y+=carOffset;car.rotation.y=heading+Math.PI;car.visible=true;}
+  if(character&&car){if(foot)character.walk(scene,state.position,heading);else character.drive(car);}
+  motion.reset(state);smoothLook.copy(state.position);updateCamera(1,true);
+}
+async function changeSkin(id:string){
+  const asset=campaignAssets.characters[id]??id;const next=new Character();await next.load(world.assets,asset);character?.dispose();character=next;
+  if(onFoot)character.walk(scene,state.position,state.heading);else character.drive(car!);
+}
+function saveGame(){
+  try{if(campaign&&coins)campaign.progress.coins[String(level)]=coins.entries;
+    localStorage.setItem('hit-and-run:save',JSON.stringify({version:2,level,car:carId,position:state.position.toArray(),heading:state.heading,onFoot,parkedPosition:parkedPosition.toArray(),parkedHeading,campaign:campaign?.progress??null}));
+  }catch{toast('Could not save in this browser.');}
+}
+async function startCampaign(saved?:Progress,location?:{position:Vec3;heading:number;onFoot:boolean;parkedPosition:Vec3}){
+  const progressState=saved??newProgress(),newChapter=!saved||!saved.mission;lock(true);paused=true;element('loading').hidden=false;progress(.92,'Loading the mission…');
+  try{
+    if(level!==progressState.level)await loadLevel(progressState.level);campaign?.dispose();campaign=undefined;world.leaveInterior();
+    campaign=await Campaign.create(world,level,progressState,{
+      player:()=>({state,onFoot,vehicle:carId,parkedPosition,parkedHeading}),place:placePlayer,vehicle:setCar,skin:changeSkin,
+      chapter:async(next,progressState)=>{await loadLevel(next);progressState.mission='';progressState.stage=0;progressState.phase='intro';progressState.equippedSkin=null;await startCampaign(progressState);},toast,traffic:limit=>{if(traffic)traffic.limit=limit;},save:saveGame
+    });
+    if(newChapter){const initial=arg(campaign.data.initial,'InitLevelPlayerVehicle');await setCar(String(initial[0]));state.damage=0;}
+    coins?.reset(progressState.coins[String(level)]??[]);await campaign.start(progressState.mission,!!saved&&!newChapter);
+
+    if(progressState.equippedSkin)await changeSkin(progressState.equippedSkin);
+    lock(false);element('loading').hidden=true;pause(false);element('mode-badge').textContent='STORY';if(!saved)void campaign.presentation.playMovie('campaign/movies/fmv1a.mp4');
+  }catch(error){console.error(error);lock(false);element('loading').hidden=true;pause(true);nativeMenu?.notice(error instanceof Error?error.message:String(error));}
+}
+async function loadGame(){
+  let saved;try{saved=JSON.parse(localStorage.getItem('hit-and-run:save')??'null');}catch{}
+  const vector=(p:unknown):p is Vec3=>Array.isArray(p)&&p.length===3&&p.every(Number.isFinite);
+  if(!saved){nativeMenu?.notice('NO SAVED GAME');return;}
+  if(!catalog.levels.includes(saved.level)||!catalog.cars.includes(saved.car)||!vector(saved.position)||!Number.isFinite(saved.heading)){nativeMenu?.notice('THIS SAVE IS NOT VALID');return;}
+  carId=saved.car;await loadLevel(saved.level);
+  if(saved.campaign&&validateProgress(saved.campaign))await startCampaign(saved.campaign,{position:saved.position,heading:saved.heading,onFoot:!!saved.onFoot,parkedPosition:vector(saved.parkedPosition)?saved.parkedPosition:saved.position});
+  else{placePlayer(saved.position,saved.heading,false);pause(false);}
 }
 play.addEventListener('click',()=>pause(false),options);
 run.addEventListener('click',startChallenge,options);
@@ -228,16 +279,15 @@ async function init(){
     for(const label of settings.querySelectorAll('label')){
       const text=[...label.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);const span=document.createElement('span');span.className='native-label';span.dataset.text=text?.textContent?.trim()??'';text?.remove();label.prepend(span);label.querySelector('select')?.setAttribute('aria-label',span.dataset.text);
     }
-    nativeMenu=new OriginalMenu({start:()=>pause(false),run:startChallenge,main:()=>{},
-      save:()=>{try{localStorage.setItem('hit-and-run:save',JSON.stringify({level,car:carId,position:state.position.toArray(),heading:state.heading}));nativeMenu?.notice('GAME SAVED');}catch{nativeMenu?.notice('Could not save in this browser.');}},
-      load:()=>{let saved;try{saved=JSON.parse(localStorage.getItem('hit-and-run:save')??'null');}catch{}if(!saved){nativeMenu?.notice('NO SAVED GAME');return;}
-        if(!catalog.levels.includes(saved.level)||!catalog.cars.includes(saved.car)||!Array.isArray(saved.position)||saved.position.length!==3||!saved.position.every(Number.isFinite)||!Number.isFinite(saved.heading)){nativeMenu?.notice('This save is not valid.');return;}
-        void (async()=>{carId=saved.car;await loadLevel(saved.level);state.position.fromArray(saved.position);state.heading=saved.heading;pause(false);})();}
+    nativeMenu=new OriginalMenu({start:()=>pause(false),newGame:()=>void startCampaign(),missions:()=>campaign?campaign.data.missions.filter(m=>!m.transition).map(m=>({title:m.title,enabled:!!m.optional||m.id===campaign!.progress.mission||campaign!.progress.completed.includes(`${level}:${m.id}`),select:()=>{void campaign!.start(m.id).then(()=>pause(false));}})):[],run:startChallenge,main:()=>{},
+      save:()=>{saveGame();nativeMenu?.notice('GAME SAVED');},
+      load:()=>void loadGame()
     });nativeMenu.show('splash');
-    catalog=await json<Catalog>('catalog.json');menuRoom=new FrontendRoom(catalog);await menuRoom.load();carSelect.replaceChildren(...catalog.cars.map(id=>new Option(CAR_NAMES[id]??id,id)));await loadLevel(1);}
+    [catalog,campaignAssets]=await Promise.all([json<Catalog>('catalog.json'),json<CampaignAssets>('campaign/assets.json')]);Object.assign(CAR_NAMES,catalog.carNames??{});menuRoom=new FrontendRoom(catalog);await menuRoom.load();carSelect.replaceChildren(...catalog.cars.map(id=>new Option(CAR_NAMES[id]??id,id)));await loadLevel(1);}
   catch(error){console.error(error);progress(0,'Game assets are missing. Run npm run extract and npm run convert, then reload.');}
 }
 void init();
-function dispose(){controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
+const removeDevTools=devTools(input,{scenario:async(value)=>{const [chapter,mission,phase,stage]=value.split(':');const p=newProgress();p.level=Number(chapter);p.mission=mission;p.phase=phase==='main'?'main':'intro';p.stage=Number(stage)||0;p.checkpoint={phase:p.phase,stage:p.stage};await startCampaign(p);},state:()=>campaign?`${level}:${campaign.progress.mission}:${campaign.progress.phase}:${campaign.progress.stage} · ${state.position.toArray().map(n=>n.toFixed(1)).join(',')} · ${campaign.error||campaign.engine.status}`:'No campaign',resume:()=>pause(false),retry:()=>campaign?.retry(),objective:()=>{const target=campaign?.hud.target;if(target){const p=[...target] as Vec3;p[2]-=2;placePlayer(p,0,onFoot,parkedPosition.toArray());}}});
+function dispose(){removeDevTools();campaign?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
 window.addEventListener('pagehide',dispose,{once:true});
 if(import.meta.hot)import.meta.hot.dispose(dispose);

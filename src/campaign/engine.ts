@@ -1,5 +1,5 @@
 import {all,arg,distance,key,type Chapter,type Effect,type Mission,type ObjectiveType,type PrepareReason,type Progress,type Reward,type Snapshot,type Stage,type Vec3} from './types';
-export const OBJECTIVES:ObjectiveType[]=['goto','getin','talkto','dialogue','interior','gooutside','race','follow','losetail','delivery','dump','destroy','pickupitem','destroyboss','timer','fmv','buycar','buyskin'];
+export const OBJECTIVES:ObjectiveType[]=['goto','getin','talkto','dialogue','interior','gooutside','race','follow','losetail','delivery','dump','destroy','pickupitem','destroyboss','timer','fmv','buycar','buyskin','coins'];
 export const CONDITIONS=['timeout','outofvehicle','damage','position','race','followdistance','keepbarrel'];
 export function newProgress():Progress{return {version:2,level:1,mission:'m0',phase:'intro',stage:0,checkpoint:{phase:'intro',stage:0},completed:[],money:0,cars:['famil_v'],skins:['homer'],equippedSkin:null,coins:{},finished:false};}
 export function validateProgress(value:unknown):value is Progress{
@@ -19,13 +19,15 @@ export class CampaignEngine {
   get phase(){return this.progress.phase==='intro'&&this.mission.intro?this.mission.intro:this.mission;}
   get missionKey(){return `${this.chapter.id}:${this.mission?.id}`;}
   get objective(){return this.stage?.objective.type;}
-  get items(){return all(this.stage.commands,'AddCollectible');}
+  get items(){const items=all(this.stage.commands,'AddCollectible'),laps=this.objective==='race'?Math.max(1,Number(arg(this.stage.commands,'SetRaceLaps',[1])[0])):1;return Array.from({length:laps},()=>items).flat();}
   get target(){return this.targetValue;}
   locator(name:unknown):Vec3|undefined{return this.chapter.locators[key(name)]?.position;}
   start(id:string,reason:PrepareReason='new',restore=false){
     const mission=this.chapter.missions.find(m=>m.id===id);if(!mission)throw new Error(`Unknown mission ${this.chapter.id}:${id}`);
+    if(mission.optional&&this.mission&&!this.mission.optional)this.progress.story={mission:this.mission.id,checkpoint:structuredClone(this.progress.checkpoint)};
     this.mission=mission;this.progress.level=this.chapter.id;this.progress.mission=id;this.remaining=null;this.cargo=null;this.failure='';
     if(!restore){this.progress.phase=mission.intro?.stages.length?'intro':'main';this.progress.stage=0;this.progress.checkpoint={phase:this.progress.phase,stage:0};}
+    else{this.progress.phase=this.progress.checkpoint.phase;this.progress.stage=this.progress.checkpoint.stage;}
     if(!this.phase.stages[this.progress.stage]){this.progress.stage=0;this.progress.phase=mission.intro?.stages.length?'intro':'main';}
     this.enter(reason);
   }
@@ -35,17 +37,20 @@ export class CampaignEngine {
     this.expectedDrops=all(this.stage.commands,'BindCollectibleTo').map(a=>Number(a[1]));
     this.countdown=all(this.stage.commands,'AddToCountdownSequence').reduce((sum,a)=>sum+Number(a[1]??0)/1000,0);
     const setting=arg(this.stage.commands,'SetStageTime');if(setting.length)this.remaining=Math.max(0,Number(setting[0]));
+    if(this.stage.commands.some(c=>c.op==='UseElapsedTime'))this.remaining=Number(arg(this.stage.commands,'SetParTime',[120])[0]);
     const addition=arg(this.stage.commands,'AddStageTime');if(addition.length)this.remaining=(this.remaining??0)+Number(addition[0]);
     this.targetValue=key(arg(this.stage.commands,'SetObjTargetVehicle',arg(this.stage.commands,'SetTalkToTarget',arg(this.stage.commands,'SetPickupTarget',arg(this.stage.commands,'SetObjTargetBoss'))))[0]);
-    if(this.stage.checkpoint)this.progress.checkpoint={phase:this.progress.phase,stage:this.progress.stage};
+    if(reason==='load'||reason==='checkpoint'){this.remaining=this.progress.checkpoint.remaining??this.remaining;this.cargo=this.progress.checkpoint.cargo??null;}
+    if(this.stage.checkpoint&&reason!=='load'&&reason!=='checkpoint')this.progress.checkpoint={phase:this.progress.phase,stage:this.progress.stage,remaining:this.remaining,cargo:this.cargo};
     const replay=(reason==='load'||reason==='checkpoint')?this.phase.stages.slice(0,this.progress.stage).flatMap(s=>s.commands):[];
     this.effects.push({type:'prepare',reason,setup:this.phase.setup,commands:this.stage.commands,replay});
   }
   ready(){if(this.status==='loading')this.status='running';}
   drain(){const effects=this.effects;this.effects=[];return effects;}
-  targetEntity(snapshot:Snapshot,name=this.targetValue){return name==='current'||name==='default'||!name?{id:snapshot.vehicle,health:snapshot.health,position:snapshot.position}:snapshot.entities[key(name)]??(key(snapshot.vehicle)===key(name)?{id:snapshot.vehicle,health:snapshot.health,position:snapshot.position}:undefined);}
+  targetEntity(snapshot:Snapshot,name=this.targetValue){return name==='current'||name==='default'||!name?{id:snapshot.vehicle,health:snapshot.health,position:snapshot.onFoot?(snapshot.parkedPosition??snapshot.position):snapshot.position}:snapshot.entities[key(name)]??(key(snapshot.vehicle)===key(name)?{id:snapshot.vehicle,health:snapshot.health,position:snapshot.position}:undefined);}
   navTarget(snapshot:Snapshot):Vec3|undefined{
     const type=this.objective;
+    if(type==='getin')return this.targetEntity(snapshot)?.position;
     if(type==='goto')return this.locator(arg(this.stage.commands,'SetDestination')[0]);
     if(type==='interior'){
       const dest=key(arg(this.stage.commands,'SetDestination')[0]);return Object.values(this.chapter.locators).find(l=>key(l.interior)===dest)?.position;
@@ -54,7 +59,7 @@ export class CampaignEngine {
     if(type==='talkto')return snapshot.entities[this.targetValue]?.position;
     if(type==='buycar'||type==='buyskin')return snapshot.entities[this.lastTalkTarget]?.position;
     if(['follow','losetail','destroy'].includes(type))return this.targetEntity(snapshot)?.position;
-    if(type==='pickupitem')return this.locator(arg(this.mission.setup,'AddCollectibleStateProp').find((_,i)=>i===1));
+    if(type==='pickupitem'){const definitions=all([...this.mission.setup,...this.stage.commands],'AddCollectibleStateProp');return this.locator(definitions.find(a=>key(a[0])===this.targetValue)?.[1]);}
     if(type==='destroyboss')return Object.values(this.chapter.locators).find(l=>l.name.toLowerCase().includes('ufo')&&l.kind===2)?.position??this.locator('m2_playground');
     const index=this.items.findIndex((_,i)=>!this.collected.has(i));
     if(index>=0)return this.released.get(index)??snapshot.collectibles?.[index]??this.locator(this.items[index][0]);
@@ -74,19 +79,25 @@ export class CampaignEngine {
     if(this.progress.stage+1<this.phase.stages.length){this.progress.stage++;this.enter('advance');return;}
     if(this.progress.phase==='intro'){this.progress.phase='main';this.progress.stage=0;this.progress.checkpoint={phase:'main',stage:0};this.enter('main');return;}
     if(!this.progress.completed.includes(this.missionKey))this.progress.completed.push(this.missionKey);
+    if(this.mission.optional){
+      const quest=this.mission.id==='bm1'?'bonusmission':this.mission.id.startsWith('sr')&&['sr1','sr2','sr3'].every(id=>this.progress.completed.includes(`${this.chapter.id}:${id}`))?'streetrace':'';
+      for(const reward of this.rewards.filter(r=>r.level===this.chapter.id&&r.quest===quest)){const owned=reward.type==='car'?this.progress.cars:this.progress.skins;if(!owned.includes(reward.id))owned.push(reward.id);}
+      if(this.mission.id==='gr1')this.earn(Number(arg(this.stage.commands,'SetRaceEnteryFee',[20])[0])*2);
+    }
     this.status='mission-complete';this.delay=this.mission.transition?.2:3;this.effects.push({type:'mission-complete',title:this.mission.title});
   }
   private nextMission(){
-    const index=this.chapter.missions.indexOf(this.mission);
-    if(index+1<this.chapter.missions.length){this.start(this.chapter.missions[index+1].id,'advance');return;}
+    if(this.mission.optional){const story=this.progress.story;this.progress.story=undefined;if(story){this.progress.checkpoint=story.checkpoint;this.start(story.mission,'load',true);}else this.start(this.chapter.missions.find(m=>!m.optional)!.id,'new');return;}
+    const missions=this.chapter.missions.filter(m=>!m.optional),index=missions.indexOf(this.mission);
+    if(index+1<missions.length){this.start(missions[index+1].id,'advance');return;}
     if(this.chapter.id===7){this.progress.finished=true;this.status='complete';this.effects.push({type:'campaign-complete'});}
     else{this.status='loading';this.effects.push({type:'chapter-complete',nextLevel:this.chapter.id+1});}
   }
   earn(amount:number){if(Number.isFinite(amount)&&amount>0)this.progress.money+=Math.floor(amount);}
   purchase(id:string){
     const reward=this.rewards.find(r=>r.id===key(id)&&r.level===this.chapter.id&&r.quest==='forsale');
-    if(!reward||reward.cost>this.progress.money)return false;
-    const owned=reward.type==='car'?this.progress.cars:this.progress.skins;if(owned.includes(reward.id))return true;
+    if(!reward)return false;
+    const owned=reward.type==='car'?this.progress.cars:this.progress.skins;if(owned.includes(reward.id))return true;if(reward.cost>this.progress.money)return false;
     this.progress.money-=reward.cost;owned.push(reward.id);if(reward.type==='skin')this.progress.equippedSkin=reward.id;this.effects.push({type:'purchase',reward});return true;
   }
   tick(dt:number,snapshot:Snapshot){
@@ -122,6 +133,7 @@ export class CampaignEngine {
       case 'goto':{
         const target=this.navTarget(snapshot);const needsAction=this.stage.commands.some(c=>c.op==='MustActionTrigger');complete=!!target&&distance(snapshot.position,target)<(snapshot.onFoot?2.6:6.5)&&(!needsAction||!!snapshot.interact);break;
       }
+      case 'coins':{const fee=Number(arg(this.stage.commands,'SetCoinFee',[0])[0]);if(snapshot.interact&&this.progress.money>=fee){this.progress.money-=fee;complete=true;}break;}
       case 'getin':complete=!snapshot.onFoot&&(!this.targetValue||this.targetValue==='current'||this.targetValue==='default'||key(snapshot.vehicle)===this.targetValue);break;
       case 'talkto':{
         const target=snapshot.entities[this.targetValue];const args=arg(this.stage.commands,'SetTalkToTarget');const radius=Number(args[3]??3.5);
@@ -150,7 +162,13 @@ export class CampaignEngine {
         const id=key(this.stage.objective.mode);complete=(type==='buycar'?this.progress.cars:this.progress.skins).includes(id);break;
       }
       case 'race':case 'delivery':case 'dump':{
-        if(type==='dump'&&snapshot.hitVehicle&&key(snapshot.hitVehicle)===this.targetValue&&this.hitCooldown<=0){
+        const bindings=all(this.stage.commands,'BindCollectibleTo');
+        if(type==='dump'&&bindings.length){
+          const entity=this.targetEntity(snapshot);
+          if(entity&&distance(snapshot.position,entity.position)>200){this.fail('YOU LOST YOUR TARGET');return;}
+          for(const [item,waypoint] of bindings){const index=Number(item);if(entity&&(entity.waypoint??0)>Number(waypoint)&&!this.released.has(index)){const position=[...entity.position] as Vec3;this.released.set(index,position);this.effects.push({type:'drop',index,position});}}
+        }
+        if(type==='dump'&&!bindings.length&&snapshot.hitVehicle&&key(snapshot.hitVehicle)===this.targetValue&&this.hitCooldown<=0){
           const index=this.items.findIndex((_,i)=>!this.released.has(i)&&!this.collected.has(i));const entity=this.targetEntity(snapshot);
           if(index>=0&&entity){const position:[number,number,number]=[entity.position[0],entity.position[1],entity.position[2]];this.released.set(index,position);this.effects.push({type:'drop',index,position});this.hitCooldown=1.5;}
         }
@@ -158,6 +176,7 @@ export class CampaignEngine {
           if(this.collected.has(i))continue;
           if(type==='race'&&i!==this.collected.size)continue;
           if(type==='dump'&&!this.released.has(i))continue;
+          if(type==='delivery'&&this.items[i].length===1&&!snapshot.brokenCollectibles?.includes(i))continue;
           const position=this.released.get(i)??snapshot.collectibles?.[i]??this.locator(this.items[i][0]);
           if(position&&distance(snapshot.position,position)<(snapshot.onFoot?2.6:5.5)){this.collected.add(i);this.effects.push({type:'collect',index:i});}
         }
