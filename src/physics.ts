@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { LevelData } from './assets';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { Octree } from 'three/addons/math/Octree.js';
+import { Capsule } from 'three/addons/math/Capsule.js';
 
 export interface Controls {steer:number;throttle:number;brake:number;handbrake:boolean}
 export interface CarState {position:THREE.Vector3;heading:number;speed:number;verticalSpeed:number;steer:number;distance:number;damage:number}
@@ -29,12 +31,28 @@ export class Terrain {
   private origin=new THREE.Vector3();
   private fences:LevelData['fences'];
   private grid=new Map<string,number[]>();
-  constructor(geometries:THREE.BufferGeometry[],data:LevelData) {
+  private bodyTree?:Octree;
+  constructor(geometries:THREE.BufferGeometry[],data:LevelData,staticBodies?:THREE.BufferGeometry) {
     const geometry=mergeGeometries(geometries);
     if(!geometry)throw new Error('No terrain collision data was converted.');
     geometry.computeBoundsTree();geometry.computeBoundingBox();this.bottom=geometry.boundingBox!.min.y;
     this.mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
     this.mesh.updateMatrixWorld();
+    if(staticBodies){
+      this.bodyTree=new Octree();
+      for(const source of [geometry,staticBodies]){
+        const positions=source.getAttribute('position'),indices=source.index;
+        for(let i=0;i<(indices?.count??positions.count);i+=3){
+          const points=[0,1,2].map(j=>new THREE.Vector3().fromBufferAttribute(positions,indices?indices.getX(i+j):i+j));
+          const triangle=new THREE.Triangle(points[0],points[1],points[2]);
+          // Intersect surfaces were exported for double-sided ground rays. The
+          // capsule solver needs upward floor winding; static solids face outward.
+          if(source===geometry&&triangle.getNormal(new THREE.Vector3()).y<0){triangle.a=points[2];triangle.c=points[0];}
+          this.bodyTree.addTriangle(triangle);
+        }
+      }
+      this.bodyTree.build();
+    }
     this.ray.firstHitOnly=true;
     this.fences=data.fences;
     for(let i=0;i<this.fences.length;i++){
@@ -50,6 +68,7 @@ export class Terrain {
     return this.ray.intersectObject(this.mesh,false)[0];
   }
   resolve(state:CarState,previous:THREE.Vector3,dt:number,radius=1.2,collideMesh=false) {
+    if(collideMesh&&this.bodyTree)return this.resolveBody(state,previous,dt,radius);
     let impact=false;
     const candidates=new Set<number>();
     const gx=Math.floor(state.position.x/20),gz=Math.floor(state.position.z/20);
@@ -84,10 +103,35 @@ export class Terrain {
     }else {state.verticalSpeed-=18*dt;state.position.y+=state.verticalSpeed*dt;}
     return impact;
   }
+  private resolveBody(state:CarState,previous:THREE.Vector3,dt:number,radius:number){
+    const clearance=.06,height=1.8;
+    state.verticalSpeed-=18*dt;
+    const movement=state.position.clone().sub(previous);movement.y+=state.verticalSpeed*dt;
+    // Bound each sweep so sprinting, jumping and long frames cannot cross a thin
+    // native wall between overlap tests. Preserve tangential motion for sliding.
+    const steps=Math.max(1,Math.ceil(movement.length()/(radius*.5)));
+    movement.divideScalar(steps);
+    const capsule=new Capsule(previous.clone().add(new THREE.Vector3(0,radius-clearance,0)),previous.clone().add(new THREE.Vector3(0,height-radius-clearance,0)),radius);
+    let impact=false;
+    for(let step=0;step<steps;step++){
+      capsule.translate(movement);
+      for(let iteration=0;iteration<4;iteration++){
+        const hit=this.bodyTree!.capsuleIntersect(capsule);
+        if(!hit||hit.depth<1e-7)break;
+        capsule.translate(hit.normal.clone().multiplyScalar(hit.depth+1e-6));
+        if(Math.abs(hit.normal.y)<.5)impact=true;
+        if((hit.normal.y>.5&&state.verticalSpeed<0)||(hit.normal.y<-.5&&state.verticalSpeed>0)){
+          state.verticalSpeed=0;movement.y=0;
+        }
+      }
+    }
+    state.position.copy(capsule.start).add(new THREE.Vector3(0,clearance-radius,0));
+    return impact;
+  }
   normal(x:number,z:number,y:number){
     const hit=this.ground(x,z,y,2.4);
     if(!hit?.face)return up;
     return hit.face.normal.y<0?hit.face.normal.clone().negate():hit.face.normal;
   }
-  dispose(){this.mesh.geometry.disposeBoundsTree();this.mesh.geometry.dispose();(this.mesh.material as THREE.Material).dispose();}
+  dispose(){this.bodyTree?.clear();this.mesh.geometry.disposeBoundsTree();this.mesh.geometry.dispose();(this.mesh.material as THREE.Material).dispose();}
 }

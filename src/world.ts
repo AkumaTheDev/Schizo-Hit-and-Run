@@ -3,6 +3,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { Assets, json, type Catalog, type LevelData,type SceneryMaterial } from './assets';
 import { Terrain } from './physics';
 import { Grass } from './grass';
+import { staticCollisionGeometry,type InteriorCollision } from './collision';
 export const LEVEL_NAMES=['Evergreen Terrace','Downtown','Seaside','Evergreen at dusk','Downtown at dusk','Seaside at dusk','Halloween'];
 export const CAR_NAMES:Record<string,string>={famil_v:'Family Sedan',plowk_v:'Plow King',homer_v:'The Homer',cletu_v:"Cletus' Pickup",cpolice:'Police Cruiser',pickupa:'Pickup Truck',minivana:'Minivan',schoolbu:'School Bus',sportsa:'Sports Car',snake_v:"Snake's Bandit",bart_v:'Honor Roller',lisa_v:'Malibu Stacy Car'};
 
@@ -58,8 +59,9 @@ export class World {
   }
   async enterInterior(name:string){
     if(!this.interiors.has(name)){
-      const asset=await this.assets.load(name);if(!asset.collision)throw new Error(`Interior ${name} has no collision mesh`);
-      const terrain=new Terrain([asset.collision],{...this.data,fences:[]});this.interiors.set(name,{root:asset.root,terrain});this.scene.add(asset.root);
+      const [asset,physics]=await Promise.all([this.assets.load(name),json<InteriorCollision>(`collision/${name}.json`)]);if(!asset.collision)throw new Error(`Interior ${name} has no collision mesh`);
+      const bodies=staticCollisionGeometry(physics);
+      const terrain=new Terrain([asset.collision],{...this.data,fences:[]},bodies);bodies.dispose();this.interiors.set(name,{root:asset.root,terrain});this.scene.add(asset.root);
     }
     for(const [id,room] of this.interiors)room.root.visible=id===name;
     this.activeInterior=name;this.terrain=this.interiors.get(name)!.terrain;this.group.visible=false;this.sky.visible=false;this.scene.background=new THREE.Color(0x332a2b);this.scene.fog=null;
