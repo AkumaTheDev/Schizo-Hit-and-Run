@@ -1,0 +1,29 @@
+{
+  "name": "hit-and-run-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "extract": "python3 tools/extract.py",
+    "convert": "python3 tools/convert.py --levels 1,2,3,4,5,6,7 && python3 tools/characters.py && python3 tools/audio.py && python3 tools/frontend.py",
+    "test": "python3 tools/test_formats.py && node --import tsx --test tests/*.test.ts",
+    "remaster": "node tools/remaster.mjs",
+    "test:unit": "python3 tools/test_formats.py && node --import tsx --test tests/physics.test.ts tests/motion.test.ts tests/traffic.test.ts",
+    "campaign:convert": "python3 tools/campaign.py && python3 tools/campaign_assets.py && python3 tools/movies.py",
+    "scenery:remaster": "blender --background --factory-startup --python tools/scenery_remaster.py"
+  },
+  "dependencies": {
+    "three": "0.185.1",
+    "three-mesh-bvh": "0.9.14"
+  },
+  "devDependencies": {
+    "@types/node": "26.4.1",
+    "@types/three": "0.185.4",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
+  }
+}
