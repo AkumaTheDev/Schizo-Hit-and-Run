@@ -11,10 +11,9 @@ export class Character {
     this.bones=data.bones.map(source=>{const bone=new THREE.Bone();bone.name=source.name;bone.applyMatrix4(new THREE.Matrix4().fromArray(source.matrix));return bone;});
     data.bones.forEach((source,i)=>{if(i===0)this.group.add(this.bones[i]);else this.bones[source.parent].add(this.bones[i]);});
     this.group.updateMatrixWorld(true);this.skeleton=new THREE.Skeleton(this.bones);
-    const loader=new THREE.TextureLoader();
     for(const primitive of data.primitives){
       const source=data.materials[primitive.shader];let texture=assets.textures.get(source.textureUrl);
-      if(!texture){texture=await loader.loadAsync(assetURL(source.textureUrl));texture.colorSpace=THREE.SRGBColorSpace;texture.flipY=true;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;assets.textures.set(source.textureUrl,texture);}
+      if(!texture){texture=await assets.texture(source.textureUrl,t=>{t.colorSpace=THREE.SRGBColorSpace;t.flipY=true;t.wrapS=t.wrapT=THREE.RepeatWrapping;});}
       const geometry=new THREE.BufferGeometry();
       for(const [name,[offset,length]] of Object.entries(primitive.attributes)){
         if(name==='indices')geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(binary,offset,length),1));

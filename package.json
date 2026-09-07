@@ -13,6 +13,7 @@
     "remaster": "node tools/remaster.mjs",
     "test:unit": "python3 tools/test_formats.py && node --import tsx --test tests/physics.test.ts tests/motion.test.ts tests/traffic.test.ts tests/campaign.test.ts",
     "campaign:convert": "python3 tools/campaign.py && python3 tools/campaign_assets.py && python3 tools/movies.py",
+    "textures:webp": "python3 tools/webp.py",
     "scenery:remaster": "blender --background --factory-startup --python tools/scenery_remaster.py",
     "build:site": "npm run build -- --base=/hit-and-run-web/ && node tools/prepare_site.mjs"
   },

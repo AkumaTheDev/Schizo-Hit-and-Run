@@ -30,12 +30,13 @@ export class World {
     const [surfaces,scenery,ground]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json'),json<Record<string,string>>('remaster/surfaces.json')]);
     for(const [source,albedo] of Object.entries(ground))if(surfaces[source])surfaces[source].albedo=albedo;
     this.assets.sceneryMaterials=surfaces;this.assets.sceneryScenes=new Set(scenery.scenes);
+    // Every region downloads at once; the progress bar advances as each one is built.
+    let built=0;const total=this.data.scenes.length;progress(0,`Building ${LEVEL_NAMES[level-1]} · 0/${total}`);
+    const results=await Promise.all(this.data.scenes.map(async name=>{
+      const result=await this.assets.load(name);built++;progress(built/(total+3),`Building ${LEVEL_NAMES[level-1]} · ${built}/${total}`);return result;
+    }));
     const collision:THREE.BufferGeometry[]=[];
-    for(let i=0;i<this.data.scenes.length;i++){
-      const name=this.data.scenes[i];progress((i+1)/(this.data.scenes.length+3),`Building ${LEVEL_NAMES[level-1]} · ${i+1}/${this.data.scenes.length}`);
-      const result=await this.assets.load(name);this.group.add(result.root);
-      if(result.collision)collision.push(result.collision);
-    }
+    for(const result of results){this.group.add(result.root);if(result.collision)collision.push(result.collision);}
     this.terrain=new Terrain(collision,this.data);this.exteriorTerrain=this.terrain;
     // A separate receiver preserves the original baked environmental art.
     this.shadowGround=new THREE.Mesh(this.terrain.mesh.geometry,new THREE.ShadowMaterial({opacity:0.05}));

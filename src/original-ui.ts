@@ -16,7 +16,8 @@ export class OriginalArt {
     const names=['gamelogo.png','tvframe.png','larrow.png','rarrow.png','accept.png','back.png','radar.png','radartop.png','hrmetter.png','hrsector.png','hitnrun0.png','hitnrun1.png','hitnrun2.png','damage.png','greybar.png','coins.png','user.png','aicar.png','mission.png','phone.png','checkflag.png','collect.png','helptext.png','frame_t.png','frame_b.png','frame_l.png','frame_r.png','frame_tl.png','frame_tr.png','frame_bl.png','frame_br.png','qhomer.png','check.png',...Array.from({length:10},(_,i)=>`${i}.png`),'colon.png','slash.png',...Object.values(this.fonts).map(f=>f.file)];
     await Promise.all(names.map(name=>this.loadImage(name)));this.ready=true;
   }
-  async loadImage(name:string){if(this.images.has(name))return this.images.get(name)!;const image=new Image();image.src=source+name;await image.decode();this.images.set(name,image);return image;}
+  // The load event is used instead of decode(): Chrome can defer decode() of a detached image for a very long time.
+  async loadImage(name:string){if(this.images.has(name))return this.images.get(name)!;const image=new Image();image.decoding='async';image.src=source+name;await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error(`Could not load ${name}`));});this.images.set(name,image);return image;}
   draw(c:CanvasRenderingContext2D,name:string,x:number,y:number,w?:number,h?:number){const image=this.images.get(name);if(image)c.drawImage(image,x,y,w??image.width,h??image.height);}
   text(c:CanvasRenderingContext2D,text:string,x:number,y:number,size=24,align:'left'|'center'|'right'='left',color='#fff'){
     const font=this.fonts.boulder_24;if(!font)return;const image=this.images.get(font.file);if(!image)return;
@@ -111,7 +112,7 @@ export class OriginalMenu {
     window.addEventListener('keydown',e=>{
       if(element('menu').hidden||!originalArt.ready)return;
       if(e.target instanceof HTMLSelectElement)return;
-      if(this.mode==='splash'&&e.code==='Enter'){this.show('main');return;}
+      if(this.mode==='splash'&&e.code==='Enter'){e.preventDefault();this.show('main');return;}// Prevent the same key press from also activating the newly focused NEW GAME button.
       if(this.mode==='main'&&['ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();this.index=(this.index+(e.code==='ArrowRight'?1:5))%6;this.show('main');}
     },{signal:this.controller.signal});
   }

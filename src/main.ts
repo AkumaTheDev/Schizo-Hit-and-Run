@@ -97,7 +97,9 @@ async function loadLevel(nextLevel:number){
   try{
     await world.load(level,progress);coins=new Coins(scene,world.data);progress(0.9,'Getting the cars ready…');
     locationSelect.replaceChildren(...world.data.locations.map((place,i)=>new Option(place.name,String(i))));
-    await setCar(carId);character=new Character();await character.load(world.assets,CHARACTER_IDS[level-1]);character.drive(car!);traffic=new Traffic(world);await traffic.load();
+    const driver=new Character();traffic=new Traffic(world);
+    await Promise.all([setCar(carId),driver.load(world.assets,CHARACTER_IDS[level-1]),traffic.load()]);
+    character=driver;character.drive(car!);
     element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
     world.setLighting(lighting.value);respawn(0);renderer.compile(scene,camera);
@@ -209,7 +211,10 @@ function animate(now:number){
     if(debug)element('debug').textContent=`${fps} FPS · ${renderer.info.render.calls} draws · ${renderer.info.render.triangles.toLocaleString()} triangles\nposition ${state.position.x.toFixed(1)}, ${state.position.y.toFixed(1)}, ${state.position.z.toFixed(1)} · speed ${state.speed.toFixed(2)}\nlevel ${level} · ${carId} · ${paused?'paused':'driving'} · ${renderer.info.memory.geometries} geometries · ${renderer.info.memory.textures} textures\n${metricText}`;
   }
   renderer.info.reset();
-  if(paused&&!loading&&menuRoom&&nativeMenu?.mode!=='pause'){
+  if(paused&&!loading&&nativeMenu?.mode==='splash'){
+    // The splash screen is the full-frame logo; nothing should show around its edges.
+    renderer.setScissorTest(false);renderer.setClearColor(0x000000);renderer.clear();
+  }else if(paused&&!loading&&menuRoom&&nativeMenu?.mode!=='pause'){
     const width=Math.min(innerWidth,innerHeight*4/3),height=width*.75;
     renderer.setScissorTest(false);renderer.setClearColor(0x000000);renderer.clear();renderer.setViewport((innerWidth-width)/2,(innerHeight-height)/2,width,height);renderer.setScissor((innerWidth-width)/2,(innerHeight-height)/2,width,height);renderer.setScissorTest(true);
     menuRoom.actor?.update(dt);renderer.render(menuRoom.scene,menuRoom.camera);renderer.setScissorTest(false);renderer.setViewport(0,0,innerWidth,innerHeight);
@@ -272,7 +277,9 @@ renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDef
 renderer.setAnimationLoop(animate);
 async function init(){
   try{
-    await originalArt.load();
+    // The menu art, catalogue and campaign index have no dependencies, so they download together.
+    const artReady=originalArt.load();const catalogReady=Promise.all([json<Catalog>('catalog.json'),json<CampaignAssets>('campaign/assets.json')]);
+    await artReady;
     const nativeOptions=document.createElement('section');nativeOptions.id='native-options';nativeOptions.hidden=true;
     const settings=document.querySelector('.settings-grid')!,footer=document.querySelector('.menu-footer')!;
     nativeOptions.append(settings,footer);(settings as HTMLElement).hidden=false;(footer as HTMLElement).hidden=false;element('menu').append(nativeOptions);
@@ -283,7 +290,9 @@ async function init(){
       save:()=>{saveGame();nativeMenu?.notice('GAME SAVED');},
       load:()=>void loadGame()
     });nativeMenu.show('splash');
-    [catalog,campaignAssets]=await Promise.all([json<Catalog>('catalog.json'),json<CampaignAssets>('campaign/assets.json')]);Object.assign(CAR_NAMES,catalog.carNames??{});menuRoom=new FrontendRoom(catalog);await menuRoom.load();carSelect.replaceChildren(...catalog.cars.map(id=>new Option(CAR_NAMES[id]??id,id)));await loadLevel(1);}
+    [catalog,campaignAssets]=await catalogReady;Object.assign(CAR_NAMES,catalog.carNames??{});carSelect.replaceChildren(...catalog.cars.map(id=>new Option(CAR_NAMES[id]??id,id)));
+    // The menu room and the first level share no state, so they load side by side.
+    const room=new FrontendRoom(catalog);await Promise.all([room.load().then(()=>{menuRoom=room;}),loadLevel(1)]);}
   catch(error){console.error(error);progress(0,'Game assets are missing. Run npm run extract and npm run convert, then reload.');}
 }
 void init();
