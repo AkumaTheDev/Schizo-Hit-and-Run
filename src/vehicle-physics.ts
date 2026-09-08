@@ -4,7 +4,7 @@ import { vehicleContact,DEFAULT_FOOTPRINT,type VehicleFootprint } from './vehicl
 
 export interface WheelProfile {position:THREE.Vector3;radius:number;front:boolean}
 export interface VehicleProfile {half:THREE.Vector3;center:THREE.Vector3;wheels:WheelProfile[];offset:number}
-export interface VehicleMotion {velocity:THREE.Vector3;angularVelocity:THREE.Vector3;orientation:THREE.Quaternion;compression:number[];wheelSpin:number[];slip:0|1|2;lastSpeed:number;lastHeading:number;lastPosition:THREE.Vector3;wheelAngle:number;hadContact:boolean}
+export interface VehicleMotion {velocity:THREE.Vector3;angularVelocity:THREE.Vector3;orientation:THREE.Quaternion;compression:number[];wheelSpin:number[];slip:0|1|2;lastSpeed:number;lastHeading:number;lastPosition:THREE.Vector3;wheelAngle:number;hadContact:boolean;tractionRecovery:number}
 const Y=new THREE.Vector3(0,1,0),Z=new THREE.Vector3(0,0,1),X=new THREE.Vector3(1,0,0);
 const profiles=new WeakMap<THREE.Group,VehicleProfile>();
 export const VEHICLE_RULES={gravity:9.81,reverseSpeed:50/3.6,maximumStep:1/120,restitution:.12};
@@ -57,7 +57,7 @@ export function collideVehicles(a:CarState,b:CarState,aMass=1500,bMass=1500,as:V
 }
 function motion(state:CarState){
   let body=state.vehicleMotion;
-  if(!body){body={velocity:new THREE.Vector3(Math.sin(state.heading)*state.speed,state.verticalSpeed,Math.cos(state.heading)*state.speed),angularVelocity:new THREE.Vector3(),orientation:new THREE.Quaternion().setFromAxisAngle(Y,state.heading),compression:[0,0,0,0],wheelSpin:[0,0,0,0],slip:0,lastSpeed:state.speed,lastHeading:state.heading,lastPosition:state.position.clone(),wheelAngle:0,hadContact:false};state.vehicleMotion=body;}
+  if(!body){body={velocity:new THREE.Vector3(Math.sin(state.heading)*state.speed,state.verticalSpeed,Math.cos(state.heading)*state.speed),angularVelocity:new THREE.Vector3(),orientation:new THREE.Quaternion().setFromAxisAngle(Y,state.heading),compression:[0,0,0,0],wheelSpin:[0,0,0,0],slip:0,lastSpeed:state.speed,lastHeading:state.heading,lastPosition:state.position.clone(),wheelAngle:0,hadContact:false,tractionRecovery:0};state.vehicleMotion=body;}
   // Teleports and legacy mission impacts are explicit changes to the public pose.
   if(body.lastPosition.distanceToSquared(state.position)>4||Math.abs(body.lastHeading-state.heading)>.5){resetVehicle(state);return motion(state);}
   if(Math.abs(body.lastSpeed-state.speed)>.01){const forward=Z.clone().applyQuaternion(body.orientation);body.velocity.addScaledVector(forward,state.speed-body.velocity.dot(forward));}
@@ -80,7 +80,7 @@ function integrate(state:CarState,body:VehicleMotion,control:Controls,dt:number,
   const com=profile.center.clone().add(new THREE.Vector3(t.SetCMOffsetX??0,t.SetCMOffsetY??-.1,t.SetCMOffsetZ??.35));
   if(up.y<.7)com.y+=t.SetWeebleOffset??-.85;
   const centerOfMass=com.clone().applyQuaternion(body.orientation).add(state.position);
-  const force=new THREE.Vector3(0,flat?0:-mass*g,0),torque=new THREE.Vector3(),supportNormal=new THREE.Vector3();let grounded=0,maxTyreForce=0;
+  const force=new THREE.Vector3(0,flat?0:-mass*g,0),torque=new THREE.Vector3(),supportNormal=new THREE.Vector3();let grounded=0,drivenGrounded=0,maxTyreForce=0;
   const apply=(f:THREE.Vector3,lever:THREE.Vector3)=>{force.add(f);torque.add(lever.clone().cross(f));};
   for(let i=0;i<4;i++){
     const wheel=profile.wheels[i],limit=Math.max(.03,wheel.radius*(t.SetSuspensionLimit??.7)),k=mass*g/limit*(t.SetSpringK??.3),damper=2*Math.sqrt(k*mass)*(t.SetDamperC??.15);
@@ -90,7 +90,7 @@ function integrate(state:CarState,body:VehicleMotion,control:Controls,dt:number,
     const hit=terrain?.support(world.x,world.z,world.y,.1,limit+wheel.radius+.5),extension=hit?world.y-hit.point.y-wheel.radius:limit+1;
     const contact=flat||!!hit&&extension<=limit&&up.y>.4226;
     body.compression[i]=contact?Math.max(-limit,Math.min(limit,limit-extension)):0;
-    if(!contact){body.wheelSpin[i]+=along*dt/wheel.radius;continue;}grounded++;
+    if(!contact){body.wheelSpin[i]+=along*dt/wheel.radius;continue;}grounded++;if(!wheel.front)drivenGrounded++;
     const normal=hit?.face?.normal.clone()??Y.clone();if(normal.y<0)normal.negate();normal.normalize();
     supportNormal.add(normal);
     const spring=flat?mass*g/4:Math.max(0,k*body.compression[i]+5*k*body.compression[i]**2-damper*velocity.dot(normal));
@@ -116,6 +116,15 @@ function integrate(state:CarState,body:VehicleMotion,control:Controls,dt:number,
     }else body.wheelSpin[i]+=along*dt/wheel.radius;
     maxTyreForce=Math.max(maxTyreForce,wheelForce.length());apply(wheelForce,lever);
   }
+  // Arcade recovery for a chassis resting on a fence/kerb with its driven
+  // wheels hanging clear. Apply horizontal drive only during body contact;
+  // ordinary airborne cars still cannot accelerate or steer without traction.
+  const stranded=!flat&&body.hadContact&&drivenGrounded<2&&speed<4&&up.y>.7;
+  body.tractionRecovery=stranded?Math.min(1,body.tractionRecovery+dt):Math.max(0,body.tractionRecovery-dt*2);
+  if(stranded&&body.tractionRecovery>.35){
+    const acceleration=gas*control.throttle-control.brake*(along>.15?(t.SetBrakeScale??8)+3:gas);
+    const direction=forward.clone();direction.y=0;direction.normalize();force.addScaledVector(direction,acceleration*mass*(2-drivenGrounded));
+  }
   state.grounded=grounded>0;
   // PAL 0x2801e8 supplies upright torque and angular damping; 0x280388
   // additionally lets steering roll a nearly stationary overturned car upright.
@@ -137,7 +146,7 @@ function integrate(state:CarState,body:VehicleMotion,control:Controls,dt:number,
     if(!control.throttle&&grounded>1)force.addScaledVector(body.velocity,-Math.min(mass*1.2,mass*speed/dt)/speed);
   }
   const previous=state.position.clone();body.velocity.addScaledVector(force,dt/mass);
-  if(control.brake&&along>0&&body.velocity.dot(forward)<0)body.velocity.addScaledVector(forward,-body.velocity.dot(forward));
+  if(control.brake&&along>.15&&body.velocity.dot(forward)<0)body.velocity.addScaledVector(forward,-body.velocity.dot(forward));
   const reverse=body.velocity.dot(forward);if(reverse<-VEHICLE_RULES.reverseSpeed)body.velocity.addScaledVector(forward,-VEHICLE_RULES.reverseSpeed-reverse);
   if(speed<.12&&!control.throttle&&(!control.brake||control.handbrake)&&grounded>1){body.velocity.x=body.velocity.z=0;}
   const half=profile.half,inertia=new THREE.Vector3(mass*(half.y**2+half.z**2)/3,mass*(half.x**2+half.z**2)/3,mass*(half.x**2+half.y**2)/3);

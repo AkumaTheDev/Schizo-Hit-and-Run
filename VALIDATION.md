@@ -4,6 +4,12 @@ The local PAL PS2 extraction contains 24 disc files and 18,754 entries from 11 R
 
 ## September 8, 2026
 
+### Wheel rotation and fence recovery
+
+- Corrected wheel animation to rotate each complete assembly around its axle. The earlier code rotated the tyre, rim and lug nuts around their separate local axes. Regression checks cover the family sedan, cruiser, Honor Roller, hearse and bus, including steering and forward rolling direction.
+- Reproduced a sedan becoming stranded against the garden fence after breaking a crate. Its chassis was supported while the driven wheels hung clear. A delayed, horizontal drive assist now lets it reverse away during body contact. It adds no lift and remains disabled in normal flight. Braking also permits reverse once forward speed drops below the existing 0.15 threshold.
+- The actual-map fence test now reverses more than five metres clear within four seconds. Airborne throttle and steering still leave the unsupported trajectory unchanged. All **133 TypeScript tests and nine Python tests** pass locally, with zero failures or skips; the Pages production build passes.
+
 ### Vehicle physics, source lanes and world interaction pass
 
 - Added four-wheel suspension, source tuning and terrain grip, angular body motion, contact-point collision impulses, rollover recovery and rendered wheel travel. Player, traffic, police and mission cars share the solver. The host integrator and collision solver remain reconstructed code.

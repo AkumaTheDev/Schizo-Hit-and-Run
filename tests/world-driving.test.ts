@@ -33,3 +33,15 @@ test('an overturned family sedan at the reported wall can recover',()=>{
   assert(new THREE.Vector3(0,1,0).applyQuaternion(body.orientation).y>.8,`still tipped at ${player.position.toArray()}`);assert(player.position.y>0);assert(player.position.toArray().every(Number.isFinite));
 });
 after(()=>fixture?.terrain.dispose());
+
+test('a sedan perched against the garden fence can reverse away after smashing a crate',()=>{
+  const {terrain,objects}=world(),profile=vehicleProfile(carFixture('famil_v')),tuning=assetJSON('campaign/assets').tuning.famil_v,player=state(180.5,4.1,204.5);player.speed=3;
+  const previousImpact=terrain.onVehicleImpact,disabled:ReturnType<typeof terrain.nearbySolids>=[];
+  terrain.onVehicleImpact=(id,speed,point)=>{const prop=objects.props.find(p=>p.id===id);if(speed<2||!prop||![4,10].includes(prop.kind))return false;const solid=terrain.nearbySolids(point).find(p=>p.id===id);if(solid){solid.active=false;disabled.push(solid);}return !!solid;};
+  try{
+    for(let i=0;i<150;i++)simulateVehicle(player,{steer:0,throttle:i<66?1:0,brake:0,handbrake:i>=66},1/60,tuning,profile,terrain);
+    const contactPosition=player.position.clone();assert(contactPosition.z>212,'fixture must reach the reported fence');
+    for(let i=0;i<240;i++)simulateVehicle(player,{steer:0,throttle:0,brake:1,handbrake:false},1/60,tuning,profile,terrain);
+    assert(player.position.z<contactPosition.z-5,`still stranded at ${player.position.toArray()}`);assert(player.speed< -3);assert(player.position.y>3);assert(player.grounded);
+  }finally{terrain.onVehicleImpact=previousImpact;disabled.forEach(p=>p.active=true);}
+});

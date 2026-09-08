@@ -21,7 +21,7 @@ These addresses apply to the PAL `SLES_518.97` executable with SHA-256 `e936793d
 | `0x0025b818`, `0x0025bca8` | Coin pickup bounds and attraction. | Original diamond-shaped horizontal reach, separate height limit, wider car reach and a 0.4-second attraction before wallet credit. |
 | `0x0025aeb0`, `0x0025b2a0`, `0x0025be28`, `0x0025b098` | A 200-coin loose pool, launch/bounce update and full-pool credit. | Gravity 21, bounce factor 0.6, fading after 11 seconds and expiry after 16. Excess drops credit the wallet when the pool is full. |
 
-The browser's vehicle gravity of 9.81, box inertia, contact restitution, drag calibration and collision solver are host implementation choices. Source force formulas and tuning constrain the behavior, but do not prove matching trajectories, braking distances or handling feel.
+The browser's vehicle gravity of 9.81, box inertia, contact restitution, drag calibration and collision solver are host implementation choices. Source force formulas and tuning constrain the behavior, but do not prove matching trajectories, braking distances or handling feel. A low-speed drive assist also lets a chassis perched on a fence or kerb move away when its driven wheels are hanging clear. That assist requires body contact and adds no vertical lift or airborne drive force.
 
 ## World data and interactions
 

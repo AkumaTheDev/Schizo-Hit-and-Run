@@ -27,10 +27,10 @@ test('steering produces yaw and lateral momentum rather than directly rotating t
   const forward=new THREE.Vector3(Math.sin(state.heading),0,Math.cos(state.heading));
   assert(state.heading<-.1);assert(state.vehicleMotion!.velocity.clone().cross(forward).length()>.1);assert(state.vehicleMotion!.velocity.length()>5);assert(state.vehicleMotion!.orientation.toArray().every(Number.isFinite));
 });
-test('airborne steering cannot redirect the car without tyre contact',()=>{
+test('airborne throttle and steering cannot redirect the car without tyre contact',()=>{
   const terrain=world(),a=car(),b=car();a.position.y=b.position.y=20;a.speed=b.speed=20;
-  for(let i=0;i<15;i++){simulateVehicle(a,{...neutral,steer:1},1/60,{},DEFAULT_VEHICLE,terrain);simulateVehicle(b,neutral,1/60,{},DEFAULT_VEHICLE,terrain);}
-  assert(!a.grounded);assert(Math.abs(a.position.x-b.position.x)<.001);assert(a.position.y<20);terrain.dispose();
+  for(let i=0;i<15;i++){simulateVehicle(a,{...neutral,throttle:1,steer:1},1/60,{},DEFAULT_VEHICLE,terrain);simulateVehicle(b,neutral,1/60,{},DEFAULT_VEHICLE,terrain);}
+  assert(!a.grounded);assert(Math.abs(a.position.x-b.position.x)<.001);assert(Math.abs(a.position.z-b.position.z)<.001);assert(a.position.y<20);terrain.dispose();
 });
 test('a car resting on its side recovers instead of hanging in place',()=>{
   const terrain=world(),state=car(),body=simulateVehicle(state,neutral,1/60);
