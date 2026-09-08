@@ -14,9 +14,9 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { World, CAR_NAMES, LEVEL_NAMES } from './world';
 import { json, type Catalog } from './assets';
-import { Input } from './input';
+import { Input,LOOK_SENSITIVITY } from './input';
 import { drive, type CarState } from './physics';
-import { PlayerMovement } from './player-movement';
+import { cameraRelative,PlayerMovement } from './player-movement';
 import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,resetVehicle,type VehicleProfile } from './vehicle-physics';
 import { HUD, element } from './hud';
 import { Challenge } from './challenge';
@@ -55,6 +55,9 @@ let catalog:Catalog, loading=true,paused=true,highQuality=true,cameraMode=0,debu
 let onFoot=false,cruise=false,character:Character|undefined,footHeading=0;const parkedPosition=new THREE.Vector3();let parkedHeading=0;
 let level=1, carId='famil_v',carModels=new Map<string,THREE.Group>();
 let last=performance.now(),accumulator=0,time=0,frame=0,fps=60,lastFPS=last,photo=false;
+// Orbit camera. `camYaw` is the direction the camera looks, so the car sits between it
+// and the lens; the right thumb drives both angles and driving eases the yaw back home.
+let camYaw=Math.PI/2,camPitch=.12,lastLook=-99;
 const previous=new THREE.Vector3(),desiredCamera=new THREE.Vector3(),look=new THREE.Vector3(),smoothLook=new THREE.Vector3(),sunOffset=new THREE.Vector3();
 const forward=new THREE.Vector3(),right=new THREE.Vector3(),normal=new THREE.Vector3(),rotationMatrix=new THREE.Matrix4(),rotation=new THREE.Quaternion();
 const cameraRay=new THREE.Raycaster();cameraRay.firstHitOnly=true;
@@ -86,7 +89,7 @@ function respawn(location?:number){
   const road=nearestRoad(place);state.position.copy(road.point);state.heading=road.heading;
   const ground=world.terrain.ground(state.position.x,state.position.z,state.position.y,10);
   if(ground)state.position.y=ground.point.y+0.06;
-  state.speed=0;state.verticalSpeed=0;state.damage=0;state.steer=0;state.grounded=true;walking.reset(state.heading);resetVehicle(state);cruise=false;smoothLook.copy(state.position);motion.reset(state);
+  state.speed=0;state.verticalSpeed=0;state.damage=0;state.steer=0;state.grounded=true;walking.reset(state.heading);resetVehicle(state);cruise=false;smoothLook.copy(state.position);camYaw=state.heading;camPitch=.12;lastLook=-99;motion.reset(state);
   if(car)car.position.copy(state.position).add(new THREE.Vector3(0,carOffset,0));
   updateCamera(1,true);
 }
@@ -125,18 +128,42 @@ async function loadLevel(nextLevel:number){
   }
 }
 function startChallenge(){police?.reset();world.leaveInterior();if(onFoot){onFoot=false;character?.drive(car!);}challenge.start(world.data);respawn(0);pause(false);element('mode-badge').textContent='SPRINGFIELD RUN';toast('Five stops. Five minutes. Make it home.');}
+/**
+ * Right thumb (or mouse drag, or a pad's right stick) orbits the camera.
+ *
+ * On foot the camera stays exactly where it is put, which is what makes the stick's
+ * camera-relative steering predictable. Behind the wheel it eases back behind the car
+ * a beat after the thumb lifts — a chase camera left pointing sideways at 90 km/h is
+ * unusable, and the ease is slow enough to feel like the camera settling, not a snap.
+ */
+function orbit(dt:number){
+  const look=input.takeLook();
+  if(look.x||look.y){
+    camYaw-=look.x*LOOK_SENSITIVITY;
+    camPitch=THREE.MathUtils.clamp(camPitch+look.y*LOOK_SENSITIVITY,-.5,1.1);
+    lastLook=time;
+  }
+  if(!onFoot&&time-lastLook>1.1&&Math.abs(state.speed)>2.5){
+    const error=THREE.MathUtils.euclideanModulo(motion.heading-camYaw+Math.PI,Math.PI*2)-Math.PI;
+    camYaw+=error*Math.min(1,dt*2.4);camPitch+=(.12-camPitch)*Math.min(1,dt*1.6);
+  }
+}
 function updateCamera(dt:number,snap=false){
   const position=motion.position;
+  if(!paused)orbit(dt);
   if(paused&&nativeMenu?.mode==='pause'&&!snap)return;
   if(paused){
     const angle=motion.heading+0.6+Math.sin(time*0.07)*0.13;
     desiredCamera.set(position.x-Math.sin(angle)*9,position.y+4,position.z-Math.cos(angle)*9);
     look.copy(position).add(new THREE.Vector3(-2.2,1,0));
   }else{
-    const backwards=input.down('KeyB'),heading=motion.heading+(backwards?Math.PI:0);
+    const backwards=input.down('KeyB'),heading=camYaw+(backwards?Math.PI:0);
     const distance=onFoot?4.3:cameraMode===1?12.5:cameraMode===2?0.2:8.1;
-    desiredCamera.set(position.x-Math.sin(heading)*distance,position.y+(onFoot?2.7:cameraMode===1?6.5:cameraMode===2?1.55:3.55),position.z-Math.cos(heading)*distance);
-    look.set(position.x+Math.sin(heading)*5,position.y+1.2,position.z+Math.cos(heading)*5);
+    // Pitch swings the lens up and over on an arc of that same radius, so the framing
+    // holds its distance whether you are looking along the road or down at the roof.
+    const reach=distance*Math.cos(camPitch);
+    desiredCamera.set(position.x-Math.sin(heading)*reach,position.y+(onFoot?2.7:cameraMode===1?6.5:cameraMode===2?1.55:3.55)+Math.sin(camPitch)*distance,position.z-Math.cos(heading)*reach);
+    look.set(position.x+Math.sin(heading)*5,position.y+1.2-Math.sin(camPitch)*4.5,position.z+Math.cos(heading)*5);
     if(world?.terrain&&cameraMode!==2){
       const anchor=position.clone().add(new THREE.Vector3(0,1.6,0));const direction=desiredCamera.clone().sub(anchor);const distance=direction.length();
       cameraRay.set(anchor,direction.normalize());cameraRay.far=distance;
@@ -181,8 +208,11 @@ function animate(now:number){
         if(!police?.frozen){
         if(onFoot){
           world.terrain.setVehiclePlatforms([{id:'player',position:parkedPosition,heading:parkedHeading,half:chassis.half,center:chassis.center},...(traffic?.cars.filter(c=>c.active)??[]).map((c,i)=>({id:`traffic:${c.mesh.uuid}`,position:c.position,heading:c.heading,orientation:c.vehicleMotion?.orientation,half:c.profile.half,center:c.profile.center})),...(police?.cars??[]).map((c,i)=>({id:`police:${c.mesh.uuid}`,position:c.position,heading:c.heading,orientation:c.vehicleMotion?.orientation,half:c.profile.half,center:c.profile.center}))]);
-          const x=(input.down('KeyD','ArrowRight')?1:0)-(input.down('KeyA','ArrowLeft')?1:0),z=(input.down('KeyW','ArrowUp')?1:0)-(input.down('KeyS','ArrowDown')?1:0);
-          const animation=walking.update(state,{x,z,run:input.down('ShiftLeft','ShiftRight'),jump:input.consume('Space')},fixed,world.terrain);footHeading=walking.heading;
+          // The stick is read in camera space — push away from yourself and you run away
+          // from the camera, whichever way the character happens to be facing — and is
+          // converted here into the body-relative pair PlayerMovement expects.
+          const move=input.move,walk=cameraRelative(move.x,move.z,state.heading,camYaw);
+          const animation=walking.update(state,{...walk,run:move.run,jump:input.consume('Space')},fixed,world.terrain);footHeading=walking.heading;
           if(time>kickUntil)character?.play(animation);
         }else{
           world.terrain.setVehiclePlatforms([]);
@@ -269,7 +299,7 @@ function placePlayer(position:Vec3,heading:number,foot:boolean,parked?:Vec3){
   if(parked)parkedPosition.fromArray(parked);else if(!foot)parkedPosition.copy(state.position);parkedHeading=heading;
   if(car){car.position.copy(foot?parkedPosition:state.position);car.position.y+=carOffset;car.rotation.y=heading+Math.PI;car.visible=true;}
   if(character&&car){if(foot)character.walk(scene,state.position,heading);else character.drive(car);}
-  motion.reset(state);smoothLook.copy(state.position);updateCamera(1,true);
+  camYaw=heading;camPitch=.12;lastLook=-99;motion.reset(state);smoothLook.copy(state.position);updateCamera(1,true);
 }
 async function changeSkin(id:string){
   const asset=campaignAssets.characters[id]??id;const next=new Character();await next.load(world.assets,asset);character?.dispose();character=next;
@@ -297,7 +327,18 @@ locationSelect.addEventListener('change',()=>{if(onFoot){onFoot=false;character?
 lighting.addEventListener('change',()=>world.setLighting(lighting.value),options);
 element('sound').addEventListener('click',async()=>{const enabled=await sound.toggle();element('sound').textContent=enabled?'SOUND ON':'SOUND OFF';element('sound').setAttribute('aria-pressed',String(enabled));},options);
 element('quality').addEventListener('click',()=>{highQuality=!highQuality;renderer.shadowMap.enabled=highQuality;renderer.setPixelRatio(Math.min(devicePixelRatio,highQuality?2:1));composer.setPixelRatio(renderer.getPixelRatio());element('quality').textContent=highQuality?'HIGH QUALITY':'PERFORMANCE';},options);
-element('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{toast('Fullscreen is unavailable in this browser.');}},options);
+/**
+ * Springfield is a landscape game. A phone can only be held to that by asking the
+ * browser, and the browser only listens inside fullscreen and only from a gesture —
+ * so the first tap takes both. When the lock is refused (every iPhone) the CSS
+ * rotate gate covers the screen until the player turns the handset themselves.
+ */
+async function goLandscape(){
+  try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen({navigationUI:'hide'});}catch{}
+  try{await (screen.orientation as {lock?:(to:string)=>Promise<void>})?.lock?.('landscape');}catch{}
+}
+if(matchMedia('(pointer:coarse)').matches)addEventListener('pointerdown',()=>{void goLandscape();},{once:true});
+element('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await goLandscape();}catch{toast('Fullscreen is unavailable in this browser.');}},options);
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);},options);
 window.addEventListener('blur',()=>{if(!paused&&!loading)pause(true);},options);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&!loading)pause(true);},options);

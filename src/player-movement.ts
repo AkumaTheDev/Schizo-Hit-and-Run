@@ -5,6 +5,19 @@ import type { CarState,Terrain } from './physics';
 // JumpAction 0x1248f0 / 0x125b38, and jump dispatch 0x107f60.
 export const PLAYER_RULES={walkSpeed:4,runSpeed:8,acceleration:20,deceleration:10,gravity:25,jumpHeight:1.9,doubleJumpHeight:1,doubleJumpUpSpeed:2,doubleJumpFallSpeed:12,airSpeed:4,airAcceleration:Math.fround(.078)*60,stompGravityScale:Math.fround(3.22)};
 export interface WalkingControls {x:number;z:number;run:boolean;jump:boolean}
+
+/**
+ * Convert a stick push read in CAMERA space into the body-relative pair `update` wants.
+ *
+ * `update` turns its input back into a world heading as `heading - atan2(x, z)`, so the
+ * conversion is that identity solved for x and z: push the stick away from you and the
+ * character runs along the camera's own heading, whichever way its body happens to face.
+ */
+export function cameraRelative(x:number,z:number,heading:number,camYaw:number){
+  const magnitude=Math.min(1,Math.hypot(x,z));
+  const local=heading-camYaw+Math.atan2(x,z);
+  return {x:magnitude*Math.sin(local),z:magnitude*Math.cos(local)};
+}
 export class PlayerMovement {
   readonly velocity=new THREE.Vector3();heading=0;jumps=0;stomping=false;
   private wasGrounded=false;
