@@ -20,6 +20,10 @@ import { VRMLoaderPlugin,VRMUtils,type VRM } from '@pixiv/three-vrm';
 export interface Avatar {
   readonly group:THREE.Group;
   readonly playing:string;
+  /** The bone a weapon hangs from, once the body has loaded. */
+  hand():THREE.Object3D|undefined;
+  /** Ask for the two-hand carry. Bodies with firing clips answer with those instead. */
+  holdPose(active:boolean):void;
   duration(name:string):number;
   play(name:string,once?:boolean):void;
   drive(car:THREE.Group):void;
@@ -408,6 +412,11 @@ export class VrmAvatar {
       next.clampWhenFinished=once;next.reset().fadeIn(.15).play();
     }else if(to)void this.slot(to).catch(()=>{});
   }
+
+  /** The bone a weapon hangs from: the RAW node, so it follows the skinned rig. */
+  hand(){return this.vrm?.humanoid.getRawBoneNode('rightHand')??undefined;}
+  /** A VRM holds the gun through its own clips, so there is no pose to write here. */
+  holdPose(_active:boolean){}
 
   drive(car:THREE.Group){
     car.add(this.group);

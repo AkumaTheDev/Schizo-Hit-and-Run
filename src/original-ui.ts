@@ -3,6 +3,8 @@ import type { PursuitHUD } from './pursuit';
 import type { Vec3 } from './campaign/types';
 export interface MultiplayerPeer{name:string;position:Vec3;colour:string;distance:number}
 export interface MultiplayerHUD{status:string;connected:boolean;peers:MultiplayerPeer[]}
+/** What the rifle shows while it is in your hands: the magazine, and the reload. */
+export interface WeaponHUD{ammo:number;mag:number;reloading:boolean}
 import * as THREE from 'three';
 import { Assets,assetURL,json,type Catalog,type LevelData } from './assets';
 import type { CarState } from './physics';
@@ -48,7 +50,7 @@ export class OriginalArt {
 }
 export const originalArt=new OriginalArt();
 export class OriginalHUD {
-  multiplayer:MultiplayerHUD|null=null;pursuit?:PursuitHUD;canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private time=0;
+  multiplayer:MultiplayerHUD|null=null;weapon:WeaponHUD|null=null;pursuit?:PursuitHUD;canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private time=0;
   constructor(){this.canvas.id='original-hud';this.canvas.setAttribute('role','img');element('hud').append(this.canvas);}
   draw(dt:number,state:CarState,data:LevelData,challenge:Challenge,traffic:Traffic|undefined,bigMap=false,onFoot=false){
     if(!originalArt.ready)return;this.time+=dt;
@@ -81,9 +83,13 @@ export class OriginalHUD {
       originalArt.text(c,net.status,w/2,20,16,'center',net.connected?'#fff':'#ffda1c');
       net.peers.slice(0,8).forEach((peer,i)=>originalArt.text(c,`${peer.name}  ${Math.round(peer.distance)}m`,12,44+i*17,13,'left',peer.colour));
     }
+    if(this.weapon){
+      const {ammo,mag,reloading}=this.weapon;
+      originalArt.text(c,reloading?'RELOADING':`${ammo} / ${mag}`,w-24,h-30,reloading?15:20,'right',reloading?'#ffda1c':ammo?'#fff':'#ff5b3d');
+    }
     const message=element('toast');if(message.classList.contains('visible')){originalArt.draw(c,'helptext.png',(w-330)/2,h*.26,330,88);originalArt.text(c,(message.textContent??'').slice(0,50),w/2,h*.26+25,13,'center');}
     if(this.pursuit&&this.pursuit.busted>0){originalArt.draw(c,'hrticket.png',w/2-38,h*.33,76,98);originalArt.text(c,'BUSTED!',w/2,h*.33+102,30,'center','#ffe02a');originalArt.text(c,`-${this.pursuit.fine} COINS`,w/2,h*.33+141,20,'center');}
-    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour. Hit and Run heat ${Math.round(heat)} percent. ${this.pursuit?.active?`${this.pursuit.cars.length} police vehicles pursuing.`:''}${this.pursuit?.busted?` BUSTED. ${this.pursuit.fine} coins lost.`:''}${this.multiplayer?` ${this.multiplayer.status}. ${this.multiplayer.peers.length} other players nearby.`:''}`);
+    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour. Hit and Run heat ${Math.round(heat)} percent. ${this.pursuit?.active?`${this.pursuit.cars.length} police vehicles pursuing.`:''}${this.pursuit?.busted?` BUSTED. ${this.pursuit.fine} coins lost.`:''}${this.multiplayer?` ${this.multiplayer.status}. ${this.multiplayer.peers.length} other players nearby.`:''}${this.weapon?` Rifle ${this.weapon.reloading?'reloading':`${this.weapon.ammo} of ${this.weapon.mag}`}.`:''}`);
   }
 }
 

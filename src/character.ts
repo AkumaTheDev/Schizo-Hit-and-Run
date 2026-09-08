@@ -38,11 +38,31 @@ export class Character {
     if(name===this.active)return;
     this.actions.get(this.active)?.fadeOut(.15);const next=this.actions.get(name);if(next){next.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);next.clampWhenFinished=once;next.reset().fadeIn(.15).play();}this.active=name;
   }
+  /** The bone a weapon hangs from. The converted rig names the right wrist `Wrist_R`. */
+  hand(){return this.bones.find(bone=>bone.name==='Wrist_R');}
+  /**
+   * Hold a long gun.
+   *
+   * The cartoon rig has no firing clips — the conversion never produced any — so the
+   * arms are posed straight onto the bones after the mixer runs, the way the seated
+   * pose works. The angles put the right hand on the grip and the left out on the
+   * magwell, which is the same two-hand carry the sibling project's rifle uses.
+   */
+  holdPose(active:boolean){this.holding=active;}
+  private holding=false;
+  private applyHold(){
+    if(!this.holding)return;
+    const bone=(name:string)=>this.bones.find(b=>b.name===name);
+    const set=(name:string,x:number,y:number,z:number)=>{const b=bone(name);if(b)b.rotation.set(x,y,z);};
+    set('Shoulder_R',-0.55,0.15,-0.35);set('Elbow_R',-1.15,0.2,0);
+    set('Shoulder_L',-0.75,-0.5,0.3);set('Elbow_L',-1.35,-0.15,0);
+  }
+
   drive(car:THREE.Group){
     car.add(this.group);this.group.position.set(-0.48,-0.32,-0.15);this.group.rotation.set(0,Math.PI,0);this.group.scale.setScalar(1);
     this.play('hom_in_car_idle');
   }
   walk(scene:THREE.Scene,position:THREE.Vector3,heading:number){scene.add(this.group);this.group.position.copy(position);this.group.rotation.set(0,heading,0);this.play('hom_loco_idle_rest');}
-  update(dt:number){this.mixer.update(dt);}
+  update(dt:number){this.mixer.update(dt);this.applyHold();}
   dispose(){this.mixer.stopAllAction();this.mixer.uncacheRoot(this.group);this.group.removeFromParent();this.skeleton?.dispose();}
 }

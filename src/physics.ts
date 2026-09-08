@@ -203,8 +203,10 @@ export class Terrain {
     // pitch, and STEP_DOWN is short enough that a real ledge is still a fall.
     if(!state.grounded&&wasGrounded&&state.verticalSpeed<=0){
       const hit=this.support(state.position.x,state.position.z,state.position.y,clearance,STEP_DOWN);
-      const drop=hit?state.position.y-hit.point.y:Infinity;
-      if(hit&&drop>=0&&drop<=STEP_DOWN){state.position.y=hit.point.y;state.verticalSpeed=0;state.grounded=true;}
+      // Rest exactly where the capsule would have: on the floor plus the same clearance
+      // it holds when the sweep finds ground, so a re-seated step is the identical height.
+      const rest=hit?hit.point.y+clearance:0,drop=hit?state.position.y-rest:Infinity;
+      if(hit&&drop>=0&&drop<=STEP_DOWN){state.position.y=rest;state.verticalSpeed=0;state.grounded=true;}
     }
     return impact;
   }

@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { Character } from './character';
 import { isVrmSkin,VrmAvatar,type Avatar as Body } from './vrm-avatar';
+import { buildRifle,disposeRifle } from './rifle';
 import { peerColour,type Net,type PeerInfo,type Sample } from './net';
 import { renderVehicleWheels,vehicleProfile,type VehicleMotion,type VehicleProfile } from './vehicle-physics';
 import type { World } from './world';
@@ -23,6 +24,8 @@ interface Avatar {
   profile?:VehicleProfile;
   offset:number;
   character?:Body;
+  /** A peer carrying the rifle gets one drawn in their hand; it is not networked separately. */
+  rifle?:THREE.Group;
   tag:THREE.Sprite;
   motion:VehicleMotion;
   /** Set while the model for this peer is still downloading, so we only ask once. */
@@ -72,7 +75,20 @@ export class RemotePlayers {
   }
   remove(id:string){const avatar=this.avatars.get(id);if(avatar){this.destroy(avatar);this.avatars.delete(id);}}
 
+  /** Give a peer the rifle, or take it away, matching what their animation says. */
+  private setRifle(avatar:Avatar,armed:boolean){
+    if(armed===!!avatar.rifle)return;
+    if(!armed){if(avatar.rifle)disposeRifle(avatar.rifle);avatar.rifle=undefined;avatar.character?.holdPose(false);return;}
+    const hand=avatar.character?.hand();
+    if(!hand)return;
+    const rifle=buildRifle();
+    // The same carry the local player uses; see `Rifle.mount`.
+    rifle.position.set(0.02,-0.03,-0.06);rifle.rotation.set(Math.PI/2,Math.PI/2,0);
+    hand.add(rifle);avatar.rifle=rifle;avatar.character?.holdPose(true);
+  }
+
   private destroy(avatar:Avatar){
+    if(avatar.rifle)disposeRifle(avatar.rifle);
     avatar.character?.dispose();
     avatar.car?.removeFromParent();
     avatar.tag.material.map?.dispose();avatar.tag.material.dispose();
@@ -193,7 +209,11 @@ export class RemotePlayers {
       if(character){
         character.group.position.copy(position);
         character.group.rotation.y+=THREE.MathUtils.euclideanModulo(heading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;
-        character.play(to[11]||'hom_loco_idle_rest');
+        const animation=to[11]||'hom_loco_idle_rest';
+        character.play(animation);
+        // The animation name already says whether they are holding the gun, so the rifle
+        // needs no wire format of its own: any gun clip means one is in their hands.
+        this.setRifle(avatar,animation.startsWith('hom_gun'));
       }
       avatar.tag.position.set(position.x,position.y+2.5,position.z);
     }else{

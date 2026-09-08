@@ -24,6 +24,8 @@ import { Traffic } from './traffic';
 import { Sound } from './audio';
 import { Character } from './character';
 import { DEFAULT_VRM,isVrmSkin,VRM_MODELS,VrmAvatar,type Avatar } from './vrm-avatar';
+import { buildRifle,disposeRifle } from './rifle';
+import { falloff,Rifle,RIFLE } from './weapon';
 import { Coins } from './coins';
 import { FrameMetrics } from './performance';
 import { originalArt,OriginalMenu,OriginalHUD,FrontendRoom } from './original-ui';
@@ -53,6 +55,8 @@ const sample:Sample=[0,0,0,0,0,0,1,0,0,0,0,'hom_loco_idle_rest','famil_v'];
 let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65,footprint:VehicleFootprint=DEFAULT_FOOTPRINT;
 let chassis:VehicleProfile=DEFAULT_VEHICLE;
 let catalog:Catalog, loading=true,paused=true,highQuality=true,cameraMode=0,debug=false;
+// The rifle: one in the world to walk up to, one in your hands once you have.
+let rifle:Rifle|undefined,rifleHeld=false,riflePickup:THREE.Group|undefined,fireHeld=false;
 let onFoot=false,cruise=false,character:Avatar|undefined,footHeading=0;const parkedPosition=new THREE.Vector3();let parkedHeading=0;
 let level=1, carId='famil_v',carModels=new Map<string,THREE.Group>();
 let last=performance.now(),accumulator=0,time=0,frame=0,fps=60,lastFPS=last,photo=false;
@@ -125,7 +129,7 @@ async function setCar(id:string){
 }
 async function loadLevel(nextLevel:number){
   lock(true);paused=true;element('loading').hidden=false;element('hud').hidden=true;challenge.stop();
-  remotes?.dispose();remotes=undefined;police?.dispose();police=undefined;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
+  clearPickup();stowRifle();remotes?.dispose();remotes=undefined;police?.dispose();police=undefined;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
   level=nextLevel;levelSelect.value=String(nextLevel);lighting.value=level===7?'night':level>=4?'golden':'day';world=new World(scene,catalog);
   try{
     const chapterPromise=json<Chapter>(`campaign/level${level}.json`);await world.load(level,progress);coins=new Coins(scene,world.data);freeMoney=coins.collected;progress(0.9,'Getting the cars ready…');
@@ -136,6 +140,7 @@ async function loadLevel(nextLevel:number){
     character=driver;character.drive(car!);
     remotes=new RemotePlayers(scene,world,campaignAssets);net.describe(level,carId,playerSkin);
     sound.setCharacter(VOICE_ACTORS[level-1],campaignAssets.dialogue);
+    placePickup();armBody();
     element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
     world.setLighting(lighting.value);respawn(0);renderer.compile(scene,camera);
@@ -145,6 +150,72 @@ async function loadLevel(nextLevel:number){
     progress(0,error instanceof Error?error.message:String(error));element('load-message').textContent+=' · Check the console, then reload to retry.';console.error(error);
   }
 }
+/**
+ * What a bullet does to Springfield.
+ *
+ * The nearest thing along the ray wins: a police car, a traffic car, then the world
+ * itself. Damage falls off with the distance it travelled, exactly as the sibling
+ * project's rifle does, and a car that runs out of health is dealt with by its own
+ * system rather than here.
+ */
+const bullets={
+  trace(from:THREE.Vector3,direction:THREE.Vector3,range:number,damage:number){
+    let nearest:THREE.Vector3|undefined,distance=range;
+    const consider=(point:THREE.Vector3,apply?:()=>void)=>{
+      const away=point.distanceTo(from);
+      if(away>distance)return;
+      distance=away;nearest=point.clone();apply?.();
+    };
+    // Vehicles are hit as spheres around their body: precise enough at rifle range,
+    // and far cheaper than a mesh test per round at ten rounds a second.
+    const sphere=new THREE.Sphere();const point=new THREE.Vector3();
+    const ray=new THREE.Ray(from,direction);
+    for(const car of police?.cars??[]){
+      sphere.set(car.position,1.5);
+      if(ray.intersectSphere(sphere,point))consider(point,()=>{car.health-=damage*falloff(point.distanceTo(from));});
+    }
+    for(const car of traffic?.cars??[]){
+      if(!car.active)continue;
+      sphere.set(car.position,1.5);
+      if(ray.intersectSphere(sphere,point))consider(point,()=>{car.damage=Math.min(100,car.damage+damage*falloff(point.distanceTo(from)));});
+    }
+    const world3=world?.terrain.raycast(from,direction,range);
+    if(world3)consider(world3.point);
+    return nearest;
+  },
+};
+
+/** Drop a rifle in the street, turning slowly, for the player to walk into. */
+function placePickup(){
+  clearPickup();
+  if(!world)return;
+  const spawn=world.data.locations[0]?.position??[0,0,0];
+  const position=new THREE.Vector3(spawn[0]+3,spawn[1],spawn[2]+3);
+  const floor=world.terrain.support(position.x,position.z,position.y+2,1,8);
+  position.y=(floor?.point.y??position.y)+0.55;
+  const pickup=buildRifle();pickup.position.copy(position);pickup.rotation.set(0,0,0.35);
+  scene.add(pickup);riflePickup=pickup;
+}
+function clearPickup(){if(riflePickup){disposeRifle(riflePickup);riflePickup=undefined;}}
+
+/** Pick the gun up by walking into it, and take it in hand. */
+function takeRifle(){
+  clearPickup();
+  rifle??=new Rifle(scene);
+  rifleHeld=true;
+  if(character&&onFoot)rifle.mount(character);
+  toast('Rifle. Hold F to fire · auto-reloads when the magazine runs dry.');
+}
+/** Stow it: in a car, or when the body it was hanging from is replaced. */
+function stowRifle(){
+  if(!rifle)return;
+  rifle.release();rifle.unmount(character);
+}
+function armBody(){
+  if(!rifle||!rifleHeld||!character)return;
+  if(onFoot)rifle.mount(character);else stowRifle();
+}
+
 function startChallenge(){police?.reset();world.leaveInterior();if(onFoot){onFoot=false;character?.drive(car!);}challenge.start(world.data);respawn(0);pause(false);element('mode-badge').textContent='SPRINGFIELD RUN';toast('Five stops. Five minutes. Make it home.');}
 /**
  * Right thumb (or mouse drag, or a pad's right stick) orbits the camera.
@@ -202,7 +273,11 @@ function animate(now:number){
     if(input.consume('Escape')){if(!paused)pause(true);else if(nativeMenu?.mode==='pause')pause(false);else if(nativeMenu&&nativeMenu.mode!=='main'&&nativeMenu.mode!=='splash')nativeMenu.back();}
     if(input.consume('F3')){debug=!debug;element('debug').hidden=!debug;}
     if(!paused){
-      if(input.consume('KeyF')&&onFoot&&!police?.frozen){world.objects.kick(state.position,footHeading);walking.kick();character?.play('hom_jump_kick');kickUntil=time+.45;sound.bark(20);}
+      // F is the one action button (and the one touch button): it fires the rifle when
+      // you are carrying one, and is the kick when you are not.
+      fireHeld=onFoot&&rifleHeld&&input.down('KeyF')&&!police?.frozen;
+      if(input.consume('KeyF')&&onFoot&&!rifleHeld&&!police?.frozen){world.objects.kick(state.position,footHeading);walking.kick();character?.play('hom_jump_kick');kickUntil=time+.45;sound.bark(20);}
+      if(input.consume('KeyQ')&&rifleHeld)rifle?.startReload();
       if(input.consume('KeyR')&&!police?.frozen){if(onFoot){onFoot=false;character?.drive(car!);}respawn();toast('Back on the road.');}
       if(input.consume('KeyH')&&!onFoot){cruise=!cruise;toast(cruise?'Cruise control · 50 km/h. Brake to cancel.':'Cruise control off.');}
       if(input.consume('KeyE')&&character&&car&&!police?.frozen){
@@ -215,7 +290,7 @@ function animate(now:number){
           walking.reset(state.heading);
           character.walk(scene,state.position,state.heading);sound.bark();element('car-label').textContent=CHARACTER_NAMES[level-1];element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Walk</span><span><kbd>SHIFT</kbd> Run</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>E</kbd> Get in</span>'; toast('WASD to walk · Shift to run · Space to jump · E to get in.');
         }else toast('Stop the car before getting out.');
-        if(!onFoot)police?.enterVehicle(carId);resetVehicle(state);motion.reset(state);
+        if(!onFoot)police?.enterVehicle(carId);armBody();resetVehicle(state);motion.reset(state);
       }
       if(input.consume('KeyC')){cameraMode=(cameraMode+1)%3;toast(['Chase camera','Wide camera','Hood camera'][cameraMode]);}
       if(input.consume('KeyM'))hud.bigMap=!hud.bigMap;
@@ -231,7 +306,12 @@ function animate(now:number){
           // converted here into the body-relative pair PlayerMovement expects.
           const move=input.move,walk=cameraRelative(move.x,move.z,state.heading,camYaw);
           const animation=walking.update(state,{...walk,run:move.run,jump:input.consume('Space')},fixed,world.terrain);footHeading=walking.heading;
-          if(time>kickUntil)character?.play(animation);
+          // Carrying the rifle swaps the locomotion clip for the one that holds it: the
+          // legs still walk or run, the upper body keeps the gun up. Firing takes over
+          // the top half only while the trigger is down.
+          const armed=rifleHeld&&state.grounded;
+          const carrying=fireHeld?'hom_gun_fire':animation==='hom_loco_run'?'hom_gun_run':animation==='hom_loco_walk'?'hom_gun_walk':'hom_gun_idle';
+          if(time>kickUntil)character?.play(armed?carrying:animation);
         }else{
           world.terrain.setVehiclePlatforms([]);
           if(controls.brake||controls.handbrake)cruise=false;
@@ -246,6 +326,7 @@ function animate(now:number){
           saveGame();
         }
         if(traffic?.update(fixed,state,!onFoot,camera.getWorldDirection(new THREE.Vector3()),[...(onFoot?[parkedPosition]:[]),...(police?.cars.map(c=>c.position)??[])],footprint,campaignAssets.tuning[carId]?.SetMass??1500)){police?.offense('vehicleHit',false);sound.bark(14);}
+        if(riflePickup&&onFoot&&state.position.distanceTo(riflePickup.position)<2.2)takeRifle();
         const result=challenge.update(fixed,state.position);
         if(result==='checkpoint'){toast(`Stop ${challenge.index} reached. Keep moving.`);sound.bark(4);}
         if(result==='complete'){sound.bark(0);toast(`Home in ${Math.floor(challenge.elapsed/60)}:${String(Math.floor(challenge.elapsed%60)).padStart(2,'0')}. Nice driving.`);element('mode-badge').textContent='FREE DRIVE';}
@@ -258,6 +339,16 @@ function animate(now:number){
       sound.update(state.speed,input.controls.throttle);
       sound.pursuit(!!police?.hud.active,police?.audibleDistance??Infinity);
     }else{accumulator=0;motion.reset(state);}
+    nativeHUD.weapon=rifleHeld&&rifle?{ammo:rifle.ammo,mag:RIFLE.mag,reloading:rifle.busy}:null;
+    if(rifle){
+      rifle.update(paused?0:dt);
+      if(!paused&&fireHeld&&onFoot){
+        const aim=camera.getWorldDirection(new THREE.Vector3());
+        const shot=rifle.fire(aim,rifle.muzzleWorld(),Math.abs(state.speed)>1,bullets);
+        // Every round climbs the camera a little, which is what a held trigger feels like.
+        if(shot){camPitch=Math.max(-.5,camPitch-RIFLE.recoilKick*.12);police?.offense('propDestroyed',false);}
+      }else if(!fireHeld)rifle.release();
+    }
     const frozen=paused||police?.frozen,alpha=frozen?1:accumulator*60;motion.sample(state,alpha);traffic?.render(frozen?0:dt,alpha,state.position);police?.render(frozen?0:dt,alpha);nativeHUD.pursuit=police?.hud;
     network(frozen?0:dt);
     if(car&&!onFoot){
@@ -323,6 +414,7 @@ async function changeSkin(id:string){
   playerSkin=id;try{localStorage.setItem('hit-and-run:skin',id);}catch{}
   const next=await makeAvatar(id);character?.dispose();character=next;
   if(onFoot)character.walk(scene,state.position,state.heading);else character.drive(car!);
+  armBody();
   net.describe(level,carId,playerSkin);
 }
 function saveGame(){
@@ -440,6 +532,6 @@ async function init(){
 }
 void init();
 const removeDevTools=devTools(input,{place:value=>{const parts=value.trim().split(/\s+/),numbers=parts.slice(0,4).map(Number);if(numbers.length!==4||numbers.some(n=>!Number.isFinite(n))||!['foot','car'].includes(parts[4]))throw new Error('Use x y z heading-degrees foot/car');placePlayer(numbers.slice(0,3) as Vec3,THREE.MathUtils.degToRad(numbers[3]),parts[4]==='foot',parkedPosition.toArray());},state:()=>`${onFoot?'foot':'car'} ${state.speed.toFixed(1)} m/s ${state.grounded?'ground':'air'} · jumps ${walking.jumps} · coins ${freeMoney} · heat ${police?.meter.heat.toFixed(1)??0} · police ${police?.cars.length??0} · net ${net.status} ${net.peers.size} peers`,resume:()=>pause(false),pursuit:()=>police?.command({op:'SetHitAndRunMeter',args:[100],line:0}),clearPursuit:()=>police?.reset(),testCoins:()=>{freeMoney+=75;}});
-function dispose(){removeDevTools();net.close();remotes?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
+function dispose(){removeDevTools();rifle?.dispose();clearPickup();net.close();remotes?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
 window.addEventListener('pagehide',dispose,{once:true});
 if(import.meta.hot)import.meta.hot.dispose(dispose);
