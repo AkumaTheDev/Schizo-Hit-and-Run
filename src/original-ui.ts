@@ -1,5 +1,8 @@
-import type { CampaignHUD } from './campaign/runtime';
+
 import type { PursuitHUD } from './pursuit';
+import type { Vec3 } from './campaign/types';
+export interface MultiplayerPeer{name:string;position:Vec3;colour:string;distance:number}
+export interface MultiplayerHUD{status:string;connected:boolean;peers:MultiplayerPeer[]}
 import * as THREE from 'three';
 import { Assets,assetURL,json,type Catalog,type LevelData } from './assets';
 import type { CarState } from './physics';
@@ -45,7 +48,7 @@ export class OriginalArt {
 }
 export const originalArt=new OriginalArt();
 export class OriginalHUD {
-  campaign:CampaignHUD|null=null;pursuit?:PursuitHUD;canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private time=0;
+  multiplayer:MultiplayerHUD|null=null;pursuit?:PursuitHUD;canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private time=0;
   constructor(){this.canvas.id='original-hud';this.canvas.setAttribute('role','img');element('hud').append(this.canvas);}
   draw(dt:number,state:CarState,data:LevelData,challenge:Challenge,traffic:Traffic|undefined,bigMap=false,onFoot=false){
     if(!originalArt.ready)return;this.time+=dt;
@@ -59,7 +62,7 @@ export class OriginalHUD {
     c.strokeStyle='#86cc73';c.lineWidth=7;c.lineCap='round';c.beginPath();for(const [a,b] of data.roads){c.moveTo(a[0],a[2]);c.lineTo(b[0],b[2]);}c.stroke();
     c.fillStyle='#ffca17';for(const vehicle of traffic?.cars??[])if(vehicle.active){c.beginPath();c.arc(vehicle.mesh.position.x,vehicle.mesh.position.z,3,0,Math.PI*2);c.fill();}
     for(const position of this.pursuit?.cars??[]){c.fillStyle=Math.sin(this.time*10)>0?'#ff2626':'#315eff';c.beginPath();c.arc(position.x,position.z,6,0,Math.PI*2);c.fill();originalArt.draw(c,'aicar.png',position.x-6,position.z-6,12,12);}
-    if(this.campaign?.target){const p=this.campaign.target;originalArt.draw(c,'mission.png',p[0]-10,p[2]-10,20,20);}
+    for(const peer of this.multiplayer?.peers??[]){c.fillStyle=peer.colour;c.beginPath();c.arc(peer.position[0],peer.position[2],4,0,Math.PI*2);c.fill();}
     if(challenge.active){const p=challenge.route[challenge.index].position;originalArt.draw(c,'mission.png',p[0]-10,p[2]-10,20,20);}
     c.restore();
     const heat=this.pursuit?.heat??0;
@@ -73,19 +76,14 @@ export class OriginalHUD {
       originalArt.draw(c,'greybar.png',144,56,117,23);c.save();c.beginPath();c.rect(144,56,117*state.damage/100,23);c.clip();c.filter='sepia(1) saturate(8) hue-rotate(315deg)';originalArt.draw(c,'greybar.png',144,56,117,23);c.restore();originalArt.draw(c,'damage.png',140,54,129,30);
     }
     if(challenge.active){originalArt.draw(c,'checkflag.png',35,48,42,42);originalArt.digits(c,element('timer').textContent??'',86,23,40);originalArt.text(c,challenge.route[challenge.index].name,35,103,16);}
-    if(this.campaign){
-      const mission=this.campaign;originalArt.text(c,mission.title,w/2,20,16,'center');
-      const words=(mission.failure||mission.message).split(/\s+/);let line='',lines:string[]=[];for(const word of words){if((line+' '+word).trim().length>49){lines.push(line);line=word;}else line=(line+' '+word).trim();}if(line)lines.push(line);
-      lines.slice(0,3).forEach((line,i)=>originalArt.text(c,line,w/2,96+i*19,15,'center',mission.failure?'#ffda1c':'#fff'));
-      if(mission.remaining!==null){const seconds=Math.max(0,Math.ceil(mission.remaining));originalArt.digits(c,`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`,35,29,40);}
-      if(mission.items)originalArt.text(c,`${mission.collected} / ${mission.items}`,w/2,161,20,'center');
-      if(mission.countdown>0)originalArt.digits(c,String(Math.ceil(mission.countdown)),w/2-16,h*.4,60);
-      if(mission.targetHealth!==undefined){c.fillStyle='#171d4b';c.fillRect(w/2-65,165,130,12);c.fillStyle='#e14432';c.fillRect(w/2-65,165,130*mission.targetHealth,12);}
-      originalArt.text(c,mission.hint,w/2,h-31,12,'center');
+    if(this.multiplayer){
+      const net=this.multiplayer;
+      originalArt.text(c,net.status,w/2,20,16,'center',net.connected?'#fff':'#ffda1c');
+      net.peers.slice(0,8).forEach((peer,i)=>originalArt.text(c,`${peer.name}  ${Math.round(peer.distance)}m`,12,44+i*17,13,'left',peer.colour));
     }
     const message=element('toast');if(message.classList.contains('visible')){originalArt.draw(c,'helptext.png',(w-330)/2,h*.26,330,88);originalArt.text(c,(message.textContent??'').slice(0,50),w/2,h*.26+25,13,'center');}
     if(this.pursuit&&this.pursuit.busted>0){originalArt.draw(c,'hrticket.png',w/2-38,h*.33,76,98);originalArt.text(c,'BUSTED!',w/2,h*.33+102,30,'center','#ffe02a');originalArt.text(c,`-${this.pursuit.fine} COINS`,w/2,h*.33+141,20,'center');}
-    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour. Hit and Run heat ${Math.round(heat)} percent. ${this.pursuit?.active?`${this.pursuit.cars.length} police vehicles pursuing.`:''}${this.pursuit?.busted?` BUSTED. ${this.pursuit.fine} coins lost.`:''}${this.campaign?` Mission: ${this.campaign.title}. ${this.campaign.failure||this.campaign.message}. ${this.campaign.hint}`:''}`);
+    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour. Hit and Run heat ${Math.round(heat)} percent. ${this.pursuit?.active?`${this.pursuit.cars.length} police vehicles pursuing.`:''}${this.pursuit?.busted?` BUSTED. ${this.pursuit.fine} coins lost.`:''}${this.multiplayer?` ${this.multiplayer.status}. ${this.multiplayer.peers.length} other players nearby.`:''}`);
   }
 }
 
@@ -99,9 +97,11 @@ export class FrontendRoom {
   async load(){const asset=await this.assets.load('frontend-room');this.scene.add(asset.root);this.actor=new Character();await this.actor.load(this.assets,'menu-homer');this.scene.add(this.actor.group);}
   dispose(){this.actor?.dispose();this.assets.dispose();this.scene.clear();}
 }
-interface MenuCallbacks {newGame:()=>void;missions:()=>{title:string;enabled:boolean;select:()=>void}[];start:()=>void;run:()=>void;save:()=>void;load:()=>void;main:()=>void}
+interface MenuCallbacks {start:()=>void;run:()=>void;save:()=>void;load:()=>void;main:()=>void;
+  /** Multiplayer: current lobby state, plus join/leave and the name the player drives under. */
+  lobby:()=>{connected:boolean;status:string;name:string;peers:string[]};join:(name:string)=>void;leave:()=>void}
 export class OriginalMenu {
-  mode:'splash'|'main'|'pause'|'options'|'cards'|'progress'|'missions'='splash';private stage:HTMLDivElement;private actions:HTMLDivElement;private index=0;private previous:'main'|'pause'='main';private callbacks:MenuCallbacks;private controller=new AbortController();
+  mode:'splash'|'main'|'pause'|'options'|'cards'|'progress'|'lobby'='splash';private stage:HTMLDivElement;private actions:HTMLDivElement;private index=0;private previous:'main'|'pause'='main';private callbacks:MenuCallbacks;private controller=new AbortController();
   constructor(callbacks:MenuCallbacks){
     this.callbacks=callbacks;this.stage=document.createElement('div');this.stage.className='original-stage';this.stage.innerHTML='<canvas class="original-board" width="640" height="480"></canvas><img class="original-tv" src="/assets/ui/tvframe.png" alt="Original TV frame"><img class="original-logo" src="/assets/ui/gamelogo.png" alt="The Simpsons Hit and Run"><div class="original-actions"></div><button class="original-back" aria-label="Back"><img src="/assets/ui/back.png" alt=""> BACK</button><div class="original-note"></div>'.replaceAll('/assets/ui/',source);
     element('menu').append(this.stage);
@@ -127,12 +127,12 @@ export class OriginalMenu {
     if(mode==='splash'){
       const start=this.button('PRESS START',()=>this.show('main'),21);start.classList.add('press-start');this.actions.append(start);
     }else if(mode==='main'){
-      const entries=[['NEW GAME',this.callbacks.newGame],['LOAD GAME',this.callbacks.load],['SCRAP BOOK',()=>this.show('cards')],['OPTIONS',()=>this.show('options')],['MINI GAME',()=>this.show('missions')],['RESUME GAME',this.callbacks.start]] as const;
+      const entries=[['MULTIPLAYER',()=>this.show('lobby')],['FREE DRIVE',this.callbacks.start],['LOAD GAME',this.callbacks.load],['SCRAP BOOK',()=>this.show('cards')],['OPTIONS',()=>this.show('options')],['SPRINGFIELD RUN',this.callbacks.run]] as const;
       const row=document.createElement('div');row.className='original-carousel';
       for(const [direction,file] of [[-1,'larrow.png'],[1,'rarrow.png']] as const){const b=document.createElement('button');b.className='original-arrow';b.setAttribute('aria-label',direction<0?'Previous menu item':'Next menu item');b.innerHTML=`<img src="${source+file}" alt="">`;b.onclick=()=>{this.index=(this.index+direction+entries.length)%entries.length;this.show('main');};if(direction<0)row.append(b);else{row.append(this.button(entries[this.index][0],entries[this.index][1],28),b);}}
       this.actions.append(row);this.stage.querySelector('.original-note')!.textContent='← → CHOOSE     ENTER / CLICK SELECT';
     }else if(mode==='pause'){
-      const entries:[string,string,()=>void][]=[['CONTINUE','Continue',this.callbacks.start],['MISSION SELECT','MissionSelect',()=>this.show('missions')],['LEVEL PROGRESS','LevelProgress',()=>this.show('progress')],['VIEW CARDS','ViewCards',()=>this.show('cards')],['OPTIONS','Options',()=>this.show('options')],['SAVE GAME','SaveGame',this.callbacks.save],['QUIT GAME','QuitGame',()=>{this.callbacks.main();this.show('main');}]];
+      const entries:[string,string,()=>void][]=[['CONTINUE','Continue',this.callbacks.start],['MULTIPLAYER','MissionSelect',()=>this.show('lobby')],['LEVEL PROGRESS','LevelProgress',()=>this.show('progress')],['VIEW CARDS','ViewCards',()=>this.show('cards')],['OPTIONS','Options',()=>this.show('options')],['SAVE GAME','SaveGame',this.callbacks.save],['QUIT GAME','QuitGame',()=>{this.callbacks.main();this.show('main');}]];
       for(const [label,name,action] of entries){
         const layout=originalArt.layouts['ingame/PauseSunday.pag'].find(row=>row.name===name);const button=this.button(label,action,16);originalArt.label(button,label,16,layout.width,layout.height);
         button.style.cssText=`position:absolute;left:${layout.x/640*100}%;top:${(480-layout.y-layout.height)/480*100}%;width:${layout.width/640*100}%;height:${layout.height/480*100}%;min-height:0`;
@@ -150,10 +150,17 @@ export class OriginalMenu {
       this.actions.append(this.button('LEVEL PROGRESS',()=>{},27),this.button(`COINS: ${element('coin-count').textContent??'0'}`,()=>{},21));
       this.stage.querySelector('.original-note')!.textContent='Coin progress is saved in this browser.';
     }else{
-      this.actions.append(this.button('MISSION SELECT',()=>{},27));const list=document.createElement('div');list.className='campaign-actions';
-      for(const mission of this.callbacks.missions()){const button=this.button(mission.title,mission.select,17);button.disabled=!mission.enabled;list.append(button);}
-      list.append(this.button('SPRINGFIELD RUN',this.callbacks.run,18));this.actions.append(list);
-      this.stage.querySelector('.original-note')!.textContent='Choose an unlocked mission to replay.';
+      const lobby=this.callbacks.lobby();
+      this.actions.append(this.button('MULTIPLAYER',()=>{},27));
+      const list=document.createElement('div');list.className='campaign-actions';
+      const field=document.createElement('input');field.className='original-name';field.maxLength=16;field.value=lobby.name;field.placeholder='YOUR NAME';field.setAttribute('aria-label','Your player name');
+      list.append(field);
+      if(lobby.connected){
+        list.append(this.button('LEAVE SERVER',()=>{this.callbacks.leave();this.show('lobby');},18));
+        for(const peer of lobby.peers.slice(0,10))list.append(this.button(peer,()=>{},15));
+      }else list.append(this.button('JOIN SERVER',()=>{this.callbacks.join(field.value.trim());this.show('lobby');},18));
+      this.actions.append(list);
+      this.stage.querySelector('.original-note')!.textContent=lobby.status;
     }
     this.stage.querySelector<HTMLButtonElement>('.original-back')!.hidden=mode==='splash'||mode==='main';
     this.actions.querySelector<HTMLButtonElement>('.original-button')?.focus();

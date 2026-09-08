@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { World } from './world';
 import type { CarState } from './physics';
-import type { CampaignAssets,Player } from './campaign/runtime';
+import type { CampaignAssets } from './campaign/types';
+import type { Player } from './campaign/player';
 import { MissionRoute,RoadNetwork } from './campaign/roads';
 import type { Command } from './campaign/types';
 import { Motion } from './motion';

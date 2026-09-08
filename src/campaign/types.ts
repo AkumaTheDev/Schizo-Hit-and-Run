@@ -18,3 +18,6 @@ export const arg=(commands:Command[],op:string,fallback:(string|number)[]=[])=>(
 export const all=(commands:Command[],op:string)=>commands.filter(c=>c.op===op).map(c=>c.args);
 export const key=(value:unknown)=>String(value??'').toLowerCase();
 export const distance=(a:Vec3,b:Vec3)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+export interface VoiceClip{line:number;actor:string;kind:string;file:string;mission:string}
+/** Vehicle tuning and model tables. Loaded from campaign/assets.json — the mission scripts are gone, the tables are still what drives every car. */
+export interface CampaignAssets{names:Record<string,string>;characters:Record<string,string>;cars:Record<string,string>;props:Record<string,string>;dialogue:Record<string,VoiceClip[]>;tuning:Record<string,Record<string,number>>;missionTuning:Record<string,Record<string,number>>;presentations:Record<string,string>}

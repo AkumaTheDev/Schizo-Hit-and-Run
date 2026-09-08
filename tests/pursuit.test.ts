@@ -11,7 +11,8 @@ import { trafficModels,trafficGroup,trafficSpawnCandidates,trafficDesiredSpeed,T
 import { RoadNetwork } from '../src/campaign/roads.ts';
 import { vehicleContact,vehicleTravelDistance } from '../src/vehicle-collision.ts';
 import type { World } from '../src/world.ts';
-import type { CampaignAssets,Player } from '../src/campaign/runtime.ts';
+import type { CampaignAssets } from '../src/campaign/types.ts';
+import type { Player } from '../src/campaign/player.ts';
 import { simulateVehicle,DEFAULT_VEHICLE } from '../src/vehicle-physics.ts';
 const straight=[[[0,0,-200],[0,0,200]]];
 test('vehicle footprints allow adjacent lanes and detect contact after rotation',()=>{

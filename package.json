@@ -1,5 +1,5 @@
 {
-  "name": "hit-and-run-web",
+  "name": "schizo-hit-and-run",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,21 +13,25 @@
     "world-collision:convert": "python3 tools/world_collision.py",
     "test": "python3 tools/test_formats.py && node --import tsx --test tests/*.test.ts",
     "remaster": "node tools/remaster.mjs",
-    "test:unit": "python3 tools/test_formats.py && node --import tsx --test tests/physics.test.ts tests/motion.test.ts tests/traffic.test.ts tests/campaign.test.ts tests/interiors.test.ts tests/building-collision.test.ts tests/hit-and-run.test.ts tests/pursuit.test.ts tests/player-world.test.ts tests/vehicle-dynamics.test.ts tests/world-driving.test.ts tests/world-assets.test.ts",
+    "test:unit": "python3 tools/test_formats.py && node --import tsx --test tests/physics.test.ts tests/motion.test.ts tests/traffic.test.ts tests/interiors.test.ts tests/building-collision.test.ts tests/hit-and-run.test.ts tests/pursuit.test.ts tests/player-world.test.ts tests/vehicle-dynamics.test.ts tests/world-driving.test.ts tests/world-assets.test.ts",
     "pursuit:convert": "python3 tools/vehicle_tuning.py && python3 tools/pursuit_assets.py",
     "pursuit:remaster": "blender --background --factory-startup --python tools/pursuit_remaster.py",
-    "campaign:convert": "python3 tools/campaign.py && python3 tools/campaign_assets.py && python3 tools/movies.py",
+    "campaign:convert": "python3 tools/campaign.py && python3 tools/campaign_assets.py",
     "textures:webp": "python3 tools/webp.py",
     "scenery:remaster": "blender --background --factory-startup --python tools/scenery_remaster.py",
     "build:site": "npm run build -- --base=/hit-and-run-web/ && node tools/prepare_site.mjs",
     "world:convert": "python3 tools/world_resources.py",
     "movement:convert": "python3 tools/movement_assets.py",
     "vehicles:repair-uv": "python3 tools/repair_vehicle_uv.py",
-    "bus:remaster": "blender --background --factory-startup --python tools/bus_lettering.py"
+    "bus:remaster": "blender --background --factory-startup --python tools/bus_lettering.py",
+    "server": "node server/index.js",
+    "dev:server": "node server/index.js",
+    "start": "node server/index.js"
   },
   "dependencies": {
     "three": "0.185.1",
-    "three-mesh-bvh": "0.9.14"
+    "three-mesh-bvh": "0.9.14",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/node": "26.4.1",

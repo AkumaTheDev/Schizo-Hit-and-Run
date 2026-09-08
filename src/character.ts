@@ -3,6 +3,8 @@ import { assetURL,json, type Assets } from './assets';
 interface CharacterData {placement?:number[];bones:{name:string;parent:number;matrix:number[]}[];primitives:{shader:string;attributes:Record<string,[number,number]>}[];materials:Record<string,{textureUrl:string}>;animations:{name:string;duration:number;tracks:{bone:string;kind:string;times:number[];values:number[]}[]}[]}
 export class Character {
   group=new THREE.Group();private mixer=new THREE.AnimationMixer(this.group);private actions=new Map<string,THREE.AnimationAction>();private active='';
+  /** The clip currently playing — networked so remote avatars mirror the local animation choice. */
+  get playing(){return this.active;}
   private bones:THREE.Bone[]=[];private skeleton!:THREE.Skeleton;
   private meshes:THREE.SkinnedMesh[]=[];
   async load(assets:Assets,asset="homer"){
