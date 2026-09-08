@@ -27,6 +27,8 @@ export const RIFLE={
 
 /** How the gun sits in the hand: the grip socket meets the palm, muzzle down the arm. */
 const HOLD_POSITION=new THREE.Vector3(0.02,-0.03,-0.06);
+/** The body the hold was measured against: the cast's head bone height. */
+export const REFERENCE_HEIGHT=1.33;
 const HOLD_ROTATION=new THREE.Euler(Math.PI/2,Math.PI/2,0);
 
 export interface Shot {from:THREE.Vector3;to:THREE.Vector3;hit:boolean}
@@ -44,7 +46,7 @@ export function falloff(distance:number){
 export class Rifle {
   readonly group=buildRifle();
   /** Rounds in the magazine, and the reload's remaining seconds while one is running. */
-  ammo=RIFLE.mag;reloading=0;
+  ammo:number=RIFLE.mag;reloading=0;
   /** The climb, in radians. Written by firing, bled off every frame. */
   recoil=0;
   private cooldown=0;private cycle=0;private held=false;
@@ -62,14 +64,21 @@ export class Rifle {
     scene.add(this.tracerRoot);
   }
 
-  /** Hang the rifle off a body's hand, in the two-hand carry. */
+  /**
+   * Hang the rifle off a body's hand, in the two-hand carry.
+   *
+   * Sized to whoever is carrying it: the model is a real 880 mm rifle and the cast's
+   * head bone sits at 1.33 m, so that is the reference. A 0.93 m avatar would otherwise
+   * be holding a gun nearly as long as itself.
+   */
   mount(avatar:Avatar){
     const hand=avatar.hand();
     if(!hand)return false;
     hand.add(this.group);
-    this.group.position.copy(HOLD_POSITION).sub(GRIP.clone().multiplyScalar(0));
+    const scale=THREE.MathUtils.clamp(avatar.height()/REFERENCE_HEIGHT,.5,1.3);
+    this.group.scale.setScalar(scale);
+    this.group.position.copy(HOLD_POSITION).multiplyScalar(scale).sub(GRIP.clone().multiplyScalar(scale));
     this.group.rotation.copy(HOLD_ROTATION);
-    this.group.scale.setScalar(1);
     avatar.holdPose(true);
     return true;
   }

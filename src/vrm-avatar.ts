@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { VRMLoaderPlugin,VRMUtils,type VRM } from '@pixiv/three-vrm';
+import { json } from './assets';
 
 /**
  * VRM player avatars, sharing the sibling project's models and animation set.
@@ -22,6 +23,8 @@ export interface Avatar {
   readonly playing:string;
   /** The bone a weapon hangs from, once the body has loaded. */
   hand():THREE.Object3D|undefined;
+  /** Head height in metres, measured from the body's own rest pose. */
+  height():number;
   /** Ask for the two-hand carry. Bodies with firing clips answer with those instead. */
   holdPose(active:boolean):void;
   duration(name:string):number;
@@ -141,6 +144,71 @@ const MIXAMO_TO_VRM:Record<string,string>={
   'mixamorigJaw': 'jaw',
 };
 
+/**
+ * The GAME'S own rig, mapped onto the humanoid.
+ *
+ * The converted PS2 character carries 23 clips — everything the game actually plays,
+ * from the walk and run to the jump chain, the kick and the seated idle — and no rig
+ * has a better claim to being this game's animation. There is no clavicle in it: the
+ * chain is Spine_2 → Shoulder → Elbow → Wrist, so `Shoulder_L` IS the upper arm.
+ * `Motion_Root`, `Balance_Root`, `Character_Root` and `Ass_Joint` are trajectory and
+ * helper nodes with no humanoid equivalent, and are skipped the same way UE's `root` is.
+ */
+const GAME_TO_VRM:Record<string,string>={
+  Pelvis:'hips',Spine_1:'spine',Spine_2:'chest',Neck:'neck',Head:'head',Jaw:'jaw',
+  Shoulder_L:'leftUpperArm',Elbow_L:'leftLowerArm',Wrist_L:'leftHand',
+  Shoulder_R:'rightUpperArm',Elbow_R:'rightLowerArm',Wrist_R:'rightHand',
+  Hip_L:'leftUpperLeg',Knee_L:'leftLowerLeg',Ankle_L:'leftFoot',Ball_L:'leftToes',
+  Hip_R:'rightUpperLeg',Knee_R:'rightLowerLeg',Ankle_R:'rightFoot',Ball_R:'rightToes',
+  Middle_Base_L:'leftMiddleProximal',Middle_L:'leftMiddleIntermediate',
+  Thumb_Base_L:'leftThumbProximal',Thumb_L:'leftThumbDistal',
+  Middle_Base_R:'rightMiddleProximal',Middle_R:'rightMiddleIntermediate',
+  Thumb_Base_R:'rightThumbProximal',Thumb_R:'rightThumbDistal',
+};
+
+/** Where a VRM's motion comes from. The game's own set is the default. */
+export type AnimationSource='game'|'mixamo'|'all';
+
+interface RigData {bones:{name:string;parent:number;matrix:number[]}[];animations:{name:string;duration:number;tracks:{bone:string;kind:string;times:number[];values:number[]}[]}[]}
+const rigCache=new Map<string,Promise<{scene:THREE.Object3D;clips:Map<string,THREE.AnimationClip>}>>();
+/**
+ * Rebuild one of the game's characters as a bare skeleton plus its clips.
+ *
+ * The retargeter needs the source rig's REST POSE to divide out — the same thing the
+ * FBX scene provides for a Mixamo clip — so the bones are assembled from the converted
+ * matrices exactly as the game's own character does it, and nothing else is loaded.
+ */
+function gameRig(asset:string){
+  let pending=rigCache.get(asset);
+  if(!pending){
+    pending=(async()=>{
+      const data=await json<RigData>(`${asset}.json`);
+      const bones=data.bones.map(source=>{
+        const bone=new THREE.Bone();bone.name=source.name;
+        bone.applyMatrix4(new THREE.Matrix4().fromArray(source.matrix));
+        return bone;
+      });
+      const scene=new THREE.Group();
+      data.bones.forEach((source,i)=>{if(i===0)scene.add(bones[i]);else bones[source.parent].add(bones[i]);});
+      scene.updateMatrixWorld(true);
+      const clips=new Map<string,THREE.AnimationClip>();
+      for(const source of data.animations){
+        const tracks=source.tracks.map(track=>track.kind==='quaternion'
+          ? new THREE.QuaternionKeyframeTrack(`${track.bone}.quaternion`,track.times,track.values)
+          : new THREE.VectorKeyframeTrack(`${track.bone}.position`,track.times,track.values));
+        const clip=new THREE.AnimationClip(source.name,source.duration,tracks);
+        clips.set(source.name,clip);
+        // The cast share one vocabulary: bart's `bar_loco_walk` answers to `hom_loco_walk`
+        // too, which is the name the game asks every body for.
+        clips.set(source.name.replace(/^[^_]+_/,'hom_'),clip);
+      }
+      return {scene,clips};
+    })();
+    rigCache.set(asset,pending);
+  }
+  return pending;
+}
+
 // Not every clip is a Mixamo rig. The Unreal mannequin names its bones pelvis,
 // spine_01, thigh_l, clavicle_r; the retargeter itself is rig-agnostic — it looks each
 // source bone up in this map — but an unmapped clip does not error. It retargets to
@@ -163,6 +231,7 @@ for(const [side,full] of [['l','left'],['r','right']] as const){
   });
 }
 Object.assign(MIXAMO_TO_VRM,{pelvis:'hips',spine_01:'spine',spine_02:'chest',spine_03:'upperChest',neck_01:'neck',Head:'head'});
+Object.assign(MIXAMO_TO_VRM,GAME_TO_VRM);
 
 /**
  * Retarget one Mixamo clip onto a VRM humanoid.
@@ -175,10 +244,32 @@ Object.assign(MIXAMO_TO_VRM,{pelvis:'hips',spine_01:'spine',spine_02:'chest',spi
  */
 export function retargetMixamoClip(clip:THREE.AnimationClip,fbx:THREE.Object3D,vrm:VRM){
   const quaternion=new THREE.Quaternion(),vector=new THREE.Vector3();
-  const hips=fbx.getObjectByName('mixamorigHips');
-  // Mixamo hangs the hips straight off an identity root, so the local offset is the height.
-  // Guard the degenerate export: hips at y=0 would make the scale infinite.
-  const motionHipsHeight=Math.max(Math.abs(hips?.position.y??100),1);
+  let motionHipsHeight:number;
+  const mixamoHips=fbx.getObjectByName('mixamorigHips');
+  if(mixamoHips){
+    // Mixamo hangs the hips straight off an identity root, so the local offset IS the
+    // height. Guard the degenerate export: hips at y=0 would make the scale infinite.
+    motionHipsHeight=Math.max(Math.abs(mixamoHips.position.y),1);
+  }else{
+    // Any other rig, found by whichever name it uses for the hips. Here the local offset
+    // is NOT the height — this game's Pelvis hangs off three nested root nodes, and an
+    // Unreal pelvis sits 0.05 from an already-rotated parent while standing 0.92 m off
+    // the floor. Measure the real world height instead, then divide out the accumulated
+    // parent scale to land back in the units the tracks are written in.
+    let sourceHips:THREE.Object3D|undefined;
+    for(const [name,bone] of Object.entries(MIXAMO_TO_VRM)){
+      if(bone!=='hips'||name==='mixamorigHips')continue;
+      sourceHips=fbx.getObjectByName(name)??undefined;
+      if(sourceHips)break;
+    }
+    if(sourceHips){
+      fbx.updateMatrixWorld(true);
+      const world=sourceHips.getWorldPosition(new THREE.Vector3());
+      const parentScale=sourceHips.parent?sourceHips.parent.getWorldScale(new THREE.Vector3()):new THREE.Vector3(1,1,1);
+      const scale=Math.abs(parentScale.y)>1e-6?Math.abs(parentScale.y):1;
+      motionHipsHeight=Math.max(Math.abs(world.y)/scale,0.01);
+    }else motionHipsHeight=100;   // nothing to measure — the legacy fallback
+  }
   const vrmHips=vrm.humanoid.getNormalizedBoneNode('hips');
   const vrmHipsY=vrmHips?vrmHips.getWorldPosition(vector).y:1;
   const vrmRootY=vrm.scene.getWorldPosition(new THREE.Vector3()).y;
@@ -298,6 +389,21 @@ function sourceClip(slot:Downloaded){
   return pending;
 }
 
+/**
+ * What a gun state falls back to when the cast's own set is the only one loaded: the
+ * conversion never made a firing clip, so the legs keep walking or running and the
+ * arms are posed onto the rig by `HOLD_POSE` instead.
+ */
+const GUN_FALLBACK:Record<string,string>={
+  hom_gun_idle:'hom_loco_idle_rest',hom_gun_walk:'hom_loco_walk',
+  hom_gun_run:'hom_loco_run',hom_gun_fire:'hom_loco_idle_rest',hom_jump_run:'hom_loco_run',
+};
+/** The two-hand carry, written onto the humanoid — the same shape the cast's rig holds. */
+const HOLD_POSE:Record<string,{x?:number;y?:number;z?:number}>={
+  rightUpperArm:{x:-0.55,y:0.15,z:-0.35},rightLowerArm:{x:-1.15,y:0.2},
+  leftUpperArm:{x:-0.75,y:-0.5,z:0.3},leftLowerArm:{x:-1.35,y:-0.15},
+};
+
 /** The seated pose, copied bone for bone from the sibling project's driving pose. */
 const DRIVING_POSE:Record<string,{x?:number;y?:number;z?:number}>={
   hips:{x:-0.28},spine:{x:0.16},chest:{x:0.1},
@@ -313,15 +419,24 @@ export class VrmAvatar {
   group=new THREE.Group();
   private vrm?:VRM;
   private mixer?:THREE.AnimationMixer;
-  private actions=new Map<Slot,THREE.AnimationAction>();
+  /** Keyed by the NAME the game asks for, whichever set the clip behind it came from. */
+  private actions=new Map<string,THREE.AnimationAction>();
   private active='';
   private seated=false;
   /** This avatar's hip height in metres, measured from its own rest pose — see `drive`. */
   private hipsHeight=0.618;
+  /** And its head, which is what a held weapon is scaled against. */
+  private headHeight=1.33;
   get playing(){return this.active;}
   get loaded(){return !!this.vrm;}
 
-  async load(file=DEFAULT_VRM){
+  /** Where this avatar's motion comes from, and which of the cast's clips to use. */
+  private source:AnimationSource='game';
+  private cast='homer';
+
+  async load(file=DEFAULT_VRM,options:{animations?:AnimationSource;cast?:string}={}){
+    this.source=options.animations??'game';
+    this.cast=options.cast??'homer';
     // Only ever a filename on the shared host: a peer names its own avatar, and that
     // name must never be able to become an arbitrary URL this browser then fetches.
     const url=characterURL(file.split(/[\\/]/).pop()||DEFAULT_VRM);
@@ -336,8 +451,11 @@ export class VrmAvatar {
     vrm.scene.traverse(node=>{if((node as THREE.Mesh).isMesh){node.castShadow=true;node.receiveShadow=true;node.frustumCulled=false;}});
     this.vrm=vrm;this.group.add(vrm.scene);
     this.group.updateMatrixWorld(true);
+    const origin=this.group.getWorldPosition(new THREE.Vector3()).y;
     const hips=vrm.humanoid.getNormalizedBoneNode('hips');
-    if(hips)this.hipsHeight=Math.abs(hips.getWorldPosition(new THREE.Vector3()).y-this.group.getWorldPosition(new THREE.Vector3()).y);
+    if(hips)this.hipsHeight=Math.abs(hips.getWorldPosition(new THREE.Vector3()).y-origin);
+    const head=vrm.humanoid.getNormalizedBoneNode('head');
+    if(head)this.headHeight=Math.abs(head.getWorldPosition(new THREE.Vector3()).y-origin);
     this.mixer=new THREE.AnimationMixer(vrm.scene);
 
     // Track names are node names on this particular rig, so the way back to humanoid
@@ -346,15 +464,17 @@ export class VrmAvatar {
       const node=vrm.humanoid.getNormalizedBoneNode(bone as never);
       if(node)this.nodeToBone.set(node.name,bone);
     }
-    // Idle first so the avatar is never a T-pose on screen; the rest, and the blends
-    // cut from them, follow in the background.
-    await this.slot('idle');
+    // The game's own clips arrive in one fetch, so in game mode the avatar is animated
+    // by the time it is on screen rather than after a round of downloads.
+    if(this.source!=='mixamo')await this.loadGameClips();
+    await this.ensure('hom_loco_idle_rest').catch(()=>{});
     this.play('hom_loco_idle_rest');
-    void (async()=>{
+    // Whatever else the mode allows follows in the background: the Mixamo set, and the
+    // blends cut from it. Nothing here is waited on.
+    if(this.source!=='game')void (async()=>{
       const slots=(Object.keys(CLIPS) as Downloaded[]).filter(slot=>slot!=='idle');
-      await Promise.all(slots.map(slot=>this.slot(slot).catch(error=>console.warn(`${slot} unavailable`,error))));
-      // Blends need both halves retargeted first, so they are built once those land.
-      await Promise.all((Object.keys(BLEND_PARTS) as Blend[]).map(blend=>this.slot(blend).catch(error=>console.warn(`${blend} unavailable`,error))));
+      await Promise.all(slots.map(slot=>this.mixamoAction(slot).catch(error=>console.warn(`${slot} unavailable`,error))));
+      await Promise.all((Object.keys(BLEND_PARTS) as Blend[]).map(blend=>this.mixamoAction(blend).catch(error=>console.warn(`${blend} unavailable`,error))));
     })();
     return this;
   }
@@ -363,6 +483,21 @@ export class VrmAvatar {
   private clips=new Map<Downloaded,THREE.AnimationClip>();
   /** This avatar's node names, mapped back to humanoid bones — what a blend is cut along. */
   private nodeToBone=new Map<string,string>();
+
+  /** Every one of the cast's clips, retargeted onto this humanoid and ready to play. */
+  private async loadGameClips(){
+    if(!this.vrm||!this.mixer)return;
+    const {scene,clips}=await gameRig(this.cast);
+    if(!this.vrm||!this.mixer)return;
+    for(const [name,clip] of clips){
+      if(this.actions.has(name))continue;
+      const retargeted=retargetMixamoClip(clip,scene,this.vrm);
+      if(!retargeted.tracks.length)continue;
+      const action=this.mixer.clipAction(retargeted);
+      action.setLoop(THREE.LoopRepeat,Infinity);
+      this.actions.set(name,action);
+    }
+  }
 
   private async retargeted(slot:Downloaded){
     const existing=this.clips.get(slot);
@@ -375,8 +510,10 @@ export class VrmAvatar {
     return retargeted;
   }
 
-  private async slot(slot:Slot){
-    if(this.actions.has(slot))return this.actions.get(slot)!;
+  private async mixamoAction(slot:Slot){
+    const names=slot in BLEND_PARTS?BLEND_NAMES[slot as Blend]:[...CLIPS[slot as Downloaded].names];
+    const ready=names.map(name=>this.actions.get(name)).find(Boolean);
+    if(ready)return ready;
     if(!this.vrm||!this.mixer)throw new Error('avatar disposed while loading');
     let clip:THREE.AnimationClip;
     if(slot in BLEND_PARTS){
@@ -392,31 +529,65 @@ export class VrmAvatar {
     if(!this.mixer)throw new Error('avatar disposed while loading');
     const action=this.mixer.clipAction(clip);
     action.setLoop(THREE.LoopRepeat,Infinity);
-    this.actions.set(slot,action);
+    // A Mixamo clip answers to every game name it stands in for, so `play` finds it
+    // under the name the game actually asks for.
+    for(const name of names)if(!this.actions.has(name))this.actions.set(name,action);
     // A clip that arrives after the state it answers to was asked for still needs to start.
-    if(SLOT_FOR.get(this.active)===slot&&!this.seated){action.reset().fadeIn(.15).play();}
+    if(names.includes(this.active)&&!this.seated)action.reset().fadeIn(.15).play();
     return action;
   }
 
-  duration(name:string){const slot=SLOT_FOR.get(name);return slot?this.actions.get(slot)?.getClip().duration??0:0;}
+  /**
+   * Find the action for a name under the current source.
+   *
+   * The game's own clips answer first — they are this game's animation, and the cast
+   * and the VRMs then move alike. Mixamo covers what the conversion never had (the gun,
+   * the backflip) and, on its own setting, everything.
+   */
+  private async ensure(name:string){
+    const existing=this.actions.get(name);
+    if(existing)return existing;
+    if(this.source!=='mixamo'){
+      await this.loadGameClips();
+      const fromGame=this.actions.get(name);
+      if(fromGame)return fromGame;
+    }
+    if(this.source==='game'){
+      const fallback=GUN_FALLBACK[name];
+      const stand=fallback?this.actions.get(fallback):undefined;
+      // Share the locomotion action under the gun's name: the arms come from HOLD_POSE.
+      if(stand){this.actions.set(name,stand);return stand;}
+      throw new Error(`${name} is not in the cast's animation set`);
+    }
+    const slot=SLOT_FOR.get(name);
+    if(!slot)throw new Error(`${name} has no clip`);
+    return this.mixamoAction(slot);
+  }
+
+  duration(name:string){return this.actions.get(name)?.getClip().duration??0;}
 
   play(name:string,once=false){
     if(name===this.active)return;
-    const from=SLOT_FOR.get(this.active),to=SLOT_FOR.get(name);
+    const from=this.actions.get(this.active),to=this.actions.get(name);
     this.active=name;
-    if(from===to)return;
-    if(from)this.actions.get(from)?.fadeOut(.15);
-    const next=to&&this.actions.get(to);
-    if(next){
-      next.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);
-      next.clampWhenFinished=once;next.reset().fadeIn(.15).play();
-    }else if(to)void this.slot(to).catch(()=>{});
+    // Two names sharing one clip (a Mixamo stand-in) must not fade themselves out.
+    if(from&&from!==to)from.fadeOut(.15);
+    if(to){
+      to.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);
+      to.clampWhenFinished=once;
+      if(from!==to)to.reset().fadeIn(.15).play();
+    }else void this.ensure(name).catch(()=>{});
   }
 
+  height(){return this.headHeight;}
   /** The bone a weapon hangs from: the RAW node, so it follows the skinned rig. */
   hand(){return this.vrm?.humanoid.getRawBoneNode('rightHand')??undefined;}
-  /** A VRM holds the gun through its own clips, so there is no pose to write here. */
-  holdPose(_active:boolean){}
+  /**
+   * Hold a long gun. With the Mixamo set loaded the gun clips do this themselves, so
+   * the pose is only written when the clip playing is a plain locomotion one.
+   */
+  holdPose(active:boolean){this.holding=active;}
+  private holding=false;
 
   drive(car:THREE.Group){
     car.add(this.group);
@@ -440,6 +611,12 @@ export class VrmAvatar {
     this.mixer?.update(dt);
     // The seated pose is written straight onto the humanoid, so it goes on after the
     // mixer and before `vrm.update`, which is what pushes normalized bones onto the rig.
+    // The carry is written onto the arms only when the clip in play is not already a
+    // firing clip — otherwise it would fight the animation that came with the gun.
+    if(this.holding&&!this.seated&&!SLOT_FOR.has(this.active))for(const [bone,angles] of Object.entries(HOLD_POSE)){
+      const node=this.vrm.humanoid.getNormalizedBoneNode(bone as never);
+      if(node)node.rotation.set(angles.x??0,angles.y??0,angles.z??0);
+    }
     if(this.seated)for(const [bone,angles] of Object.entries(DRIVING_POSE)){
       const node=this.vrm.humanoid.getNormalizedBoneNode(bone as never);
       if(!node)continue;

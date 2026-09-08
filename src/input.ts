@@ -33,10 +33,20 @@ export class Input {
     },options);
     window.addEventListener('keyup',e=>this.keys.delete(e.code),options);
     window.addEventListener('blur',()=>this.clear(),options);
-    document.querySelectorAll<HTMLButtonElement>('[data-key]').forEach(button=>{
-      const key=button.dataset.key!;
-      button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);this.touch.add(key);this.pressed.add(key);},options);
-      for(const event of ['pointerup','pointercancel','lostpointercapture']) button.addEventListener(event,()=>this.touch.delete(key),options);
+    document.querySelectorAll<HTMLElement>('[data-key]').forEach(button=>{
+      // The key is read at PRESS time, not bound here: the face buttons keep their
+      // glyphs and change what they do with the context — driving, on foot, armed.
+      let held='';
+      const release=()=>{if(held)this.touch.delete(held);held='';button.classList.remove('active');};
+      button.addEventListener('pointerdown',event=>{
+        event.preventDefault();button.setPointerCapture(event.pointerId);
+        held=button.dataset.key??'';
+        if(held){this.touch.add(held);this.pressed.add(held);}
+        // preventDefault kills :active on a phone, so the glow is driven by a class.
+        button.classList.add('active');
+      },options);
+      for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,release,options);
+      button.addEventListener('contextmenu',event=>event.preventDefault(),options);
     });
 
     // The stick anchors wherever the thumb lands rather than at the pad's centre, so

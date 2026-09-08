@@ -108,10 +108,18 @@ export class Sound {
   }
   start(){if(this.enabled)void this.resume();}
 
-  update(speed:number,throttle:number){
+  /**
+   * Drive the engine loop from the car.
+   *
+   * `driving` matters: the same `speed` is the player's own on foot, so without it the
+   * engine revved as you ran. The car falls silent when you step out of it — the
+   * conversion produced no footstep audio to put in its place, only the eight clips
+   * this file names, so on foot there is simply no engine.
+   */
+  update(speed:number,throttle:number,driving:boolean){
     const engine=this.loops.get(ENGINE);
-    this.ease(engine?.source.playbackRate,0.6+Math.abs(speed)/28+throttle*0.25,.06);
-    this.ease(engine?.gain.gain,this.cinematic?0:0.05+Math.min(Math.abs(speed)/100,0.17));
+    if(driving)this.ease(engine?.source.playbackRate,0.6+Math.abs(speed)/28+throttle*0.25,.06);
+    this.ease(engine?.gain.gain,this.cinematic||!driving?0:0.05+Math.min(Math.abs(speed)/100,0.17));
     this.ease(this.loops.get(MUSIC)?.gain.gain,this.cinematic?0:.15);
   }
   pursuit(active:boolean,distance:number){

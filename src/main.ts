@@ -23,7 +23,7 @@ import { Challenge } from './challenge';
 import { Traffic } from './traffic';
 import { Sound } from './audio';
 import { Character } from './character';
-import { DEFAULT_VRM,isVrmSkin,VRM_MODELS,VrmAvatar,type Avatar } from './vrm-avatar';
+import { DEFAULT_VRM,isVrmSkin,VRM_MODELS,VrmAvatar,type AnimationSource,type Avatar } from './vrm-avatar';
 import { buildRifle,disposeRifle } from './rifle';
 import { falloff,Rifle,RIFLE } from './weapon';
 import { Coins } from './coins';
@@ -51,6 +51,9 @@ let coins:Coins|undefined;let campaignAssets:CampaignAssets;let kickUntil=0;let 
 // Multiplayer. The net object only ever reads the local state and writes remote avatars —
 // it is never allowed to move `state`, so a bad connection cannot touch your own driving.
 const net=new Net();let remotes:RemotePlayers|undefined;let playerName=localStorage.getItem('hit-and-run:name')??'';let playerSkin=localStorage.getItem('hit-and-run:skin')??DEFAULT_VRM;
+// Where a VRM's motion comes from. The cast's own converted clips by default, so a VRM
+// moves exactly like Homer does; Mixamo is opt-in, and covers what the game never had.
+let animationSource=(localStorage.getItem('hit-and-run:animations')as AnimationSource|null)??'game';
 const sample:Sample=[0,0,0,0,0,0,1,0,0,0,0,'hom_loco_idle_rest','famil_v'];
 let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65,footprint:VehicleFootprint=DEFAULT_FOOTPRINT;
 let chassis:VehicleProfile=DEFAULT_VEHICLE;
@@ -107,7 +110,7 @@ function respawn(location?:number){
  */
 async function makeAvatar(skin:string):Promise<Avatar>{
   if(isVrmSkin(skin)){
-    try{return await new VrmAvatar().load(skin);}
+    try{return await new VrmAvatar().load(skin,{animations:animationSource,cast:campaignAssets.characters[CHARACTER_IDS[level-1]]??CHARACTER_IDS[level-1]});}
     catch(error){console.warn(`${skin} did not load; falling back to the cast`,error);}
   }
   const character=new Character();
@@ -140,10 +143,10 @@ async function loadLevel(nextLevel:number){
     character=driver;character.drive(car!);
     remotes=new RemotePlayers(scene,world,campaignAssets);net.describe(level,carId,playerSkin);
     sound.setCharacter(VOICE_ACTORS[level-1],campaignAssets.dialogue);
-    placePickup();armBody();
+    armBody();
     element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
-    world.setLighting(lighting.value);respawn(0);renderer.compile(scene,camera);
+    world.setLighting(lighting.value);respawn(0);placePickup();renderer.compile(scene,camera);
     progress(1,'Ready');lock(false);element('loading').hidden=true;element('menu').hidden=false;
     nativeMenu?.show(nativeMenu.mode);
   }catch(error){
@@ -185,18 +188,39 @@ const bullets={
   },
 };
 
-/** Drop a rifle in the street, turning slowly, for the player to walk into. */
+/**
+ * Drop a rifle in the street for the player to drive or walk into.
+ *
+ * It goes where the player actually STARTS, which is not the level's location marker:
+ * `respawn` snaps to the nearest road first, so a pickup left at the marker could be
+ * behind a house. It is placed a few metres up the road from there, floated at chest
+ * height over a glowing ring and turning, because a 0.9 m prop lying in a street is
+ * invisible from a car.
+ */
 function placePickup(){
   clearPickup();
   if(!world)return;
-  const spawn=world.data.locations[0]?.position??[0,0,0];
-  const position=new THREE.Vector3(spawn[0]+3,spawn[1],spawn[2]+3);
-  const floor=world.terrain.support(position.x,position.z,position.y+2,1,8);
-  position.y=(floor?.point.y??position.y)+0.55;
-  const pickup=buildRifle();pickup.position.copy(position);pickup.rotation.set(0,0,0.35);
+  const position=state.position.clone().add(new THREE.Vector3(Math.sin(state.heading),0,Math.cos(state.heading)).multiplyScalar(7));
+  const floor=world.terrain.support(position.x,position.z,position.y+3,1,12);
+  position.y=(floor?.point.y??position.y)+1;
+  const pickup=new THREE.Group();pickup.position.copy(position);
+  const gun=buildRifle();gun.rotation.set(0,0,0.4);pickup.add(gun);
+  const halo=new THREE.Mesh(
+    new THREE.RingGeometry(0.55,1.05,32).rotateX(-Math.PI/2),
+    new THREE.MeshBasicMaterial({color:0xffd21e,transparent:true,opacity:.45,side:THREE.DoubleSide,depthWrite:false}));
+  halo.position.y=-0.94;pickup.add(halo);
+  const beam=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.5,0.75,3,16,1,true),
+    new THREE.MeshBasicMaterial({color:0xffd21e,transparent:true,opacity:.12,side:THREE.DoubleSide,depthWrite:false}));
+  beam.position.y=0.5;pickup.add(beam);
   scene.add(pickup);riflePickup=pickup;
+  toast('A rifle is waiting up the street.');
 }
-function clearPickup(){if(riflePickup){disposeRifle(riflePickup);riflePickup=undefined;}}
+function clearPickup(){
+  if(!riflePickup)return;
+  riflePickup.traverse(node=>{if(node instanceof THREE.Mesh){node.geometry.dispose();(node.material as THREE.Material).dispose();}});
+  riflePickup.removeFromParent();riflePickup=undefined;
+}
 
 /** Pick the gun up by walking into it, and take it in hand. */
 function takeRifle(){
@@ -236,6 +260,28 @@ function orbit(dt:number){
     const error=THREE.MathUtils.euclideanModulo(motion.heading-camYaw+Math.PI,Math.PI*2)-Math.PI;
     camYaw+=error*Math.min(1,dt*2.4);camPitch+=(.12-camPitch)*Math.min(1,dt*1.6);
   }
+}
+/**
+ * What the four face buttons do right now.
+ *
+ * The glyphs never change — a button that relabels itself is a button you have to read
+ * every time — so only the key behind each one moves, and it follows the original
+ * console layout: triangle gets in and out, cross is the accelerator on the road and
+ * the jump on foot, circle is the handbrake and the trigger, square is the brake and
+ * the magazine change.
+ */
+function mapFaceButtons(){
+  const set=(id:string,key:string)=>{const node=document.getElementById(id);if(node)node.dataset.key=key;};
+  // ON FOOT: square attacks — the kick the game already had, or the trigger once you
+  // are carrying the rifle — circle sprints, triangle gets in the car, cross jumps.
+  // DRIVING: the console layout — cross accelerates, square brakes, circle is the
+  // handbrake, triangle gets you out again.
+  set('btn-triangle','KeyE');
+  set('btn-cross',onFoot?'Space':'KeyW');
+  set('btn-square',onFoot?'KeyF':'KeyS');
+  set('btn-circle',onFoot?'ShiftLeft':'Space');
+  const square=document.getElementById('btn-square');
+  square?.classList.toggle('reload-needed',!!(onFoot&&rifleHeld&&rifle&&!rifle.busy&&rifle.ammo===0));
 }
 function updateCamera(dt:number,snap=false){
   const position=motion.position;
@@ -326,7 +372,7 @@ function animate(now:number){
           saveGame();
         }
         if(traffic?.update(fixed,state,!onFoot,camera.getWorldDirection(new THREE.Vector3()),[...(onFoot?[parkedPosition]:[]),...(police?.cars.map(c=>c.position)??[])],footprint,campaignAssets.tuning[carId]?.SetMass??1500)){police?.offense('vehicleHit',false);sound.bark(14);}
-        if(riflePickup&&onFoot&&state.position.distanceTo(riflePickup.position)<2.2)takeRifle();
+        if(riflePickup&&state.position.distanceTo(riflePickup.position)<(onFoot?3:5))takeRifle();
         const result=challenge.update(fixed,state.position);
         if(result==='checkpoint'){toast(`Stop ${challenge.index} reached. Keep moving.`);sound.bark(4);}
         if(result==='complete'){sound.bark(0);toast(`Home in ${Math.floor(challenge.elapsed/60)}:${String(Math.floor(challenge.elapsed%60)).padStart(2,'0')}. Nice driving.`);element('mode-badge').textContent='FREE DRIVE';}
@@ -336,10 +382,12 @@ function animate(now:number){
         police?.update(fixed,{state,onFoot,vehicle:carId,parkedPosition,parkedHeading,footprint},false,traffic?.cars.filter(c=>c.active).map(c=>c.position));
         accumulator-=fixed;
       }
-      sound.update(state.speed,input.controls.throttle);
+      sound.update(state.speed,input.controls.throttle,!onFoot);
       sound.pursuit(!!police?.hud.active,police?.audibleDistance??Infinity);
     }else{accumulator=0;motion.reset(state);}
+    if(riflePickup&&!paused)riflePickup.rotation.y+=dt*1.4;
     nativeHUD.weapon=rifleHeld&&rifle?{ammo:rifle.ammo,mag:RIFLE.mag,reloading:rifle.busy}:null;
+    mapFaceButtons();
     if(rifle){
       rifle.update(paused?0:dt);
       if(!paused&&fireHeld&&onFoot){
@@ -442,6 +490,14 @@ skinSelect.replaceChildren(
 skinSelect.value=playerSkin;
 // A saved cartoon character is not in the VRM list, so fall back to the cast entry.
 if(!skinSelect.value)skinSelect.value='cast';
+const animationSelect=element<HTMLSelectElement>('animations');
+animationSelect.value=animationSource;
+animationSelect.addEventListener('change',()=>{
+  animationSource=animationSelect.value as AnimationSource;
+  try{localStorage.setItem('hit-and-run:animations',animationSource);}catch{}
+  // The choice is baked into the avatar when it is built, so rebuild the one on screen.
+  void changeSkin(playerSkin).catch(()=>toast('That character would not load.'));
+},options);
 skinSelect.addEventListener('change',()=>{void changeSkin(skinSelect.value==='cast'?CHARACTER_IDS[level-1]:skinSelect.value).catch(()=>toast('That character would not load.'));},options);
 locationSelect.addEventListener('change',()=>{if(onFoot){onFoot=false;character?.drive(car!);}challenge.stop();respawn(Number(locationSelect.value));element('menu-place').textContent=world.data.locations[Number(locationSelect.value)].name;},options);
 lighting.addEventListener('change',()=>world.setLighting(lighting.value),options);

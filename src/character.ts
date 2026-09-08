@@ -38,6 +38,8 @@ export class Character {
     if(name===this.active)return;
     this.actions.get(this.active)?.fadeOut(.15);const next=this.actions.get(name);if(next){next.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);next.clampWhenFinished=once;next.reset().fadeIn(.15).play();}this.active=name;
   }
+  /** The cast's head bone sits at 1.33 m in the converted rest pose — measured, not guessed. */
+  height(){return this.bones.find(bone=>bone.name==='Head')?.getWorldPosition(new THREE.Vector3()).y??1.33;}
   /** The bone a weapon hangs from. The converted rig names the right wrist `Wrist_R`. */
   hand(){return this.bones.find(bone=>bone.name==='Wrist_R');}
   /**
