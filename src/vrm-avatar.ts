@@ -365,6 +365,58 @@ export const BLEND_PARTS:Record<Blend,{upper:keyof typeof CLIPS;lower:keyof type
   jumpRun:{upper:'jump',lower:'run',bones:UPPER},
 };
 
+/**
+ * Put the retargeted feet back where the source rig's feet are.
+ *
+ * Retargeting preserves each bone's rotation relative to its own rest pose, which is
+ * faithful and still lands the foot at a different ANGLE TO THE WORLD when the two
+ * skeletons' legs are built differently — measurably 19° flatter on one avatar and 25°
+ * on another through the whole run cycle, which reads as running on your heels.
+ *
+ * So each foot key is corrected by the error at that key: play both rigs at that time,
+ * measure the angle of the ankle→toe line in each, and rotate the foot about its own
+ * pitch axis by the difference. Three passes because the correction moves the toes it
+ * is measured from; it converges to zero.
+ */
+function alignFeet(clip:THREE.AnimationClip,source:THREE.AnimationClip,rig:THREE.Object3D,vrm:VRM){
+  const forward=new THREE.Vector3(0,0,1),a=new THREE.Vector3(),b=new THREE.Vector3();
+  // Signed against the rig's own forward, so a foot pointing straight down does not fold
+  // the way atan2(dy, |horizontal|) does.
+  const sole=(ankle:THREE.Object3D,toe:THREE.Object3D)=>{
+    const delta=toe.getWorldPosition(b).sub(ankle.getWorldPosition(a));
+    return Math.atan2(delta.y,delta.dot(forward));
+  };
+  const sides=([['leftFoot','leftToes','Ankle_L','Ball_L'],['rightFoot','rightToes','Ankle_R','Ball_R']] as const).flatMap(([foot,toes,sourceAnkle,sourceBall])=>{
+    const node=vrm.humanoid.getNormalizedBoneNode(foot),raw=vrm.humanoid.getRawBoneNode(foot);
+    const rawToes=vrm.humanoid.getRawBoneNode(toes);
+    const ankle=rig.getObjectByName(sourceAnkle),ball=rig.getObjectByName(sourceBall);
+    const track=node&&clip.tracks.find(t=>t.name===`${node.name}.quaternion`) as THREE.QuaternionKeyframeTrack|undefined;
+    return raw&&rawToes&&ankle&&ball&&track?[{raw,rawToes,ankle,ball,track}]:[];
+  });
+  if(!sides.length)return clip;
+  const rigMixer=new THREE.AnimationMixer(rig);rigMixer.clipAction(source).play();
+  const vrmMixer=new THREE.AnimationMixer(vrm.scene);
+  const pitch=new THREE.Quaternion(),key=new THREE.Quaternion(),X=new THREE.Vector3(1,0,0);
+  for(let pass=0;pass<3;pass++){
+    vrmMixer.stopAllAction();vrmMixer.uncacheClip(clip);vrmMixer.clipAction(clip).play();
+    for(const side of sides){
+      for(let i=0;i<side.track.times.length;i++){
+        const time=side.track.times[i];
+        rigMixer.setTime(time);rig.updateMatrixWorld(true);
+        vrmMixer.setTime(time);vrm.humanoid.update();vrm.scene.updateMatrixWorld(true);
+        const error=sole(side.ankle,side.ball)-sole(side.raw,side.rawToes);
+        if(!Number.isFinite(error))continue;
+        key.set(side.track.values[i*4],side.track.values[i*4+1],side.track.values[i*4+2],side.track.values[i*4+3]);
+        key.multiply(pitch.setFromAxisAngle(X,error));
+        side.track.values[i*4]=key.x;side.track.values[i*4+1]=key.y;side.track.values[i*4+2]=key.z;side.track.values[i*4+3]=key.w;
+      }
+    }
+  }
+  rigMixer.stopAllAction();vrmMixer.stopAllAction();
+  vrm.humanoid.resetNormalizedPose?.();
+  return clip;
+}
+
 /** One shared loader set, and one download per clip however many avatars are wearing it. */
 const gltf=new GLTFLoader();gltf.register(parser=>new VRMLoaderPlugin(parser));
 const fbx=new FBXLoader();
@@ -434,12 +486,19 @@ export class VrmAvatar {
   private source:AnimationSource='game';
   private cast='homer';
 
-  async load(file=DEFAULT_VRM,options:{animations?:AnimationSource;cast?:string}={}){
+  /**
+   * Wear an avatar.
+   *
+   * `url` is for a file the player chose on this device only. A NAME goes through the
+   * shared host, which is what keeps a peer's chosen skin from becoming an arbitrary
+   * URL this browser then fetches.
+   */
+  async load(file=DEFAULT_VRM,options:{animations?:AnimationSource;cast?:string;url?:string}={}){
     this.source=options.animations??'game';
     this.cast=options.cast??'homer';
     // Only ever a filename on the shared host: a peer names its own avatar, and that
     // name must never be able to become an arbitrary URL this browser then fetches.
-    const url=characterURL(file.split(/[\\/]/).pop()||DEFAULT_VRM);
+    const url=options.url??characterURL(file.split(/[\\/]/).pop()||DEFAULT_VRM);
     const asset=await gltf.loadAsync(url);
     const vrm=asset.userData.vrm as VRM|undefined;
     if(!vrm)throw new Error(`${file} is not a VRM`);
@@ -489,9 +548,15 @@ export class VrmAvatar {
     if(!this.vrm||!this.mixer)return;
     const {scene,clips}=await gameRig(this.cast);
     if(!this.vrm||!this.mixer)return;
+    const aligned=new Map<THREE.AnimationClip,THREE.AnimationClip>();
     for(const [name,clip] of clips){
       if(this.actions.has(name))continue;
-      const retargeted=retargetMixamoClip(clip,scene,this.vrm);
+      // The cast share clips under two names, so each is retargeted and aligned once.
+      let retargeted=aligned.get(clip);
+      if(!retargeted){
+        retargeted=alignFeet(retargetMixamoClip(clip,scene,this.vrm),clip,scene,this.vrm);
+        aligned.set(clip,retargeted);
+      }
       if(!retargeted.tracks.length)continue;
       const action=this.mixer.clipAction(retargeted);
       action.setLoop(THREE.LoopRepeat,Infinity);

@@ -15,7 +15,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { World, CAR_NAMES, LEVEL_NAMES } from './world';
 import { json, type Catalog } from './assets';
 import { Input,LOOK_SENSITIVITY } from './input';
-import { drive, type CarState } from './physics';
+import { drive,FOOT_CLEARANCE,type CarState } from './physics';
 import { cameraRelative,PlayerMovement } from './player-movement';
 import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,resetVehicle,type VehicleProfile } from './vehicle-physics';
 import { HUD, element } from './hud';
@@ -53,7 +53,14 @@ let coins:Coins|undefined;let campaignAssets:CampaignAssets;let kickUntil=0;let 
 const net=new Net();let remotes:RemotePlayers|undefined;let playerName=localStorage.getItem('hit-and-run:name')??'';let playerSkin=localStorage.getItem('hit-and-run:skin')??DEFAULT_VRM;
 // Where a VRM's motion comes from. The cast's own converted clips by default, so a VRM
 // moves exactly like Homer does; Mixamo is opt-in, and covers what the game never had.
-let animationSource=(localStorage.getItem('hit-and-run:animations')as AnimationSource|null)??'game';
+// The menu's ANIMATIONS choice, verbatim: 'game' (this level's character), 'cast:<id>'
+// for one particular member of the cast, or the Mixamo settings.
+let animationChoice=localStorage.getItem('hit-and-run:animations')??'game';
+const animationSource=()=>(animationChoice.startsWith('cast:')?'game':animationChoice) as AnimationSource;
+/** Which cast member's clips a VRM moves with — the level's own unless one was picked. */
+const animationCast=()=>animationChoice.startsWith('cast:')?animationChoice.slice(5):CHARACTER_IDS[level-1];
+/** A VRM the player loaded off their own device. It cannot be networked — peers cannot fetch it. */
+let customVrm:{name:string;url:string}|undefined;
 const sample:Sample=[0,0,0,0,0,0,1,0,0,0,0,'hom_loco_idle_rest','famil_v'];
 let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65,footprint:VehicleFootprint=DEFAULT_FOOTPRINT;
 let chassis:VehicleProfile=DEFAULT_VEHICLE;
@@ -110,7 +117,12 @@ function respawn(location?:number){
  */
 async function makeAvatar(skin:string):Promise<Avatar>{
   if(isVrmSkin(skin)){
-    try{return await new VrmAvatar().load(skin,{animations:animationSource,cast:campaignAssets.characters[CHARACTER_IDS[level-1]]??CHARACTER_IDS[level-1]});}
+    const cast=animationCast();
+    try{return await new VrmAvatar().load(skin,{
+      animations:animationSource(),
+      cast:campaignAssets.characters[cast]??cast,
+      ...(customVrm&&customVrm.name===skin?{url:customVrm.url}:{}),
+    });}
     catch(error){console.warn(`${skin} did not load; falling back to the cast`,error);}
   }
   const character=new Character();
@@ -410,7 +422,7 @@ function animate(now:number){
       renderVehicleWheels(car,state.vehicleMotion,chassis,campaignAssets.tuning[carId]);
       car.visible=paused||cameraMode!==2;
     }
-    if(onFoot&&character){character.group.position.copy(motion.position);character.group.rotation.y+=THREE.MathUtils.euclideanModulo(footHeading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;}
+    if(onFoot&&character){character.group.position.copy(motion.position);character.group.position.y-=FOOT_CLEARANCE;character.group.rotation.y+=THREE.MathUtils.euclideanModulo(footHeading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;}
     character?.update(paused?dt*0.35:dt);
     if(coins){const gained=coins.update(frozen?0:dt,state.position,!frozen,!onFoot);if(gained){freeMoney+=gained;sound.coin();saveGame();toast(`+${gained} coin${gained===1?'':'s'}`);}element('coin-count').textContent=String(freeMoney);}
     const worldStart=performance.now();world.update(state.position);const worldMs=performance.now()-worldStart;metrics.record(frameMs,worldMs);updateCamera(dt);
@@ -486,19 +498,43 @@ carSelect.addEventListener('change',async()=>{lock(true);try{await setCar(carSel
 const skinSelect=element<HTMLSelectElement>('skin');
 skinSelect.replaceChildren(
   ...VRM_MODELS.map(file=>new Option(file.replace(/\.vrm$/i,''),file)),
-  new Option('Springfield cast','cast'));
+  new Option('Springfield cast','cast'),
+  new Option('Your own VRM…','custom'));
 skinSelect.value=playerSkin;
 // A saved cartoon character is not in the VRM list, so fall back to the cast entry.
 if(!skinSelect.value)skinSelect.value='cast';
 const animationSelect=element<HTMLSelectElement>('animations');
-animationSelect.value=animationSource;
+animationSelect.value=animationChoice;
 animationSelect.addEventListener('change',()=>{
-  animationSource=animationSelect.value as AnimationSource;
-  try{localStorage.setItem('hit-and-run:animations',animationSource);}catch{}
+  animationChoice=animationSelect.value;
+  try{localStorage.setItem('hit-and-run:animations',animationChoice);}catch{}
   // The choice is baked into the avatar when it is built, so rebuild the one on screen.
   void changeSkin(playerSkin).catch(()=>toast('That character would not load.'));
 },options);
-skinSelect.addEventListener('change',()=>{void changeSkin(skinSelect.value==='cast'?CHARACTER_IDS[level-1]:skinSelect.value).catch(()=>toast('That character would not load.'));},options);
+
+/**
+ * Load a VRM off this device.
+ *
+ * It stays on this device: the file becomes an object URL that only this browser can
+ * read, so other players see the avatar you last chose from the shared list instead.
+ */
+const vrmFile=element<HTMLInputElement>('vrm-file');
+vrmFile.addEventListener('change',()=>{
+  const file=vrmFile.files?.[0];
+  vrmFile.value='';
+  if(!file)return;
+  if(customVrm)URL.revokeObjectURL(customVrm.url);
+  const name=/\.vrm$/i.test(file.name)?file.name:`${file.name}.vrm`;
+  customVrm={name,url:URL.createObjectURL(file)};
+  if(!skinSelect.querySelector(`option[value="${CSS.escape(name)}"]`))skinSelect.append(new Option(name.replace(/\.vrm$/i,''),name));
+  skinSelect.value=name;
+  void changeSkin(name).then(()=>toast('Your own avatar. Other players will see your last pick from the list.'))
+    .catch(()=>toast('That file is not a VRM this browser can read.'));
+},options);
+skinSelect.addEventListener('change',()=>{
+  if(skinSelect.value==='custom'){skinSelect.value=playerSkin;vrmFile.click();return;}
+  void changeSkin(skinSelect.value==='cast'?CHARACTER_IDS[level-1]:skinSelect.value).catch(()=>toast('That character would not load.'));
+},options);
 locationSelect.addEventListener('change',()=>{if(onFoot){onFoot=false;character?.drive(car!);}challenge.stop();respawn(Number(locationSelect.value));element('menu-place').textContent=world.data.locations[Number(locationSelect.value)].name;},options);
 lighting.addEventListener('change',()=>world.setLighting(lighting.value),options);
 const soundButton=element('sound');

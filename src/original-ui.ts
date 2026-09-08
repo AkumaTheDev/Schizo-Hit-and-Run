@@ -58,9 +58,11 @@ export class OriginalHUD {
     if(this.canvas.width!==width*dpr||this.canvas.height!==height*dpr){this.canvas.width=width*dpr;this.canvas.height=height*dpr;}
     const scale=Math.min(width/640,height/480),w=width/scale,h=height/scale,c=this.c;
     c.setTransform(dpr*scale,0,0,dpr*scale,0,0);c.clearRect(0,0,w,h);c.imageSmoothingEnabled=true;
-    const x=w-186,y=h-176,cx=x+76,cy=y+76;
+    // The radar lives top-right, and turns with you: the map rotates under a fixed
+    // arrow so the direction you are facing is always up the screen.
+    const x=w-166,y=12,cx=x+76,cy=y+76;
     originalArt.draw(c,'radar.png',x,y,152,152);
-    c.save();c.beginPath();c.arc(cx,cy,51,0,Math.PI*2);c.clip();c.translate(cx,cy);c.scale(bigMap?.17:.58,bigMap?.17:.58);c.translate(-state.position.x,-state.position.z);
+    c.save();c.beginPath();c.arc(cx,cy,51,0,Math.PI*2);c.clip();c.translate(cx,cy);c.rotate(state.heading-Math.PI);c.scale(bigMap?.17:.58,bigMap?.17:.58);c.translate(-state.position.x,-state.position.z);
     c.strokeStyle='#86cc73';c.lineWidth=7;c.lineCap='round';c.beginPath();for(const [a,b] of data.roads){c.moveTo(a[0],a[2]);c.lineTo(b[0],b[2]);}c.stroke();
     c.fillStyle='#ffca17';for(const vehicle of traffic?.cars??[])if(vehicle.active){c.beginPath();c.arc(vehicle.mesh.position.x,vehicle.mesh.position.z,3,0,Math.PI*2);c.fill();}
     for(const position of this.pursuit?.cars??[]){c.fillStyle=Math.sin(this.time*10)>0?'#ff2626':'#315eff';c.beginPath();c.arc(position.x,position.z,6,0,Math.PI*2);c.fill();originalArt.draw(c,'aicar.png',position.x-6,position.z-6,12,12);}
@@ -70,9 +72,12 @@ export class OriginalHUD {
     const heat=this.pursuit?.heat??0;
     if(heat>0){c.save();c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,70,-Math.PI/2,-Math.PI/2+Math.PI*2*heat/100);c.closePath();c.clip();originalArt.draw(c,'hrmetter.png',x,y,152,152);c.restore();}
     originalArt.draw(c,'radartop.png',x+4,y,150,150);
-    c.save();c.translate(cx,cy);c.rotate(Math.PI-state.heading);originalArt.draw(c,'user.png',-9,-11,19,22);c.restore();
+    // The arrow no longer turns — the map does, so it always points up the screen.
+    originalArt.draw(c,'user.png',cx-9,cy-11,19,22);
     originalArt.draw(c,this.pursuit?.active?(Math.sin(this.time*10)>0?'hitnrun2.png':'hitnrun1.png'):heat>78?'hitnrun1.png':'hitnrun0.png',x+40,y+113,73,30);
-    const count=element('coin-count').textContent?.split('/')[0].trim()??'0';originalArt.draw(c,'coins.png',w-180,31,39,34);originalArt.digits(c,count,w-135,21,44);
+    // Coins keep their height and move to the middle, out from under the radar.
+    const count=element('coin-count').textContent?.split('/')[0].trim()??'0';
+    originalArt.draw(c,'coins.png',w/2-52,31,39,34);originalArt.digits(c,count,w/2-7,21,44);
     // The damage frame and fill use the original Hud.pag coordinates and artwork.
     if(!onFoot){
       originalArt.draw(c,'greybar.png',144,56,117,23);c.save();c.beginPath();c.rect(144,56,117*state.damage/100,23);c.clip();c.filter='sepia(1) saturate(8) hue-rotate(315deg)';originalArt.draw(c,'greybar.png',144,56,117,23);c.restore();originalArt.draw(c,'damage.png',140,54,129,30);

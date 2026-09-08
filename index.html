@@ -17,10 +17,10 @@
       <!-- The face buttons, as a diamond: the glyphs never change, only what they do.
            Inline SVG rather than images so nothing can be long-pressed and saved, and
            so each one can glow its own colour on press. -->
-      <div id="btn-cross" class="action-btn" role="button" data-key="Space" aria-label="Cross"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.57" stroke-linejoin="round" aria-hidden="true"><polygon points="3.73,1.47 12,9.74 20.27,1.47 22.53,3.73 14.26,12 22.53,20.27 20.27,22.53 12,14.26 3.73,22.53 1.47,20.27 9.74,12 1.47,3.73"/></svg></div>
-      <div id="btn-square" class="action-btn" role="button" data-key="KeyS" aria-label="Square"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.57" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19"/><rect x="6.2" y="6.2" width="11.6" height="11.6"/></svg></div>
-      <div id="btn-circle" class="action-btn" role="button" data-key="KeyF" aria-label="Circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.11" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.8"/></svg></div>
-      <div id="btn-triangle" class="action-btn" role="button" data-key="KeyE" aria-label="Triangle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.32" stroke-linejoin="round" aria-hidden="true"><polygon points="12,0.7 2.21,17.65 21.79,17.65"/><polygon points="12,6.88 7.57,14.56 16.43,14.56"/></svg></div>
+      <div id="btn-cross" class="action-btn" role="button" data-key="Space" aria-label="Cross"><img src="%BASE_URL%assets/ui/but_gas.png" alt="" draggable="false"></div>
+      <div id="btn-square" class="action-btn" role="button" data-key="KeyS" aria-label="Square"><img src="%BASE_URL%assets/ui/but_brak.png" alt="" draggable="false"></div>
+      <div id="btn-circle" class="action-btn" role="button" data-key="KeyF" aria-label="Circle"><img src="%BASE_URL%assets/ui/but_hand.png" alt="" draggable="false"></div>
+      <div id="btn-triangle" class="action-btn" role="button" data-key="KeyE" aria-label="Triangle"><img src="%BASE_URL%assets/ui/but_actn.png" alt="" draggable="false"></div>
     </div>
   </div>
   <section id="menu" hidden aria-label="Game menu">
@@ -29,12 +29,18 @@
       <label>LEVEL<select id="level"><option value="1">1 · Homer</option><option value="2">2 · Bart</option><option value="3">3 · Lisa</option><option value="4">4 · Marge</option><option value="5">5 · Apu</option><option value="6">6 · Bart</option><option value="7">7 · Homer</option></select></label>
       <label>VEHICLE<select id="car"></select></label>
       <label>CHARACTER<select id="skin"></select></label>
-      <label>ANIMATIONS<select id="animations"><option value="game">Springfield cast</option><option value="mixamo">Mixamo</option><option value="all">Both</option></select></label>
+      <label>ANIMATIONS<select id="animations">
+        <option value="game">This level's cast</option>
+        <option value="cast:homer">Homer</option><option value="cast:bart">Bart</option><option value="cast:lisa">Lisa</option>
+        <option value="cast:marge">Marge</option><option value="cast:apu">Apu</option>
+        <option value="mixamo">Mixamo</option><option value="all">Both</option>
+      </select></label>
       <label>LIGHTING<select id="lighting"><option value="golden">Golden hour</option><option value="day">Afternoon</option><option value="night">Blue hour</option></select></label>
       <label>START AT<select id="location"></select></label>
     </div>
     <div class="menu-footer" hidden><button id="sound" aria-pressed="false">SOUND OFF</button><button id="quality">HIGH QUALITY</button><button id="fullscreen">FULLSCREEN</button></div>
   </section>
+  <input id="vrm-file" type="file" accept=".vrm,model/gltf-binary" hidden>
   <div id="rotate"><p>ROTATE YOUR PHONE</p><span>Springfield plays in landscape.</span></div>
   <div id="debug" hidden></div>
   <script type="module" src="/src/main.ts"></script>

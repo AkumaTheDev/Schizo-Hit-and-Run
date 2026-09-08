@@ -31,34 +31,31 @@
    a save sheet and nothing to select or drag — and each can glow its own colour. ── */
 .action-btn{
   --neon:54,214,228;
-  position:absolute;pointer-events:auto;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;color:#eef6ff;
-  background:rgba(255,255,255,.06);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,.22);
-  box-shadow:0 4px 14px rgba(0,0,0,.22);
+  position:absolute;pointer-events:auto;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:0;padding:0;
   touch-action:none;outline:none;cursor:pointer;
+  /* Nothing here is selectable, draggable, or long-pressable into a save sheet. */
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;
-  transition:box-shadow .18s ease,border-color .18s ease,transform .12s ease,color .18s ease;
+  transition:filter .18s ease,transform .12s ease;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
 }
-.action-btn svg{position:relative;z-index:1;width:52%;height:52%;display:block;pointer-events:none;filter:drop-shadow(0 0 2px rgba(255,255,255,.35))}
-/* Press. Driven by a class as well as :active, because preventDefault on the touch
-   kills :active on a phone — the glow is the only feedback a button has. */
+.action-btn img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;user-select:none}
+/* Press — the button glows its own colour, driven by a class as well as :active because
+   preventDefault on the touch kills :active on a phone, and the glow is the only
+   feedback a button has. */
 .action-btn:active,.action-btn.active{
-  color:rgb(var(--neon));border-color:rgba(var(--neon),1);
-  box-shadow:0 0 20px rgba(var(--neon),.95),0 0 46px rgba(var(--neon),.6),inset 0 0 16px rgba(var(--neon),.4);
   transform:scale(.93);
+  filter:drop-shadow(0 0 10px rgba(var(--neon),1)) drop-shadow(0 0 22px rgba(var(--neon),.75)) drop-shadow(0 2px 6px rgba(0,0,0,.55));
 }
-.action-btn:active svg,.action-btn.active svg{filter:drop-shadow(0 0 5px rgba(var(--neon),1)) drop-shadow(0 0 10px rgba(var(--neon),.6))}
-#btn-cross{--neon:0,180,255;left:84vw;bottom:calc(11vh + env(safe-area-inset-bottom));width:46px;height:46px}
-#btn-square{--neon:247,131,201;left:77vw;bottom:calc(24vh + env(safe-area-inset-bottom));width:46px;height:46px}
-#btn-circle{--neon:255,55,55;left:91vw;bottom:calc(24vh + env(safe-area-inset-bottom));width:46px;height:46px}
-#btn-triangle{--neon:0,228,135;left:84vw;bottom:calc(37vh + env(safe-area-inset-bottom));width:46px;height:46px}
-#btn-circle svg{width:74%;height:74%}
-#btn-triangle svg{width:62%;height:62%}
-/* An empty magazine pulses the button that changes it. */
-#btn-square.reload-needed{border-color:#ff6a5a;color:#ff9a8a;animation:reload-pulse 1s ease-in-out infinite}
-@keyframes reload-pulse{0%,100%{box-shadow:0 0 9px 2px rgba(255,70,60,.5),0 4px 14px rgba(0,0,0,.22)}50%{box-shadow:0 0 20px 6px rgba(255,70,60,.9),0 4px 14px rgba(0,0,0,.22)}}
+/* The diamond, at the sibling project's placement pulled a little tighter together. */
+#btn-cross{--neon:0,180,255;left:84vw;bottom:calc(14vh + env(safe-area-inset-bottom));width:52px;height:52px}
+#btn-square{--neon:247,131,201;left:78.5vw;bottom:calc(24vh + env(safe-area-inset-bottom));width:52px;height:52px}
+#btn-circle{--neon:255,55,55;left:89.5vw;bottom:calc(24vh + env(safe-area-inset-bottom));width:52px;height:52px}
+#btn-triangle{--neon:0,228,135;left:84vw;bottom:calc(34vh + env(safe-area-inset-bottom));width:52px;height:52px}
+/* An empty magazine pulses the button that fires it. */
+#btn-square.reload-needed{animation:reload-pulse 1s ease-in-out infinite}
+@keyframes reload-pulse{0%,100%{filter:drop-shadow(0 0 4px rgba(255,70,60,.5)) drop-shadow(0 2px 6px rgba(0,0,0,.55))}50%{filter:drop-shadow(0 0 14px rgba(255,70,60,.95)) drop-shadow(0 2px 6px rgba(0,0,0,.55))}}
 }
 #campaign-presentation{position:fixed;inset:0;z-index:25;pointer-events:none;border-block:9vh solid #000;box-sizing:border-box}
 #campaign-presentation[hidden]{display:none}

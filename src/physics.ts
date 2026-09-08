@@ -23,6 +23,14 @@ export function drive(state:CarState,control:Controls,dt:number,tuning?:Record<s
  * walkable while staying far short of a ledge worth falling off.
  */
 const STEP_DOWN=0.34;
+/**
+ * The gap the capsule solver keeps between a standing body and the floor. It is there so
+ * the sweep never starts inside the ground — but it is physics, not looks, and drawing a
+ * body at its physics height leaves every character hovering a visible 6 cm. The renderer
+ * takes it back off; both rigs' meshes have their soles at their own origin (measured:
+ * the converted cast bottoms out at y −0.001, and the VRMs at 0.000).
+ */
+export const FOOT_CLEARANCE=0.06;
 
 export class Terrain {
   mesh:THREE.Mesh;readonly bottom:number;
@@ -168,7 +176,7 @@ export class Terrain {
     return impact;
   }
   private resolveBody(state:CarState,previous:THREE.Vector3,dt:number,radius:number,gravity:number){
-    const clearance=.06,height=1.8;
+    const clearance=FOOT_CLEARANCE,height=1.8;
     const wasGrounded=!!state.grounded;
     state.grounded=false;state.supportVehicle=undefined;state.verticalSpeed-=gravity*dt;
     const movement=state.position.clone().sub(previous);movement.y+=state.verticalSpeed*dt;
