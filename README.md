@@ -4,9 +4,9 @@ A Three.js reconstruction of The Simpsons: Hit & Run using assets converted from
 
 [Play in your browser](https://vheissu.github.io/hit-and-run-web/) · [How the port was built](docs/PORTING.md) · [Native executable findings](docs/NATIVE_ANALYSIS.md)
 
-[![Watch the gameplay showcase](docs/media/showcase-poster.jpg)](https://raw.githubusercontent.com/Vheissu/hit-and-run-web/main/docs/media/showcase.mp4)
+[![Watch the action trailer](docs/media/trailer-poster.jpg)](https://raw.githubusercontent.com/Vheissu/hit-and-run-web/main/docs/media/trailer.mp4)
 
-**Watch the showcase:** footage captured directly from the browser build, with staged cameras.
+**Watch the trailer:** mission action, police pursuits, crate smashes and ramp jumps, with original cutscenes and game audio.
 
 The repository includes the converted browser assets, so you can clone it and play without running the extraction tools. The ISO, raw archives and extracted source files are excluded. This is an unofficial project, with no affiliation to the original developers or rights holders. Original game assets retain their existing copyrights.
 
