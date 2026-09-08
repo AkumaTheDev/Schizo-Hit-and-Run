@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { assetURL,json, type Assets } from './assets';
+import { GUN_FALLBACK } from './vrm-avatar';
 interface CharacterData {placement?:number[];bones:{name:string;parent:number;matrix:number[]}[];primitives:{shader:string;attributes:Record<string,[number,number]>}[];materials:Record<string,{textureUrl:string}>;animations:{name:string;duration:number;tracks:{bone:string;kind:string;times:number[];values:number[]}[]}[]}
 export class Character {
   group=new THREE.Group();private mixer=new THREE.AnimationMixer(this.group);private actions=new Map<string,THREE.AnimationAction>();private active='';
@@ -36,7 +37,18 @@ export class Character {
   duration(name:string){return this.actions.get(name)?.getClip().duration??0;}
   play(name:string,once=false){
     if(name===this.active)return;
-    this.actions.get(this.active)?.fadeOut(.15);const next=this.actions.get(name);if(next){next.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);next.clampWhenFinished=once;next.reset().fadeIn(.15).play();}this.active=name;
+    // The conversion made no firing clips, so a gun state falls back to the locomotion
+    // it stands on and the arms are posed by `holdPose`. Anything still unknown leaves
+    // the body animating rather than fading it out into a frozen pose — asking for a
+    // clip that does not exist is what stopped the cast dead while carrying the rifle.
+    const next=this.actions.get(name)??this.actions.get(GUN_FALLBACK[name]??'');
+    if(!next){this.active=name;return;}
+    const current=this.actions.get(this.active);
+    if(current&&current!==next)current.fadeOut(.15);
+    next.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);
+    next.clampWhenFinished=once;
+    if(current!==next)next.reset().fadeIn(.15).play();
+    this.active=name;
   }
   /** The cast's head bone sits at 1.33 m in the converted rest pose — measured, not guessed. */
   height(){return this.bones.find(bone=>bone.name==='Head')?.getWorldPosition(new THREE.Vector3()).y??1.33;}

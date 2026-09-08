@@ -25,11 +25,37 @@ export const RIFLE={
   falloffNear:35,falloffFar:120,falloffFloor:0.65,
 } as const;
 
-/** How the gun sits in the hand: the grip socket meets the palm, muzzle down the arm. */
-const HOLD_POSITION=new THREE.Vector3(0.02,-0.03,-0.06);
 /** The body the hold was measured against: the cast's head bone height. */
 export const REFERENCE_HEIGHT=1.33;
-const HOLD_ROTATION=new THREE.Euler(Math.PI/2,Math.PI/2,0);
+/**
+ * How the muzzle sits relative to the body: pointing where the body faces, level, with
+ * a hand's width of stand-off so the receiver is not buried in the chest. The weapon
+ * frame is muzzle −z, so aiming it down the body's +z is a half turn about up.
+ */
+const AIM=new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12,Math.PI,0));
+/** Where the grip sits relative to the hand bone: in the palm, a little forward. */
+const PALM=new THREE.Vector3(0.01,-0.02,0.02);
+
+/**
+ * Work out how the rifle hangs off THIS hand.
+ *
+ * Every rig holds its hand bone at a different orientation, so a fixed rotation puts
+ * the gun sideways on one body and backwards on the next. Instead the hold is solved:
+ * take the orientation the weapon should have in the world, express it in the hand's
+ * frame, and place it so the GRIP SOCKET — not the model's origin — lands in the palm.
+ */
+export function rifleHold(hand:THREE.Object3D,body:THREE.Object3D,scale:number){
+  hand.updateWorldMatrix(true,false);
+  const handWorld=hand.getWorldQuaternion(new THREE.Quaternion());
+  const bodyWorld=body.getWorldQuaternion(new THREE.Quaternion());
+  const quaternion=handWorld.invert().multiply(bodyWorld.multiply(AIM));
+  // A point g in weapon space lands at position + quaternion * (g * scale); solving for
+  // the grip landing in the palm is what keeps every avatar holding it by the grip.
+  const position=GRIP.clone().multiplyScalar(-scale).applyQuaternion(quaternion).add(PALM.clone().multiplyScalar(scale));
+  return {position,quaternion};
+}
+
+const RECOIL_TILT=new THREE.Quaternion(),PITCH=new THREE.Vector3(1,0,0);
 
 export interface Shot {from:THREE.Vector3;to:THREE.Vector3;hit:boolean}
 /** What the world does with a bullet: report what it struck, if anything. */
@@ -50,6 +76,8 @@ export class Rifle {
   /** The climb, in radians. Written by firing, bled off every frame. */
   recoil=0;
   private cooldown=0;private cycle=0;private held=false;
+  /** The solved carry orientation, which recoil is applied on top of. */
+  private hold=new THREE.Quaternion();
   private flash:THREE.PointLight;private flashSprite:THREE.Sprite;
   private tracers:{line:THREE.Line;life:number}[]=[];
   private tracerRoot=new THREE.Group();
@@ -74,12 +102,16 @@ export class Rifle {
   mount(avatar:Avatar){
     const hand=avatar.hand();
     if(!hand)return false;
+    // The carry moves the arm, so ask for it and let it land BEFORE measuring the hand:
+    // the hold is solved against the pose the gun will actually be held in.
+    avatar.holdPose(true);
+    avatar.update(0);
     hand.add(this.group);
     const scale=THREE.MathUtils.clamp(avatar.height()/REFERENCE_HEIGHT,.5,1.3);
     this.group.scale.setScalar(scale);
-    this.group.position.copy(HOLD_POSITION).multiplyScalar(scale).sub(GRIP.clone().multiplyScalar(scale));
-    this.group.rotation.copy(HOLD_ROTATION);
-    avatar.holdPose(true);
+    const {position,quaternion}=rifleHold(hand,avatar.group,scale);
+    this.group.position.copy(position);this.group.quaternion.copy(quaternion);
+    this.hold.copy(quaternion);
     return true;
   }
   unmount(avatar?:Avatar){avatar?.holdPose(false);this.group.removeFromParent();}
@@ -157,8 +189,9 @@ export class Rifle {
       (tracer.line.material as THREE.LineBasicMaterial).opacity=Math.max(0,tracer.life/.06)*.85;
       if(tracer.life<=0){tracer.line.geometry.dispose();(tracer.line.material as THREE.Material).dispose();tracer.line.removeFromParent();this.tracers.splice(this.tracers.indexOf(tracer),1);}
     }
-    // The rifle rides its own recoil: the muzzle climbs, then settles.
-    this.group.rotation.x=HOLD_ROTATION.x-this.recoil*0.30;
+    // The rifle rides its own recoil on top of the solved carry: the muzzle climbs and
+    // settles, without ever overwriting the orientation that put it in the hand.
+    this.group.quaternion.copy(this.hold).multiply(RECOIL_TILT.setFromAxisAngle(PITCH,-this.recoil*0.30));
   }
   /** Where the round leaves, in world space. */
   muzzleWorld(target=new THREE.Vector3()){return this.group.localToWorld(target.copy(MUZZLE));}

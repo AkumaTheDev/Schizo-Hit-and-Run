@@ -10,7 +10,6 @@ import { Character } from './character';
 import { isVrmSkin,VrmAvatar,type Avatar as Body } from './vrm-avatar';
 import { buildRifle,disposeRifle } from './rifle';
 import { peerColour,type Net,type PeerInfo,type Sample } from './net';
-import { FOOT_CLEARANCE } from './physics';
 import { renderVehicleWheels,vehicleProfile,type VehicleMotion,type VehicleProfile } from './vehicle-physics';
 import type { World } from './world';
 import type { CampaignAssets } from './campaign/types';
@@ -208,8 +207,7 @@ export class RemotePlayers {
       avatar.group.visible=false;
       const character=avatar.character;
       if(character){
-        // The same 6 cm the local body has taken off: physics height, not drawing height.
-        character.group.position.copy(position);character.group.position.y-=FOOT_CLEARANCE;
+        character.group.position.copy(position);
         character.group.rotation.y+=THREE.MathUtils.euclideanModulo(heading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;
         const animation=to[11]||'hom_loco_idle_rest';
         character.play(animation);

@@ -378,7 +378,7 @@ export const BLEND_PARTS:Record<Blend,{upper:keyof typeof CLIPS;lower:keyof type
  * pitch axis by the difference. Three passes because the correction moves the toes it
  * is measured from; it converges to zero.
  */
-function alignFeet(clip:THREE.AnimationClip,source:THREE.AnimationClip,rig:THREE.Object3D,vrm:VRM){
+export function alignFeet(clip:THREE.AnimationClip,source:THREE.AnimationClip,rig:THREE.Object3D,vrm:VRM){
   const forward=new THREE.Vector3(0,0,1),a=new THREE.Vector3(),b=new THREE.Vector3();
   // Signed against the rig's own forward, so a foot pointing straight down does not fold
   // the way atan2(dy, |horizontal|) does.
@@ -413,7 +413,9 @@ function alignFeet(clip:THREE.AnimationClip,source:THREE.AnimationClip,rig:THREE
     }
   }
   rigMixer.stopAllAction();vrmMixer.stopAllAction();
-  vrm.humanoid.resetNormalizedPose?.();
+  // Hand the rig back AT REST. Measuring a pose it was left in is how the grounding
+  // below first read a mid-stride foot as the standing one.
+  vrm.humanoid.resetNormalizedPose();vrm.humanoid.update();
   return clip;
 }
 
@@ -446,7 +448,7 @@ function sourceClip(slot:Downloaded){
  * conversion never made a firing clip, so the legs keep walking or running and the
  * arms are posed onto the rig by `HOLD_POSE` instead.
  */
-const GUN_FALLBACK:Record<string,string>={
+export const GUN_FALLBACK:Record<string,string>={
   hom_gun_idle:'hom_loco_idle_rest',hom_gun_walk:'hom_loco_walk',
   hom_gun_run:'hom_loco_run',hom_gun_fire:'hom_loco_idle_rest',hom_jump_run:'hom_loco_run',
 };
@@ -528,6 +530,7 @@ export class VrmAvatar {
     if(this.source!=='mixamo')await this.loadGameClips();
     await this.ensure('hom_loco_idle_rest').catch(()=>{});
     this.play('hom_loco_idle_rest');
+    this.ground();
     // Whatever else the mode allows follows in the background: the Mixamo set, and the
     // blends cut from it. Nothing here is waited on.
     if(this.source!=='game')void (async()=>{
@@ -629,19 +632,59 @@ export class VrmAvatar {
     return this.mixamoAction(slot);
   }
 
+  /**
+   * Stand the avatar on the floor.
+   *
+   * A retargeted clip does not put the feet where the source put them: the same joint
+   * angles on different leg proportions leave the body riding higher. Measured on the
+   * standing clip, that is ~5 cm of hover on both avatars tested — which is the float.
+   * The cast's own rig has none of this (its feet reach the floor as authored), so the
+   * correction belongs HERE, on the VRM inside its own group, and never on the shared
+   * placement the game does for every body.
+   */
+  private ground(){
+    const vrm=this.vrm,idle=this.actions.get('hom_loco_idle_rest');
+    if(!vrm||!this.mixer)return;
+    const feet=['leftToes','rightToes','leftFoot','rightFoot']
+      .map(bone=>vrm.humanoid.getRawBoneNode(bone as never)).filter(Boolean) as THREE.Object3D[];
+    if(!feet.length)return;
+    const lowest=()=>{vrm.scene.updateMatrixWorld(true);
+      return Math.min(...feet.map(node=>node.getWorldPosition(new THREE.Vector3()).y));};
+    vrm.scene.position.y=0;
+    // The rest pose, explicitly — not whatever pose the rig happens to be left in.
+    vrm.humanoid.resetNormalizedPose();vrm.humanoid.update();
+    const rest=lowest();
+    if(!idle){this.footOffset=0;return;}
+    // Sample the standing clip: the foot that stays down is the one to stand on.
+    let standing=Infinity;
+    const previous=this.mixer.time;
+    for(let i=0;i<=12;i++){
+      this.mixer.setTime(idle.getClip().duration*i/12);vrm.humanoid.update();
+      standing=Math.min(standing,lowest());
+    }
+    this.mixer.setTime(previous);vrm.humanoid.update();
+    this.footOffset=Number.isFinite(standing)?rest-standing:0;
+    vrm.scene.position.y=this.footOffset;
+  }
+  private footOffset=0;
+
   duration(name:string){return this.actions.get(name)?.getClip().duration??0;}
 
   play(name:string,once=false){
     if(name===this.active)return;
-    const from=this.actions.get(this.active),to=this.actions.get(name);
+    const from=this.actions.get(this.active),to=this.actions.get(name)??this.actions.get(GUN_FALLBACK[name]??'');
     this.active=name;
-    // Two names sharing one clip (a Mixamo stand-in) must not fade themselves out.
+    if(!to){
+      // Nothing to play yet. Leave whatever is running alone rather than fading the body
+      // into a frozen pose, and start the clip for next time.
+      void this.ensure(name).catch(()=>{});
+      return;
+    }
+    // Two names sharing one clip (a stand-in) must not fade themselves out.
     if(from&&from!==to)from.fadeOut(.15);
-    if(to){
-      to.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);
-      to.clampWhenFinished=once;
-      if(from!==to)to.reset().fadeIn(.15).play();
-    }else void this.ensure(name).catch(()=>{});
+    to.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);
+    to.clampWhenFinished=once;
+    if(from!==to)to.reset().fadeIn(.15).play();
   }
 
   height(){return this.headHeight;}
