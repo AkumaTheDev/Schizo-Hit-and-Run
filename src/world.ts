@@ -6,6 +6,15 @@ import { Grass } from './grass';
 import { staticCollisionGeometry,type InteriorCollision } from './collision';
 import { WorldObjects,type WorldObjectsData } from './world-objects';
 import type { RoadNavigation } from './road-data';
+/**
+ * Let the browser draw. A microtask is not enough — the frame has to be committed —
+ * so this waits for the next animation frame and then for the task queue behind it.
+ */
+const paint=()=>new Promise<void>(resolve=>{
+  if(typeof requestAnimationFrame!=='function'){resolve();return;}   // headless tests
+  requestAnimationFrame(()=>setTimeout(resolve,0));
+});
+
 export const LEVEL_NAMES=['Evergreen Terrace','Downtown','Seaside','Evergreen at dusk','Downtown at dusk','Seaside at dusk','Halloween'];
 export const CAR_NAMES:Record<string,string>={famil_v:'Family Sedan',plowk_v:'Plow King',homer_v:'The Homer',cletu_v:"Cletus' Pickup",cpolice:'Police Cruiser',pickupa:'Pickup Truck',minivana:'Minivan',schoolbu:'School Bus',sportsa:'Sports Car',snake_v:"Snake's Bandit",bart_v:'Honor Roller',lisa_v:'Malibu Stacy Car'};
 
@@ -43,10 +52,21 @@ export class World {
     const collision:THREE.BufferGeometry[]=[];
     for(const result of results){this.group.add(result.root);if(result.collision)collision.push(result.collision);}
     const shapes=[...physics.shapes,...objects.props.filter(p=>p.kind===2).flatMap(p=>p.shapes)];
-    const bodies=staticCollisionGeometry({...physics,shapes});this.terrain=new Terrain(collision,this.data,bodies,this.data.scenes.flatMap(scene=>objects.terrainTypes[scene]));bodies.dispose();this.exteriorTerrain=this.terrain;this.objects=new WorldObjects(this.terrain,this.group,objects);
+    // What follows is one long synchronous block: merging the collision meshes and
+    // building the tree the on-foot solver walks against takes about ten seconds on a
+    // desktop and considerably longer on a phone, and nothing can repaint while it runs.
+    // Naming the phase and handing the browser a frame to paint it FIRST is what stops a
+    // slow build reading as a hang — the counter would otherwise sit at its last scene
+    // for the whole of it, which is exactly what it looked like.
+    progress((total+1)/(total+3),`Building ${LEVEL_NAMES[level-1]} · collision`);await paint();
+    const bodies=staticCollisionGeometry({...physics,shapes});this.terrain=new Terrain(collision,this.data,bodies,this.data.scenes.flatMap(scene=>objects.terrainTypes[scene]));bodies.dispose();this.exteriorTerrain=this.terrain;
+    progress((total+2)/(total+3),`Building ${LEVEL_NAMES[level-1]} · props`);await paint();
+    this.objects=new WorldObjects(this.terrain,this.group,objects);
     // A separate receiver preserves the original baked environmental art.
     this.shadowGround=new THREE.Mesh(this.terrain.mesh.geometry,new THREE.ShadowMaterial({opacity:0.05}));
-    this.shadowGround.receiveShadow=true;this.shadowGround.position.y=0.025;this.group.add(this.shadowGround);await this.grass.load(this.group);
+    this.shadowGround.receiveShadow=true;this.shadowGround.position.y=0.025;this.group.add(this.shadowGround);
+    progress((total+2.5)/(total+3),`Building ${LEVEL_NAMES[level-1]} · gardens`);await paint();
+    await this.grass.load(this.group);
   }
   setLighting(mode:string){
     this.lightingMode=mode;
