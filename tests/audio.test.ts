@@ -9,10 +9,12 @@ const source=readFileSync('src/audio.ts','utf8');
 const ACTORS=['hom','brt','lis','mrg','apu'];
 
 test('every clip the audio system names is actually shipped', () => {
-  const named=[...source.matchAll(/assetURL\('(audio\/[^']+)'\)/g)].map(match=>match[1]);
-  const templated=[...source.matchAll(/assetURL\(`(audio\/[^$]*)\$\{[^}]+\}([^`]*)`\)/g)]
+  // Every audio path the module names, however it spells it: a plain literal, or the
+  // coin template that stands for three files.
+  const named=[...source.matchAll(/'(audio\/[^']+\.m4a)'/g)].map(match=>match[1]);
+  const templated=[...source.matchAll(/`(audio\/[^$]*)\$\{[^}]+\}([^`]*\.m4a)`/g)]
     .flatMap(([,before,after])=>[1,2,3].map(n=>`${before}${n}${after}`));
-  const files=[...named,...templated];
+  const files=[...new Set([...named,...templated])];
   assert.ok(files.length>=8,`expected the shipped clips, found ${files.length}`);
   for(const file of files)assert.ok(existsSync(`public/assets/${file}`),`missing ${file}`);
 });
