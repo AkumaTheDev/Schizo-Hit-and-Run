@@ -42,16 +42,42 @@ export const VRM_MODELS=['SchizoAxe.vrm','sch1z0br0000.vrm','Schizotron.vrm','BR
  * The clips, and which of this game's animation names each one answers to.
  * Naming stays in the game's vocabulary so `play('hom_loco_run')` works on either body.
  */
-const CLIPS={
+export const CLIPS={
   idle:{file:'Breathing Idle.fbx',names:['hom_loco_idle_rest','hom_in_car_idle','PTRN_Motion_Root']},
   walk:{file:'Walking.fbx',names:['hom_loco_walk']},
   run:{file:'Drunk Run Forward (2).fbx',names:['hom_loco_run']},
   jump:{file:'Jump.fbx',names:['hom_jump_idle_in_air','hom_jump_dash_in_air']},
   kick:{file:'Strike Foward Jog.fbx',names:['hom_jump_kick']},
+  punch:{file:'Standing Melee Punch.fbx',names:['hom_punch']},
+  // NOT a Mixamo rig: an Unreal mannequin (pelvis/spine_01/thigh_l). Without the UE
+  // half of the bone map it retargets to nothing and plays as a silent no-op.
+  backflip:{file:'BackFlip.glb',names:['hom_backflip']},
+  gunIdle:{file:'Breathing Idle.fbx',names:['hom_gun_idle']},
+  gunShoot:{file:'Firing Rifle.fbx',names:['hom_gun_fire']},
+  gunShootWalk:{file:'Shoot Rifle.fbx',names:['hom_gun_fire_walk']},
 } as const;
-type Slot=keyof typeof CLIPS;
+type Slot=keyof typeof CLIPS|Blend;
+/**
+ * Clips this game builds for itself by splitting two others at the waist, because no
+ * single recording covers them: holding a gun while your legs walk or run, and the
+ * jump's upper body over a running stride.
+ */
+type Blend='gunWalk'|'gunRun'|'jumpRun';
+const BLEND_NAMES:Record<Blend,string[]>={
+  gunWalk:['hom_gun_walk'],gunRun:['hom_gun_run'],jumpRun:['hom_jump_run'],
+};
 const SLOT_FOR=new Map<string,Slot>();
 for(const [slot,clip] of Object.entries(CLIPS))for(const name of clip.names)SLOT_FOR.set(name,slot as Slot);
+for(const [blend,names] of Object.entries(BLEND_NAMES))for(const name of names)SLOT_FOR.set(name,blend as Slot);
+
+/** The humanoid bones, and the split the blends are cut along. */
+export const VRM_BONES=['hips','spine','chest','upperChest','neck','head','leftShoulder','leftUpperArm','leftLowerArm','leftHand','rightShoulder','rightUpperArm','rightLowerArm','rightHand','leftUpperLeg','leftLowerLeg','leftFoot','leftToes','rightUpperLeg','rightLowerLeg','rightFoot','rightToes','leftEye','rightEye','jaw'];
+/** Everything the legs do: the half a locomotion clip keeps in a blend. */
+export const LOWER=new Set(['hips','leftUpperLeg','leftLowerLeg','leftFoot','leftToes','rightUpperLeg','rightLowerLeg','rightFoot','rightToes']);
+const UPPER=new Set(VRM_BONES.filter(bone=>!LOWER.has(bone)));
+/** Running with the gun keeps the LEFT arm swinging on the run cycle; it holds nothing. */
+const LEFT_ARM=new Set(VRM_BONES.filter(bone=>bone.startsWith('left')&&!LOWER.has(bone)&&bone!=='leftEye'));
+const UPPER_NO_LEFT_ARM=new Set([...UPPER].filter(bone=>!LEFT_ARM.has(bone)));
 
 const MIXAMO_TO_VRM:Record<string,string>={
   'mixamorigHips': 'hips',
@@ -110,6 +136,29 @@ const MIXAMO_TO_VRM:Record<string,string>={
   'mixamorigRightEye': 'rightEye',
   'mixamorigJaw': 'jaw',
 };
+
+// Not every clip is a Mixamo rig. The Unreal mannequin names its bones pelvis,
+// spine_01, thigh_l, clavicle_r; the retargeter itself is rig-agnostic — it looks each
+// source bone up in this map — but an unmapped clip does not error. It retargets to
+// zero tracks and plays as a silent no-op, which is exactly what a missing animation
+// looks like in game. `root` is deliberately absent: it is UE's root-motion node and
+// the game's own physics owns the trajectory.
+for(const [side,full] of [['l','left'],['r','right']] as const){
+  Object.assign(MIXAMO_TO_VRM,{
+    [`clavicle_${side}`]:`${full}Shoulder`,[`upperarm_${side}`]:`${full}UpperArm`,
+    [`lowerarm_${side}`]:`${full}LowerArm`,[`hand_${side}`]:`${full}Hand`,
+    [`thigh_${side}`]:`${full}UpperLeg`,[`calf_${side}`]:`${full}LowerLeg`,
+    [`foot_${side}`]:`${full}Foot`,[`ball_${side}`]:`${full}Toes`,
+    // UE numbers a finger 01/02/03 from the knuckle out; VRM calls those
+    // Proximal/Intermediate/Distal. The thumb is the exception in both rigs — its
+    // first joint is the metacarpal — and VRM calls UE's "pinky" the little finger.
+    [`thumb_01_${side}`]:`${full}ThumbMetacarpal`,[`thumb_02_${side}`]:`${full}ThumbProximal`,[`thumb_03_${side}`]:`${full}ThumbDistal`,
+    ...Object.fromEntries(([['index','Index'],['middle','Middle'],['ring','Ring'],['pinky','Little']] as const).flatMap(([ue,vrm])=>[
+      [`${ue}_01_${side}`,`${full}${vrm}Proximal`],[`${ue}_02_${side}`,`${full}${vrm}Intermediate`],[`${ue}_03_${side}`,`${full}${vrm}Distal`],
+    ])),
+  });
+}
+Object.assign(MIXAMO_TO_VRM,{pelvis:'hips',spine_01:'spine',spine_02:'chest',spine_03:'upperChest',neck_01:'neck',Head:'head'});
 
 /**
  * Retarget one Mixamo clip onto a VRM humanoid.
@@ -172,16 +221,71 @@ export function retargetMixamoClip(clip:THREE.AnimationClip,fbx:THREE.Object3D,v
   return new THREE.AnimationClip(clip.name||'retargeted',clip.duration,tracks);
 }
 
+/**
+ * Keep only the tracks that drive `bones`, so two clips can be cut at the waist and
+ * sewn together. Track names are node names on THIS avatar's rig, so the map back to
+ * humanoid bones has to be built per avatar.
+ */
+function filterToBones(clip:THREE.AnimationClip,bones:Set<string>,nodeToBone:Map<string,string>){
+  const tracks=clip.tracks.filter(track=>{
+    const node=track.name.slice(0,track.name.lastIndexOf('.'));
+    const bone=nodeToBone.get(node);
+    return !!bone&&bones.has(bone);
+  }).map(track=>track.clone());
+  return new THREE.AnimationClip(`${clip.name}_part`,clip.duration,tracks);
+}
+/**
+ * Repeat a clip's keys until it fills `duration`.
+ *
+ * Without this the shorter half of a blend freezes on its last frame and then snaps
+ * when the merged clip loops — a visible hitch every stride while holding the trigger.
+ */
+function tileClip(clip:THREE.AnimationClip,duration:number){
+  if(clip.duration<=1e-3||clip.duration>=duration-1e-3)return clip;
+  const repeats=Math.ceil(duration/clip.duration);
+  const tracks=clip.tracks.map(track=>{
+    const stride=track.getValueSize(),times:number[]=[],values:number[]=[];
+    for(let repeat=0;repeat<repeats;repeat++){
+      const offset=repeat*clip.duration;
+      for(let i=0;i<track.times.length;i++){
+        const at=track.times[i]+offset;
+        if(at>duration+1e-4)break;
+        if(repeat>0&&i===0)continue;   // drop the duplicated seam key
+        times.push(at);
+        for(let v=0;v<stride;v++)values.push(track.values[i*stride+v]);
+      }
+    }
+    return new (track.constructor as new(name:string,times:number[],values:number[])=>THREE.KeyframeTrack)(track.name,times,values);
+  });
+  return new THREE.AnimationClip(`${clip.name}_tiled`,duration,tracks);
+}
+
+/** Which two clips each blend is cut from, and which half each one contributes. */
+export const BLEND_PARTS:Record<Blend,{upper:keyof typeof CLIPS;lower:keyof typeof CLIPS;bones:Set<string>}>={
+  // The gun is held in the same pose whether standing or moving, so the legs come
+  // from the locomotion clip and everything above the hips from the gun pose.
+  gunWalk:{upper:'gunShootWalk',lower:'walk',bones:UPPER},
+  // Sprinting keeps the left arm on the run cycle: it is not holding anything.
+  gunRun:{upper:'gunShootWalk',lower:'run',bones:UPPER_NO_LEFT_ARM},
+  jumpRun:{upper:'jump',lower:'run',bones:UPPER},
+};
+
 /** One shared loader set, and one download per clip however many avatars are wearing it. */
 const gltf=new GLTFLoader();gltf.register(parser=>new VRMLoaderPlugin(parser));
 const fbx=new FBXLoader();
-const clipCache=new Map<Slot,Promise<{clip:THREE.AnimationClip;scene:THREE.Object3D}>>();
-function sourceClip(slot:Slot){
+type Downloaded=keyof typeof CLIPS;
+const clipCache=new Map<Downloaded,Promise<{clip:THREE.AnimationClip;scene:THREE.Object3D}>>();
+function sourceClip(slot:Downloaded){
   let pending=clipCache.get(slot);
   if(!pending){
-    pending=fbx.loadAsync(animationURL(CLIPS[slot].file)).then(scene=>{
-      const clip=scene.animations[0];
-      if(!clip)throw new Error(`${CLIPS[slot].file} carries no animation`);
+    const file=CLIPS[slot].file;
+    // Clips ship as Mixamo FBX or as glTF; the retargeter only cares about bone names.
+    pending=(/\.glb$/i.test(file)
+      ? gltf.loadAsync(animationURL(file)).then(asset=>({animations:asset.animations,scene:asset.scene as THREE.Object3D}))
+      : fbx.loadAsync(animationURL(file)).then(scene=>({animations:scene.animations,scene:scene as THREE.Object3D}))
+    ).then(({animations,scene})=>{
+      const clip=animations[0];
+      if(!clip)throw new Error(`${file} carries no animation`);
       scene.updateMatrixWorld(true);
       return {clip,scene};
     });
@@ -232,18 +336,57 @@ export class VrmAvatar {
     if(hips)this.hipsHeight=Math.abs(hips.getWorldPosition(new THREE.Vector3()).y-this.group.getWorldPosition(new THREE.Vector3()).y);
     this.mixer=new THREE.AnimationMixer(vrm.scene);
 
-    // Idle first so the avatar is never a T-pose on screen, then the rest in the background.
+    // Track names are node names on this particular rig, so the way back to humanoid
+    // bones has to be built per avatar — the blends are cut along it.
+    for(const bone of VRM_BONES){
+      const node=vrm.humanoid.getNormalizedBoneNode(bone as never);
+      if(node)this.nodeToBone.set(node.name,bone);
+    }
+    // Idle first so the avatar is never a T-pose on screen; the rest, and the blends
+    // cut from them, follow in the background.
     await this.slot('idle');
     this.play('hom_loco_idle_rest');
-    void Promise.all((Object.keys(CLIPS) as Slot[]).filter(slot=>slot!=='idle').map(slot=>this.slot(slot).catch(()=>{})));
+    void (async()=>{
+      const slots=(Object.keys(CLIPS) as Downloaded[]).filter(slot=>slot!=='idle');
+      await Promise.all(slots.map(slot=>this.slot(slot).catch(error=>console.warn(`${slot} unavailable`,error))));
+      // Blends need both halves retargeted first, so they are built once those land.
+      await Promise.all((Object.keys(BLEND_PARTS) as Blend[]).map(blend=>this.slot(blend).catch(error=>console.warn(`${blend} unavailable`,error))));
+    })();
     return this;
+  }
+
+  /** Every clip retargeted onto THIS rig, kept so blends can be cut from them later. */
+  private clips=new Map<Downloaded,THREE.AnimationClip>();
+  /** This avatar's node names, mapped back to humanoid bones — what a blend is cut along. */
+  private nodeToBone=new Map<string,string>();
+
+  private async retargeted(slot:Downloaded){
+    const existing=this.clips.get(slot);
+    if(existing)return existing;
+    const {clip,scene}=await sourceClip(slot);
+    if(!this.vrm)throw new Error('avatar disposed while loading');
+    const retargeted=retargetMixamoClip(clip,scene,this.vrm);
+    if(!retargeted.tracks.length)throw new Error(`${CLIPS[slot].file} retargeted to nothing`);
+    this.clips.set(slot,retargeted);
+    return retargeted;
   }
 
   private async slot(slot:Slot){
     if(this.actions.has(slot))return this.actions.get(slot)!;
-    const {clip,scene}=await sourceClip(slot);
     if(!this.vrm||!this.mixer)throw new Error('avatar disposed while loading');
-    const action=this.mixer.clipAction(retargetMixamoClip(clip,scene,this.vrm));
+    let clip:THREE.AnimationClip;
+    if(slot in BLEND_PARTS){
+      const {upper,lower,bones}=BLEND_PARTS[slot as Blend];
+      const [top,bottom]=await Promise.all([this.retargeted(upper),this.retargeted(lower)]);
+      // Loop at the LOCOMOTION length so the legs step exactly as they normally do;
+      // the upper half is tiled up to fill it.
+      const legs=filterToBones(bottom,LOWER,this.nodeToBone);
+      const body=tileClip(filterToBones(top,bones,this.nodeToBone),legs.duration);
+      if(!legs.tracks.length||!body.tracks.length)throw new Error(`${slot} has nothing to blend`);
+      clip=new THREE.AnimationClip(slot,legs.duration,[...body.tracks.map(t=>t.clone()),...legs.tracks.map(t=>t.clone())]);
+    }else clip=await this.retargeted(slot as Downloaded);
+    if(!this.mixer)throw new Error('avatar disposed while loading');
+    const action=this.mixer.clipAction(clip);
     action.setLoop(THREE.LoopRepeat,Infinity);
     this.actions.set(slot,action);
     // A clip that arrives after the state it answers to was asked for still needs to start.
@@ -300,6 +443,6 @@ export class VrmAvatar {
     this.mixer?.stopAllAction();
     if(this.vrm){this.mixer?.uncacheRoot(this.vrm.scene);VRMUtils.deepDispose(this.vrm.scene);}
     this.group.removeFromParent();this.group.clear();
-    this.vrm=undefined;this.mixer=undefined;this.actions.clear();
+    this.vrm=undefined;this.mixer=undefined;this.actions.clear();this.clips.clear();this.nodeToBone.clear();
   }
 }
