@@ -33,8 +33,12 @@ export function renderVehicleWheels(root:THREE.Group,body:VehicleMotion|undefine
     object.userData.restPosition??=object.position.clone();object.userData.restRotation??=object.quaternion.clone();
     const limit=Math.max(.03,wheel.radius*(tuning.SetSuspensionLimit??.7)),equilibrium=(Math.sqrt(1+5*limit/(tuning.SetSpringK??.3))-1)/10;
     object.position.copy(object.userData.restPosition);object.position.y+=wheel.radius-equilibrium-.06+body.compression[i]-wheel.position.y;
-    object.quaternion.copy(object.userData.restRotation);if(wheel.front)object.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(Y,body.wheelAngle));
-    for(const mesh of object.children){mesh.userData.restWheelRotation??=mesh.quaternion.clone();mesh.quaternion.copy(mesh.userData.restWheelRotation).multiply(new THREE.Quaternion().setFromAxisAngle(X,body.wheelSpin[i]));}
+    // Blender's tyre meshes have their own rotated axes. Spin the entire wheel
+    // around the car-space axle so rims, tread and offset lug nuts stay together.
+    // Models face -Z, so positive forward travel needs negative local-X spin.
+    object.quaternion.setFromAxisAngle(Y,wheel.front?body.wheelAngle:0)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(X,-body.wheelSpin[i]))
+      .multiply(object.userData.restRotation);
   }
 }
 export function resetVehicle(state:CarState){delete state.vehicleMotion;}

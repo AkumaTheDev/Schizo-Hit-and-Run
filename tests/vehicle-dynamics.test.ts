@@ -57,3 +57,19 @@ test('a ramp launches the car and it returns to driving after landing',()=>{
   }
   assert(airborne,'ramp must produce a real airborne phase');assert(highest>2&&highest<12,`unstable launch height ${highest}`);assert(player.grounded,'car did not land');assert(player.position.z>30,'car remained stuck on the ramp');assert(new THREE.Vector3(0,1,0).applyQuaternion(player.vehicleMotion!.orientation).y>.9);terrain.dispose();floor.dispose();ramp.dispose();
 });
+
+test('exported wheels spin around their axles without wobbling or leaving lug nuts behind',async()=>{
+  const {carFixture}=await import('./world-fixture.ts');const {vehicleProfile,renderVehicleWheels}=await import('../src/vehicle-physics.ts');
+  for(const id of ['famil_v','cpolice','honor_v','chears','schoolbu']){
+    const root=carFixture(id),profile=vehicleProfile(root),state=car(),body=simulateVehicle(state,neutral,0,{},profile),wheel=root.children.find(o=>o.name==='w0')!;
+    renderVehicleWheels(root,body,profile);root.updateMatrixWorld(true);const width=new THREE.Box3().setFromObject(wheel).getSize(new THREE.Vector3()).x;
+    const childPoses=wheel.children.map(child=>({child,position:child.position.clone(),rotation:child.quaternion.clone()}));
+    body.wheelSpin.fill(Math.PI/2);renderVehicleWheels(root,body,profile);root.updateMatrixWorld(true);
+    assert(Math.abs(new THREE.Box3().setFromObject(wheel).getSize(new THREE.Vector3()).x-width)<.00001,`${id}: tyre tilted away from its axle`);
+    for(const pose of childPoses){assert(pose.child.position.equals(pose.position));assert(pose.child.quaternion.equals(pose.rotation));}
+    const top=new THREE.Vector3(0,1,0).applyQuaternion(wheel.quaternion);assert(top.z<-.99,`${id}: wheel rolls backwards`);
+    body.wheelAngle=.35;renderVehicleWheels(root,body,profile);const front=root.children.find(o=>o.name==='w2')!,axle=new THREE.Vector3(1,0,0).applyQuaternion(front.quaternion);
+    assert(Math.abs(axle.x-Math.cos(.35))<.00001);assert(Math.abs(axle.z+Math.sin(.35))<.00001);
+    root.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});
+  }
+});
