@@ -63,6 +63,8 @@ const previous=new THREE.Vector3(),desiredCamera=new THREE.Vector3(),look=new TH
 const forward=new THREE.Vector3(),right=new THREE.Vector3(),normal=new THREE.Vector3(),rotationMatrix=new THREE.Matrix4(),rotation=new THREE.Quaternion();
 const cameraRay=new THREE.Raycaster();cameraRay.firstHitOnly=true;
 const CHARACTER_IDS=['homer','bart','lisa','marge','apu','bart','homer'];
+/** How each level's character is tagged in the converted dialogue. */
+const VOICE_ACTORS=['hom','brt','lis','mrg','apu','brt','hom'];
 const CHARACTER_NAMES=['HOMER SIMPSON','BART SIMPSON','LISA SIMPSON','MARGE SIMPSON','APU','BART SIMPSON','HOMER SIMPSON'];
 const levelSelect=element<HTMLSelectElement>('level'),carSelect=element<HTMLSelectElement>('car'),locationSelect=element<HTMLSelectElement>('location'),lighting=element<HTMLSelectElement>('lighting');
 const play=element<HTMLButtonElement>('play'),run=element<HTMLButtonElement>('challenge');
@@ -133,6 +135,7 @@ async function loadLevel(nextLevel:number){
     const [driver]=await Promise.all([makeAvatar(playerSkin),setCar(carId),traffic.load(),police.load(),coins.load(world.assets,world.objectData.coin)]);
     character=driver;character.drive(car!);
     remotes=new RemotePlayers(scene,world,campaignAssets);net.describe(level,carId,playerSkin);
+    sound.setCharacter(VOICE_ACTORS[level-1],campaignAssets.dialogue);
     element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
     world.setLighting(lighting.value);respawn(0);renderer.compile(scene,camera);
@@ -199,18 +202,18 @@ function animate(now:number){
     if(input.consume('Escape')){if(!paused)pause(true);else if(nativeMenu?.mode==='pause')pause(false);else if(nativeMenu&&nativeMenu.mode!=='main'&&nativeMenu.mode!=='splash')nativeMenu.back();}
     if(input.consume('F3')){debug=!debug;element('debug').hidden=!debug;}
     if(!paused){
-      if(input.consume('KeyF')&&onFoot&&!police?.frozen){world.objects.kick(state.position,footHeading);walking.kick();character?.play('hom_jump_kick');kickUntil=time+.45;}
+      if(input.consume('KeyF')&&onFoot&&!police?.frozen){world.objects.kick(state.position,footHeading);walking.kick();character?.play('hom_jump_kick');kickUntil=time+.45;sound.bark(20);}
       if(input.consume('KeyR')&&!police?.frozen){if(onFoot){onFoot=false;character?.drive(car!);}respawn();toast('Back on the road.');}
       if(input.consume('KeyH')&&!onFoot){cruise=!cruise;toast(cruise?'Cruise control · 50 km/h. Brake to cancel.':'Cruise control off.');}
       if(input.consume('KeyE')&&character&&car&&!police?.frozen){
         if(onFoot){
-          if(state.position.distanceTo(parkedPosition)<6){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;state.speed=0;character.drive(car);element('car-label').textContent=(CAR_NAMES[carId]??carId).toUpperCase();element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Drive</span><span><kbd>SPACE</kbd> Drift</span><span><kbd>E</kbd> Get out</span><span><kbd>H</kbd> Cruise</span><span><kbd>C</kbd> Camera</span>';toast('Back behind the wheel.');}
+          if(state.position.distanceTo(parkedPosition)<6){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;state.speed=0;character.drive(car);sound.ignite();sound.bark();element('car-label').textContent=(CAR_NAMES[carId]??carId).toUpperCase();element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Drive</span><span><kbd>SPACE</kbd> Drift</span><span><kbd>E</kbd> Get out</span><span><kbd>H</kbd> Cruise</span><span><kbd>C</kbd> Camera</span>';toast('Back behind the wheel.');}
           else toast('Get closer to your car.');
         }else if(Math.abs(state.speed)<2){
           onFoot=true;car.visible=true;cruise=false;parkedPosition.copy(state.position);parkedHeading=state.heading;footHeading=state.heading;
           state.position.add(new THREE.Vector3(Math.cos(state.heading)*2,0,-Math.sin(state.heading)*2));state.speed=0;
           walking.reset(state.heading);
-          character.walk(scene,state.position,state.heading);element('car-label').textContent=CHARACTER_NAMES[level-1];element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Walk</span><span><kbd>SHIFT</kbd> Run</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>E</kbd> Get in</span>'; toast('WASD to walk · Shift to run · Space to jump · E to get in.');
+          character.walk(scene,state.position,state.heading);sound.bark();element('car-label').textContent=CHARACTER_NAMES[level-1];element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Walk</span><span><kbd>SHIFT</kbd> Run</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>E</kbd> Get in</span>'; toast('WASD to walk · Shift to run · Space to jump · E to get in.');
         }else toast('Stop the car before getting out.');
         if(!onFoot)police?.enterVehicle(carId);resetVehicle(state);motion.reset(state);
       }
@@ -242,11 +245,11 @@ function animate(now:number){
           if(reward.heat)police?.offense('propDestroyed',false);
           saveGame();
         }
-        if(traffic?.update(fixed,state,!onFoot,camera.getWorldDirection(new THREE.Vector3()),[...(onFoot?[parkedPosition]:[]),...(police?.cars.map(c=>c.position)??[])],footprint,campaignAssets.tuning[carId]?.SetMass??1500))police?.offense('vehicleHit',false);
+        if(traffic?.update(fixed,state,!onFoot,camera.getWorldDirection(new THREE.Vector3()),[...(onFoot?[parkedPosition]:[]),...(police?.cars.map(c=>c.position)??[])],footprint,campaignAssets.tuning[carId]?.SetMass??1500)){police?.offense('vehicleHit',false);sound.bark(14);}
         const result=challenge.update(fixed,state.position);
-        if(result==='checkpoint')toast(`Stop ${challenge.index} reached. Keep moving.`);
-        if(result==='complete'){toast(`Home in ${Math.floor(challenge.elapsed/60)}:${String(Math.floor(challenge.elapsed%60)).padStart(2,'0')}. Nice driving.`);element('mode-badge').textContent='FREE DRIVE';}
-        if(result==='failed'){toast('Time’s up. Try the Springfield Run again from the menu.');element('mode-badge').textContent='FREE DRIVE';}
+        if(result==='checkpoint'){toast(`Stop ${challenge.index} reached. Keep moving.`);sound.bark(4);}
+        if(result==='complete'){sound.bark(0);toast(`Home in ${Math.floor(challenge.elapsed/60)}:${String(Math.floor(challenge.elapsed%60)).padStart(2,'0')}. Nice driving.`);element('mode-badge').textContent='FREE DRIVE';}
+        if(result==='failed'){sound.bark(0);toast('Time’s up. Try the Springfield Run again from the menu.');element('mode-badge').textContent='FREE DRIVE';}
         if(state.position.y<world.terrain.bottom-15||state.damage>=100){respawn();toast('A fresh start.');}
         }
         police?.update(fixed,{state,onFoot,vehicle:carId,parkedPosition,parkedHeading,footprint},false,traffic?.cars.filter(c=>c.active).map(c=>c.position));
@@ -350,7 +353,10 @@ if(!skinSelect.value)skinSelect.value='cast';
 skinSelect.addEventListener('change',()=>{void changeSkin(skinSelect.value==='cast'?CHARACTER_IDS[level-1]:skinSelect.value).catch(()=>toast('That character would not load.'));},options);
 locationSelect.addEventListener('change',()=>{if(onFoot){onFoot=false;character?.drive(car!);}challenge.stop();respawn(Number(locationSelect.value));element('menu-place').textContent=world.data.locations[Number(locationSelect.value)].name;},options);
 lighting.addEventListener('change',()=>world.setLighting(lighting.value),options);
-element('sound').addEventListener('click',async()=>{const enabled=await sound.toggle();element('sound').textContent=enabled?'SOUND ON':'SOUND OFF';element('sound').setAttribute('aria-pressed',String(enabled));},options);
+const soundButton=element('sound');
+const showSound=(on:boolean)=>{soundButton.textContent=on?'SOUND ON':'SOUND OFF';soundButton.setAttribute('aria-pressed',String(on));};
+showSound(sound.enabled);
+soundButton.addEventListener('click',async()=>{showSound(await sound.toggle());},options);
 element('quality').addEventListener('click',()=>{highQuality=!highQuality;renderer.shadowMap.enabled=highQuality;renderer.setPixelRatio(Math.min(devicePixelRatio,highQuality?2:1));composer.setPixelRatio(renderer.getPixelRatio());element('quality').textContent=highQuality?'HIGH QUALITY':'PERFORMANCE';},options);
 /**
  * Springfield is a landscape game, and on a phone that means real fullscreen — the
