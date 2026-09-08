@@ -4,6 +4,7 @@ export const CONDITIONS=['timeout','outofvehicle','damage','position','race','fo
 export function newProgress():Progress{return {version:2,level:1,mission:'m0',phase:'intro',stage:0,checkpoint:{phase:'intro',stage:0},completed:[],money:0,cars:['famil_v'],skins:['homer'],equippedSkin:null,coins:{},finished:false};}
 export function validateProgress(value:unknown):value is Progress{
   if(!value||typeof value!=='object')return false;const p=value as Progress;
+  if(p.brokenProps!==undefined&&(!p.brokenProps||typeof p.brokenProps!=='object'||Object.values(p.brokenProps).some(v=>!Array.isArray(v)||v.some(id=>typeof id!=='string'))))return false;
   return p.version===2&&Number.isInteger(p.level)&&p.level>=1&&p.level<=7&&typeof p.mission==='string'&&['intro','main'].includes(p.phase)&&Number.isInteger(p.stage)&&p.stage>=0&&Number.isFinite(p.money)&&p.money>=0&&Array.isArray(p.completed)&&p.completed.every(x=>typeof x==='string')&&Array.isArray(p.cars)&&p.cars.every(x=>typeof x==='string')&&Array.isArray(p.skins)&&p.skins.every(x=>typeof x==='string')&&!!p.coins&&typeof p.coins==='object'&&Object.values(p.coins).every(v=>Array.isArray(v)&&v.every(n=>Number.isInteger(n)&&n>=0))&&!!p.checkpoint&&['intro','main'].includes(p.checkpoint.phase)&&Number.isInteger(p.checkpoint.stage)&&p.checkpoint.stage>=0;
 }
 export class CampaignEngine {

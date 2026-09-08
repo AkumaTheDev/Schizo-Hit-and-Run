@@ -5,6 +5,8 @@ import type { CampaignAssets,Player } from './campaign/runtime';
 import { MissionRoute,RoadNetwork } from './campaign/roads';
 import type { Command } from './campaign/types';
 import { Motion } from './motion';
+import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,collideVehicles,type VehicleProfile } from './vehicle-physics';
+import { SteeringDriver,AI_RULES } from './steering';
 import { vehicleContact,DEFAULT_FOOTPRINT,type VehicleFootprint } from './vehicle-collision';
 import { HIT_RUN_RULES,HitAndRun,type Offense,type PursuitSettings } from './hit-and-run';
 
@@ -21,23 +23,26 @@ export function pursuitSpawns(roads:number[][][],center:THREE.Vector3,radius=HIT
   }
   return points;
 }
-interface PoliceCar {
+interface PoliceCar extends CarState {
   mesh:THREE.Group;position:THREE.Vector3;heading:number;speed:number;motion:Motion;
   offset:number;health:number;repath:number;hitCooldown:number;route?:MissionRoute;
   retiring:boolean;retireTime:number;beacons:THREE.MeshStandardMaterial[];wheels:THREE.Object3D[];
+  driver:SteeringDriver;profile:VehicleProfile;
 }
 export interface PursuitHUD {heat:number;active:boolean;catching:number;busted:number;fine:number;cars:THREE.Vector3[]}
 export class Pursuit {
   readonly meter:HitAndRun;readonly group=new THREE.Group();readonly cars:PoliceCar[]=[];
   private road:RoadNetwork;private template?:THREE.Group;private offset=0;private time=0;private spawnDelay=0;private footprint=DEFAULT_FOOTPRINT;
+  private profile=DEFAULT_VEHICLE;
   private lastFine=0;private stopped=false;private nearest=Infinity;
   constructor(private world:World,readonly settings:PursuitSettings,private assets:CampaignAssets,
     private callbacks:{toast:(text:string)=>void;fine:(amount:number)=>number;busted:()=>void}){
-    this.meter=new HitAndRun(settings);this.road=new RoadNetwork(world.data.roads);world.scene.add(this.group);
+    this.meter=new HitAndRun(settings);this.road=new RoadNetwork(world.data.roads,world.data.navigation);world.scene.add(this.group);
   }
   async load(){
     const {root}=await this.world.assets.load(`car-${this.settings.vehicle}`,true);
     this.template=root;const box=new THREE.Box3().setFromObject(root),size=box.getSize(new THREE.Vector3());this.offset=-box.min.y+.04;this.footprint={halfWidth:size.x/2,halfLength:size.z/2};
+    this.profile=vehicleProfile(root);
   }
   get frozen(){return this.meter.bustedRemaining>0;}
   get audibleDistance(){return this.nearest;}
@@ -68,7 +73,7 @@ export class Pursuit {
       if(o.userData.pursuitBeacon&&o.material instanceof THREE.MeshStandardMaterial){o.material=o.material.clone();beacons.push(o.material);}
     });
     const heading=Math.atan2(player.state.position.x-point.x,player.state.position.z-point.z),motion=new Motion();motion.reset({position:point,heading});
-    const car:PoliceCar={mesh,position:point,heading,speed:0,motion,offset:this.offset,health:1,repath:0,hitCooldown:0,retiring:false,retireTime:0,beacons,wheels:mesh.children.filter(o=>/^w[0-3]$/.test(o.name)).flatMap(o=>o.children)};
+    const car:PoliceCar={mesh,position:point,heading,speed:0,verticalSpeed:0,steer:0,distance:0,damage:0,motion,profile:this.profile,driver:new SteeringDriver(),offset:this.offset,health:1,repath:0,hitCooldown:0,retiring:false,retireTime:0,beacons,wheels:mesh.children.filter(o=>/^w[0-3]$/.test(o.name)).flatMap(o=>o.children)};
     this.cars.push(car);this.group.add(mesh);
   }
   update(dt:number,player:Player,interior:boolean,occupied:THREE.Vector3[]=[]){
@@ -86,7 +91,7 @@ export class Pursuit {
     }
     if(!this.meter.enabled||this.frozen)return;
     const tuning=this.assets.missionTuning[this.settings.tuning]??this.assets.tuning[this.settings.vehicle];
-    const topSpeed=(tuning.SetTopSpeedKmh??140)/3.6,acceleration=13*(tuning.SetGasScale??10)/4.5;
+    const topSpeed=(tuning.SetTopSpeedKmh??140)/3.6;
     this.spawnDelay-=dt;
     if(this.meter.requested&&!interior&&this.cars.filter(c=>!c.retiring).length<this.meter.chaseCars&&this.cars.length<HIT_RUN_RULES.poolSize&&this.spawnDelay<=0){this.spawn(player,occupied);this.spawnDelay=.5;}
     for(const car of this.cars){
@@ -97,10 +102,12 @@ export class Pursuit {
       const distance=car.position.distanceTo(player.state.position);
       if(car.repath<=0){car.route=new MissionRoute(this.road.route(car.position,player.state.position));car.repath=.75;}
       const desired=distance>12?topSpeed:Math.max(0,Math.min(topSpeed,(distance-3)*2));
-      car.speed=THREE.MathUtils.clamp(desired,car.speed-24*dt,car.speed+acceleration*dt);
       if(car.route){
-        const heading=car.route.advance(car.speed*dt,car.position),turn=Math.atan2(Math.sin(heading-car.heading),Math.cos(heading-car.heading));car.heading+=turn*(1-Math.exp(-12*dt));
-        const ground=this.world.terrain.ground(car.position.x,car.position.z,car.position.y,3);if(ground)car.position.y=ground.point.y+.06;
+        const target=car.route.follow(car.position,Math.max(AI_RULES.minimumLookahead,Math.abs(car.speed)*AI_RULES.lookaheadSeconds));
+        const obstacles=[...occupied,...(player.onFoot?[player.parkedPosition]:[])].map(position=>({position,heading:car.heading}));
+        const control=car.driver.controls(car,target,desired,dt,tuning,obstacles,this.footprint);
+        simulateVehicle(car,control,dt,tuning,car.profile,this.world.terrain,false);
+        if(car.damage>=100)car.health=0;
       }
       if(!player.onFoot)this.collide(car,player.state,tuning,this.assets.tuning[player.vehicle]?.SetMass??1500,player.footprint);
       if(car.position.distanceTo(player.state.position)>HIT_RUN_RULES.removeRadius)car.retiring=true;
@@ -110,18 +117,17 @@ export class Pursuit {
     }}
   }
   private collide(car:PoliceCar,player:CarState,tuning:Record<string,number>,playerMass:number,footprint?:VehicleFootprint){
-    const contact=vehicleContact(player,car,footprint,this.footprint);if(!contact)return;const separation=contact.normal;
-    const mass=tuning.SetMass??1750,ratio=mass/(mass+playerMass);
-    player.position.addScaledVector(separation,contact.depth*ratio);car.position.addScaledVector(separation,-contact.depth*(1-ratio));
-    const closing=-(player.speed*(Math.sin(player.heading)*separation.x+Math.cos(player.heading)*separation.z)-car.speed*(Math.sin(car.heading)*separation.x+Math.cos(car.heading)*separation.z));
+    const contact=collideVehicles(player,car,playerMass,tuning.SetMass??1750,footprint,this.footprint);if(!contact)return;const closing=contact.closing;
     if(closing>.5&&car.hitCooldown===0){
-      player.damage=Math.min(100,player.damage+Math.min(15,closing*.3));player.speed*=.55;car.speed*=.6;car.hitCooldown=1;
+      player.damage=Math.min(100,player.damage+Math.min(15,closing*.3));car.hitCooldown=1;
       car.health=Math.max(0,car.health-closing*.012/(tuning.SetHitPoints??1));
+      this.meter.offense(car.health===0?'vehicleDestroyed':'vehicleHit');
     }
   }
   render(dt:number,alpha:number){
     for(const car of this.cars){const pose=car.motion.sample(car,alpha);car.mesh.position.copy(pose.position);car.mesh.position.y+=car.offset;car.mesh.rotation.y=pose.heading+Math.PI;
-      for(const wheel of car.wheels)wheel.rotation.x+=car.speed*dt/.38;
+      if(car.vehicleMotion){car.mesh.position.copy(pose.position).add(new THREE.Vector3(0,car.offset,0).applyQuaternion(car.vehicleMotion.orientation));car.mesh.quaternion.copy(car.vehicleMotion.orientation).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI));}
+      renderVehicleWheels(car.mesh,car.vehicleMotion,car.profile,this.assets.tuning[this.settings.vehicle]);
       car.beacons.forEach((m,i)=>{m.emissiveIntensity=car.retiring?.2:(Math.sin(this.time*14+i*Math.PI)>0?3:.25);});
     }
   }

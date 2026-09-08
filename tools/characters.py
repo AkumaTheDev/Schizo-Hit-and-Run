@@ -31,7 +31,7 @@ def convert_homer(model='art/chars/homer_m.p3d',animation_file='art/chars/homer_
         name,p=string(c.data);parent,=struct.unpack_from('<I',c.data,p)
         bones.append(dict(name=name,parent=parent,matrix=(mirror@mat(c.data,p+24)@mirror).flatten().tolist()))
     animations=[]
-    chosen=['hom_in_car_idle','hom_loco_idle_rest','hom_loco_walk','hom_loco_run','hom_loco_dash','hom_jump_idle_in_air','hom_jump_kick','hom_victory_small','hom_flail','hom_get_up']
+    chosen=['hom_in_car_idle','hom_loco_idle_rest','hom_loco_walk','hom_loco_run','hom_loco_dash','hom_jump_idle_in_air','hom_jump_dash_in_air','hom_jump_idle_land','hom_jump_idle_take_off','hom_jump_kick','hom_victory_small','hom_flail','hom_get_up']
     for animation in walk(read(GAME/animation_file)):
         if animation.id!=0x121000:continue
         name,p=string(animation.data,4)

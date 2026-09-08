@@ -4,6 +4,8 @@ import { Assets, json, type Catalog, type LevelData,type SceneryMaterial } from 
 import { Terrain } from './physics';
 import { Grass } from './grass';
 import { staticCollisionGeometry,type InteriorCollision } from './collision';
+import { WorldObjects,type WorldObjectsData } from './world-objects';
+import type { RoadNavigation } from './road-data';
 export const LEVEL_NAMES=['Evergreen Terrace','Downtown','Seaside','Evergreen at dusk','Downtown at dusk','Seaside at dusk','Halloween'];
 export const CAR_NAMES:Record<string,string>={famil_v:'Family Sedan',plowk_v:'Plow King',homer_v:'The Homer',cletu_v:"Cletus' Pickup",cpolice:'Police Cruiser',pickupa:'Pickup Truck',minivana:'Minivan',schoolbu:'School Bus',sportsa:'Sports Car',snake_v:"Snake's Bandit",bart_v:'Honor Roller',lisa_v:'Malibu Stacy Car'};
 
@@ -12,6 +14,7 @@ export class World {
   group=new THREE.Group();
   terrain!:Terrain;
   data!:LevelData;
+  objects!:WorldObjects;objectData!:WorldObjectsData;
   private exteriorTerrain!:Terrain;private interiors=new Map<string,{root:THREE.Group;terrain:Terrain}>();private activeInterior:string|null=null;private lightingMode='golden';
   private sky=new Sky();private grass=new Grass();
   sun=new THREE.DirectionalLight(0xffd9a6,2.2);
@@ -28,17 +31,19 @@ export class World {
   }
   async load(level:number,progress:(value:number,message:string)=>void){
     this.data=await json<LevelData>(`level${level}.json`);
-    const [surfaces,scenery,ground,physics]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json'),json<Record<string,string>>('remaster/surfaces.json'),json<InteriorCollision>(`collision/world-level${level}.json`)]);
+    const [surfaces,scenery,ground,physics,objects,navigation]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json'),json<Record<string,string>>('remaster/surfaces.json'),json<InteriorCollision>(`collision/world-level${level}.json`),json<WorldObjectsData>(`world/objects${level}.json`),json<RoadNavigation>(`world/navigation${level}.json`)]);
+    this.data.navigation=navigation;this.objectData=objects;
     for(const [source,albedo] of Object.entries(ground))if(surfaces[source])surfaces[source].albedo=albedo;
     this.assets.sceneryMaterials=surfaces;this.assets.sceneryScenes=new Set(scenery.scenes);
     // Every region downloads at once; the progress bar advances as each one is built.
-    let built=0;const total=this.data.scenes.length;progress(0,`Building ${LEVEL_NAMES[level-1]} · 0/${total}`);
-    const results=await Promise.all(this.data.scenes.map(async name=>{
+    const scenes=[...this.data.scenes,...objects.extras];let built=0;const total=scenes.length;progress(0,`Building ${LEVEL_NAMES[level-1]} · 0/${total}`);
+    const results=await Promise.all(scenes.map(async name=>{
       const result=await this.assets.load(name);built++;progress(built/(total+3),`Building ${LEVEL_NAMES[level-1]} · ${built}/${total}`);return result;
     }));
     const collision:THREE.BufferGeometry[]=[];
     for(const result of results){this.group.add(result.root);if(result.collision)collision.push(result.collision);}
-    const bodies=staticCollisionGeometry(physics);this.terrain=new Terrain(collision,this.data,bodies);bodies.dispose();this.exteriorTerrain=this.terrain;
+    const shapes=[...physics.shapes,...objects.props.filter(p=>p.kind===2).flatMap(p=>p.shapes)];
+    const bodies=staticCollisionGeometry({...physics,shapes});this.terrain=new Terrain(collision,this.data,bodies,this.data.scenes.flatMap(scene=>objects.terrainTypes[scene]));bodies.dispose();this.exteriorTerrain=this.terrain;this.objects=new WorldObjects(this.terrain,this.group,objects);
     // A separate receiver preserves the original baked environmental art.
     this.shadowGround=new THREE.Mesh(this.terrain.mesh.geometry,new THREE.ShadowMaterial({opacity:0.05}));
     this.shadowGround.receiveShadow=true;this.shadowGround.position.y=0.025;this.group.add(this.shadowGround);await this.grass.load(this.group);
@@ -67,7 +72,7 @@ export class World {
     this.activeInterior=name;this.terrain=this.interiors.get(name)!.terrain;this.group.visible=false;this.sky.visible=false;this.scene.background=new THREE.Color(0x332a2b);this.scene.fog=null;
   }
   leaveInterior(){this.activeInterior=null;for(const room of this.interiors.values())room.root.visible=false;this.terrain=this.exteriorTerrain;this.group.visible=true;this.sky.visible=true;this.scene.background=null;this.setLighting(this.lightingMode);}
-  update(position:THREE.Vector3){if(!this.activeInterior)this.grass.update(position);this.sky.position.copy(position);this.sun.target.position.copy(position);this.sun.position.copy(position).add(new THREE.Vector3(-45,60,-35));}
+  update(position:THREE.Vector3){if(!this.activeInterior){this.grass.update(position);this.objects?.update(position);}this.sky.position.copy(position);this.sun.target.position.copy(position);this.sun.position.copy(position).add(new THREE.Vector3(-45,60,-35));}
   dispose(){
     this.grass.dispose();this.group.removeFromParent();this.sky.removeFromParent();this.sun.removeFromParent();this.sun.target.removeFromParent();this.hemisphere.removeFromParent();
     this.sky.geometry.dispose();this.sky.material.dispose();this.sun.shadow.dispose();

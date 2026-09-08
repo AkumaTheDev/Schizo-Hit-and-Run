@@ -1,5 +1,7 @@
 # Native executable findings
 
+The [vehicle, walking and coin investigation](MOVEMENT_PHYSICS.md) adds native force rules, jump timing, source road lanes and interactive world objects.
+
 The later [pursuit and traffic investigation](PURSUIT_PARITY.md) adds address-grounded meter, police, traffic and character-palette findings, together with the implemented behavior and remaining differences.
 
 The Kwik-E-Mart fall came from missing wall collision. Its floor had been converted, but the separate static physics objects had not. Walking backwards from the entry crossed the visible back wall, left the finite floor and dropped Homer into the void. This was reproduced in the browser before the fix.
@@ -35,7 +37,7 @@ Ghidra also found cached/uncached address aliases, so its initial count of 14,20
 | `0x002ce390` | Cylinder constructor stores length, radius, axis and flat-end flag. Instructions `0x002ce454`–`0x002ce484` choose `sqrt(length² + radius²)` for flat ends or `length + radius` for rounded ends. | Treat length as the distance from the center to an end, and flag zero as rounded caps. |
 | `0x002ce828` | Box initializer stores three dimensions and axes; its bounding radius is `sqrt(x² + y² + z²)`. | Use the dimensions as half extents, preserving each box's orientation. |
 
-The browser does not implement the native collision solver. It uses the decoded shapes with a Three.js capsule solver and short movement steps. Cylinders and spheres are approximated by triangle meshes. The player's body dimensions, movement and gravity are still reconstruction values.
+The browser does not implement the native collision solver. It uses the decoded shapes with a Three.js capsule solver and short movement steps. Cylinders and spheres are approximated by triangle meshes. The player's body dimensions remain reconstruction values. The later movement pass replaces walking, jumping and gravity defaults with values traced through the executable.
 
 ## Interior data and the fix
 

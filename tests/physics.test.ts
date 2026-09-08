@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import '../src/assets.ts';
 import { drive,Terrain,type CarState } from '../src/physics.ts';
+import { resetVehicle,VEHICLE_RULES } from '../src/vehicle-physics.ts';
 import type { LevelData } from '../src/assets.ts';
 const car=():CarState=>({position:new THREE.Vector3(),heading:0,speed:0,verticalSpeed:0,steer:0,distance:0,damage:0});
 const neutral={throttle:0,brake:0,steer:0,handbrake:false};
@@ -12,17 +13,17 @@ test('car accelerates, brakes, reverses and respects its speed limits',()=>{
   for(let i=0;i<150;i++)drive(state,{...neutral,brake:1},1/60);
   assert(state.speed<1,'braking must stop a car at full speed within 2.5 seconds');
   for(let i=0;i<300;i++)drive(state,{...neutral,brake:1},1/60);
-  assert(state.speed<0&&state.speed>=-12);
+  assert(state.speed<0&&state.speed>=-VEHICLE_RULES.reverseSpeed-.001);
 });
 test('steering is stationary at rest and reverses direction in reverse',()=>{
   const state=car();drive(state,{...neutral,steer:1},1);assert.equal(state.heading,0);
   state.speed=10;drive(state,{...neutral,steer:1},.1);assert(state.heading<0);
-  state.speed=-10;const before=state.heading;drive(state,{...neutral,steer:1},.1);assert(state.heading>before);
+  state.speed=-10;resetVehicle(state);const before=state.heading;drive(state,{...neutral,steer:1},.1);assert(state.heading>before);
 });
 test('handbrake slows the car faster than coasting',()=>{
   const a=car(),b=car();a.speed=b.speed=30;
   for(let i=0;i<60;i++){drive(a,neutral,1/60);drive(b,{...neutral,handbrake:true},1/60);}
-  assert(b.speed<a.speed*0.1);
+  assert(b.speed<a.speed-4,'the rear-wheel brake adds its native force without instantly deleting momentum');
 });
 test('terrain catches falling vehicles and a fence prevents crossing',()=>{
   const geometry=new THREE.PlaneGeometry(40,40).rotateX(-Math.PI/2).toNonIndexed();

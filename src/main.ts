@@ -16,6 +16,8 @@ import { World, CAR_NAMES, LEVEL_NAMES } from './world';
 import { json, type Catalog } from './assets';
 import { Input } from './input';
 import { drive, type CarState } from './physics';
+import { PlayerMovement } from './player-movement';
+import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,resetVehicle,type VehicleProfile } from './vehicle-physics';
 import { HUD, element } from './hud';
 import { Challenge } from './challenge';
 import { Traffic } from './traffic';
@@ -40,9 +42,11 @@ composer.addPass(new RenderPass(scene,camera));composer.addPass(bloom);composer.
 const input=new Input(),hud=new HUD(),challenge=new Challenge(scene),sound=new Sound(),metrics=new FrameMetrics();let metricText='',metricTime=0;
 const state:CarState={position:new THREE.Vector3(220,3.5,172),heading:Math.PI/2,speed:0,verticalSpeed:0,steer:0,distance:0,damage:0};
 const motion=new Motion();motion.reset(state);
+const walking=new PlayerMovement();
 let nativeMenu:OriginalMenu|undefined,menuRoom:FrontendRoom|undefined;const nativeHUD=new OriginalHUD();
 let coins:Coins|undefined;let campaign:Campaign|undefined,campaignAssets:CampaignAssets;let kickUntil=0;let police:Pursuit|undefined,freeMoney=0;
 let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65,footprint:VehicleFootprint=DEFAULT_FOOTPRINT;
+let chassis:VehicleProfile=DEFAULT_VEHICLE;
 let catalog:Catalog, loading=true,paused=true,highQuality=true,cameraMode=0,debug=false;
 let onFoot=false,cruise=false,character:Character|undefined,footHeading=0;const parkedPosition=new THREE.Vector3();let parkedHeading=0;
 let level=1, carId='famil_v',carModels=new Map<string,THREE.Group>();
@@ -78,7 +82,7 @@ function respawn(location?:number){
   const road=nearestRoad(place);state.position.copy(road.point);state.heading=road.heading;
   const ground=world.terrain.ground(state.position.x,state.position.z,state.position.y,10);
   if(ground)state.position.y=ground.point.y+0.06;
-  state.speed=0;state.verticalSpeed=0;state.damage=0;state.steer=0;cruise=false;smoothLook.copy(state.position);motion.reset(state);
+  state.speed=0;state.verticalSpeed=0;state.damage=0;state.steer=0;state.grounded=true;walking.reset(state.heading);resetVehicle(state);cruise=false;smoothLook.copy(state.position);motion.reset(state);
   if(car)car.position.copy(state.position).add(new THREE.Vector3(0,carOffset,0));
   updateCamera(1,true);
 }
@@ -90,6 +94,7 @@ async function setCar(id:string){
   police?.enterVehicle(id);
   car.rotation.set(0,0,0);car.position.set(0,0,0);
   const box=new THREE.Box3().setFromObject(car),size=box.getSize(new THREE.Vector3());carOffset=-box.min.y+0.04;footprint={halfWidth:size.x/2,halfLength:size.z/2};
+  chassis=vehicleProfile(car);carOffset=chassis.offset;resetVehicle(state);
   car.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});
   scene.add(car);character?.drive(car);element('car-label').textContent=(CAR_NAMES[id]??id).toUpperCase();
   element('scene-info').textContent=`${CAR_NAMES[id]??id} · ${LEVEL_NAMES[level-1]}`;
@@ -101,9 +106,9 @@ async function loadLevel(nextLevel:number){
   try{
     const chapterPromise=json<Chapter>(`campaign/level${level}.json`);await world.load(level,progress);coins=new Coins(scene,world.data);freeMoney=coins.collected;progress(0.9,'Getting the cars ready…');
     locationSelect.replaceChildren(...world.data.locations.map((place,i)=>new Option(place.name,String(i))));
-    const chapter=await chapterPromise,driver=new Character();traffic=new Traffic(world,chapter.initial);
+    const chapter=await chapterPromise,driver=new Character();traffic=new Traffic(world,chapter.initial,campaignAssets.tuning);
     police=new Pursuit(world,pursuitSettings(chapter.initial),campaignAssets,{toast,fine:amount=>{const paid=Math.min(amount,campaign?.progress.money??freeMoney);if(campaign)campaign.progress.money-=paid;else freeMoney-=paid;saveGame();return paid;},busted:()=>sound.busted()});
-    await Promise.all([setCar(carId),driver.load(world.assets,CHARACTER_IDS[level-1]),traffic.load(),police.load()]);
+    await Promise.all([setCar(carId),driver.load(world.assets,CHARACTER_IDS[level-1]),traffic.load(),police.load(),coins.load(world.assets,world.objectData.coin)]);
     character=driver;character.drive(car!);
     element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
@@ -131,7 +136,7 @@ function updateCamera(dt:number,snap=false){
     if(world?.terrain&&cameraMode!==2){
       const anchor=position.clone().add(new THREE.Vector3(0,1.6,0));const direction=desiredCamera.clone().sub(anchor);const distance=direction.length();
       cameraRay.set(anchor,direction.normalize());cameraRay.far=distance;
-      const hit=cameraRay.intersectObject(world.terrain.mesh)[0];
+      const hit=world.terrain.raycast(anchor,direction,distance);
       if(hit)desiredCamera.copy(hit.point).addScaledVector(direction,-0.35);
       const ground=world.terrain.ground(desiredCamera.x,desiredCamera.z,position.y,4);
       if(ground)desiredCamera.y=Math.max(desiredCamera.y,ground.point.y+1);
@@ -149,7 +154,7 @@ function animate(now:number){
     if(input.consume('F3')){debug=!debug;element('debug').hidden=!debug;}
     if(!paused){
       if(input.consume('Enter')&&campaign?.engine.status==='failed')campaign.retry();
-      if(input.consume('KeyF')&&onFoot&&!campaign?.frozen&&!police?.frozen){campaign?.kick();character?.play('hom_jump_kick');kickUntil=time+.45;}
+      if(input.consume('KeyF')&&onFoot&&!campaign?.frozen&&!police?.frozen){if(campaign?.interior||!world.objects.kick(state.position,footHeading))campaign?.kick();walking.kick();character?.play('hom_jump_kick');kickUntil=time+.45;}
       if(input.consume('KeyR')&&!police?.frozen){if(onFoot){onFoot=false;character?.drive(car!);}respawn();toast('Back on the road.');}
       if(input.consume('KeyH')&&!onFoot){cruise=!cruise;toast(cruise?'Cruise control · 50 km/h. Brake to cancel.':'Cruise control off.');}
       if(input.consume('KeyE')&&character&&car&&!campaign?.frozen&&!police?.frozen&&!campaign?.interact()){
@@ -159,9 +164,10 @@ function animate(now:number){
         }else if(Math.abs(state.speed)<2){
           onFoot=true;car.visible=true;cruise=false;parkedPosition.copy(state.position);parkedHeading=state.heading;footHeading=state.heading;
           state.position.add(new THREE.Vector3(Math.cos(state.heading)*2,0,-Math.sin(state.heading)*2));state.speed=0;
+          walking.reset(state.heading);
           character.walk(scene,state.position,state.heading);element('car-label').textContent=CHARACTER_NAMES[level-1];element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Walk</span><span><kbd>SHIFT</kbd> Run</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>E</kbd> Get in</span>'; toast('WASD to walk · Shift to run · Space to jump · E to get in.');
         }else toast('Stop the car before getting out.');
-        if(!onFoot)police?.enterVehicle(carId);motion.reset(state);
+        if(!onFoot)police?.enterVehicle(carId);resetVehicle(state);motion.reset(state);
       }
       if(input.consume('KeyC')){cameraMode=(cameraMode+1)%3;toast(['Chase camera','Wide camera','Hood camera'][cameraMode]);}
       if(input.consume('KeyM'))hud.bigMap=!hud.bigMap;
@@ -171,20 +177,24 @@ function animate(now:number){
         const fixed=1/60;motion.capture(state);previous.copy(state.position);const controls=input.controls;
         if(!campaign?.frozen&&!police?.frozen){
         if(onFoot){
+          world.terrain.setVehiclePlatforms(campaign?.interior?[]:[{id:'player',position:parkedPosition,heading:parkedHeading,half:chassis.half,center:chassis.center},...(traffic?.cars.filter(c=>c.active)??[]).map((c,i)=>({id:`traffic:${c.mesh.uuid}`,position:c.position,heading:c.heading,orientation:c.vehicleMotion?.orientation,half:c.profile.half,center:c.profile.center})),...(police?.cars??[]).map((c,i)=>({id:`police:${c.mesh.uuid}`,position:c.position,heading:c.heading,orientation:c.vehicleMotion?.orientation,half:c.profile.half,center:c.profile.center})),...(campaign?.vehicleBodies??[]).map(c=>({id:`mission:${c.mesh.uuid}`,position:c.position,heading:c.heading,orientation:c.vehicleMotion?.orientation,half:c.profile.half,center:c.profile.center}))]);
           const x=(input.down('KeyD','ArrowRight')?1:0)-(input.down('KeyA','ArrowLeft')?1:0),z=(input.down('KeyW','ArrowUp')?1:0)-(input.down('KeyS','ArrowDown')?1:0);
-          const magnitude=Math.min(1,Math.hypot(x,z));state.speed=magnitude*(input.down('ShiftLeft','ShiftRight')?7.5:3.4);
-          if(magnitude){footHeading=state.heading-Math.atan2(x,z);state.position.x+=Math.sin(footHeading)*state.speed*fixed;state.position.z+=Math.cos(footHeading)*state.speed*fixed;}
-          if(input.consume('Space')&&Math.abs(state.verticalSpeed)<0.01){state.verticalSpeed=7;state.position.y+=0.22;}
-          world.terrain.resolve(state,previous,fixed,.35,true);
-          if(time>kickUntil)character?.play(Math.abs(state.verticalSpeed)>1?'hom_jump_idle_in_air':state.speed>4?'hom_loco_run':state.speed>0.1?'hom_loco_walk':'hom_loco_idle_rest');
+          const animation=walking.update(state,{x,z,run:input.down('ShiftLeft','ShiftRight'),jump:input.consume('Space')},fixed,world.terrain);footHeading=walking.heading;
+          if(time>kickUntil)character?.play(animation);
         }else{
+          world.terrain.setVehiclePlatforms([]);
           if(controls.brake||controls.handbrake)cruise=false;
           if(cruise)controls.throttle=state.speed<13.9?1:0;
-          drive(state,controls,fixed,campaignAssets.tuning[carId]);
+          simulateVehicle(state,controls,fixed,campaignAssets.tuning[carId],chassis,world.terrain);
         }
-        const hit=!onFoot&&world.terrain.resolve(state,previous,fixed);
-        if(hit&&state.damage>65)toast('Easy on the paintwork. R resets the car.');
-        if(traffic?.update(fixed,state,!onFoot,camera.getWorldDirection(new THREE.Vector3()),[...(onFoot?[parkedPosition]:[]),...(police?.cars.map(c=>c.position)??[]),...(campaign?.trafficObstacles??[])],footprint))police?.offense('vehicleHit',!!campaign?.interior);
+        for(const reward of world.objects.drain()){
+          const floor=world.terrain.support(reward.position.x,reward.position.z,reward.position.y,1)?.point.y??reward.position.y;
+          const overflow=coins?.drop(reward.coins,reward.position,floor+.5,reward.inCar)??reward.coins;
+          if(overflow){if(campaign)campaign.engine.earn(overflow);else freeMoney+=overflow;}
+          if(reward.heat)police?.offense('propDestroyed',!!campaign?.interior);
+          if(campaign)(campaign.progress.brokenProps??={})[String(level)]=world.objects.entries;saveGame();
+        }
+        if(!campaign?.interior&&traffic?.update(fixed,state,!onFoot,camera.getWorldDirection(new THREE.Vector3()),[...(onFoot?[parkedPosition]:[]),...(police?.cars.map(c=>c.position)??[]),...(campaign?.trafficObstacles??[])],footprint,campaignAssets.tuning[carId]?.SetMass??1500))police?.offense('vehicleHit',false);
         const result=challenge.update(fixed,state.position);
         if(result==='checkpoint')toast(`Stop ${challenge.index} reached. Keep moving.`);
         if(result==='complete'){toast(`Home in ${Math.floor(challenge.elapsed/60)}:${String(Math.floor(challenge.elapsed%60)).padStart(2,'0')}. Nice driving.`);element('mode-badge').textContent='FREE DRIVE';}
@@ -200,18 +210,20 @@ function animate(now:number){
     }else{accumulator=0;motion.reset(state);}
     const frozen=paused||campaign?.frozen||police?.frozen,alpha=frozen?1:accumulator*60;motion.sample(state,alpha);traffic?.render(frozen?0:dt,alpha,state.position);police?.render(frozen?0:dt,alpha);campaign?.render(frozen?0:dt,alpha);nativeHUD.campaign=campaign?.active?campaign.hud:null;nativeHUD.pursuit=police?.hud;
     if(car&&!onFoot){
-      car.position.copy(motion.position);car.position.y+=carOffset;
+      car.position.copy(motion.position);car.position.add(new THREE.Vector3(0,carOffset,0).applyQuaternion(state.vehicleMotion?.orientation??new THREE.Quaternion()));
       normal.copy(world.terrain.normal(state.position.x,state.position.z,state.position.y));
       normal.lerp(new THREE.Vector3(0,1,0),0.3).normalize();
       forward.set(-Math.sin(motion.heading),0,-Math.cos(motion.heading));right.crossVectors(normal,forward).normalize();forward.crossVectors(right,normal).normalize();
-      rotationMatrix.makeBasis(right,normal,forward);rotation.setFromRotationMatrix(rotationMatrix);car.quaternion.slerp(rotation,1-Math.exp(-dt*9));
-      for(const wheel of car.children.filter(o=>/^w[0-3]$/.test(o.name)))for(const mesh of wheel.children)mesh.rotation.x+=state.speed*dt/0.38;
+      rotationMatrix.makeBasis(right,normal,forward);rotation.setFromRotationMatrix(rotationMatrix);
+      if(state.vehicleMotion)rotation.copy(state.vehicleMotion.orientation).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI));
+      car.quaternion.slerp(rotation,1-Math.exp(-dt*12));
+      renderVehicleWheels(car,state.vehicleMotion,chassis,campaignAssets.tuning[carId]);
       car.visible=paused||cameraMode!==2;
     }
     if(onFoot&&character){character.group.position.copy(motion.position);character.group.rotation.y+=THREE.MathUtils.euclideanModulo(footHeading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;}
     if(campaign?.playerAnimation)character?.play(campaign.playerAnimation);character?.update(paused?dt*0.35:dt);
     if(car&&onFoot)car.visible=!campaign?.interior;if(coins)coins.mesh.visible=!campaign?.interior;if(traffic)traffic.group.visible=!campaign?.interior;sound.cinematic=!!campaign?.presentation.active;
-    if(coins){const gained=coins.update(dt,state.position,!frozen&&!campaign?.interior);if(gained){if(campaign){campaign.engine.earn(gained);campaign.progress.coins[String(level)]=coins.entries;}else freeMoney+=gained;toast(`+${gained} coin${gained===1?'':'s'}`);}element('coin-count').textContent=String(campaign?.progress.money??freeMoney);}
+    if(coins){const gained=coins.update(frozen?0:dt,state.position,!frozen&&!campaign?.interior,!onFoot);if(gained){if(campaign){campaign.engine.earn(gained);campaign.progress.coins[String(level)]=coins.entries;}else freeMoney+=gained;sound.coin();saveGame();toast(`+${gained} coin${gained===1?'':'s'}`);}element('coin-count').textContent=String(campaign?.progress.money??freeMoney);}
     const worldStart=performance.now();world.update(state.position);const worldMs=performance.now()-worldStart;metrics.record(frameMs,worldMs);updateCamera(dt);
     if(now-metricTime>500){metricText=metrics.summary();metricTime=now;}
     hud.update(dt,state,world.data,challenge,traffic);nativeHUD.draw(dt,state,world.data,challenge,traffic,hud.bigMap,onFoot);
@@ -228,7 +240,7 @@ function animate(now:number){
   }else if(highQuality)composer.render();else renderer.render(scene,camera);
 }
 function placePlayer(position:Vec3,heading:number,foot:boolean,parked?:Vec3){
-  state.position.fromArray(position);state.heading=heading;state.speed=0;state.verticalSpeed=0;state.steer=0;cruise=false;onFoot=foot;footHeading=heading;
+  state.position.fromArray(position);state.heading=heading;state.speed=0;state.verticalSpeed=0;state.steer=0;state.grounded=false;walking.reset(heading);resetVehicle(state);cruise=false;onFoot=foot;footHeading=heading;
   if(parked)parkedPosition.fromArray(parked);else if(!foot)parkedPosition.copy(state.position);parkedHeading=heading;
   if(car){car.position.copy(foot?parkedPosition:state.position);car.position.y+=carOffset;car.rotation.y=heading+Math.PI;car.visible=true;}
   if(character&&car){if(foot)character.walk(scene,state.position,heading);else character.drive(car);}
@@ -252,7 +264,7 @@ async function startCampaign(saved?:Progress,location?:{position:Vec3;heading:nu
       chapter:async(next,progressState)=>{await loadLevel(next);progressState.mission='';progressState.stage=0;progressState.phase='intro';progressState.equippedSkin=null;await startCampaign(progressState);},toast,traffic:limit=>{if(traffic)traffic.limit=limit;},save:saveGame,law:police
     });
     if(newChapter){const initial=arg(campaign.data.initial,'InitLevelPlayerVehicle');await setCar(String(initial[0]));state.damage=0;}
-    coins?.reset(progressState.coins[String(level)]??[]);await campaign.start(progressState.mission,!!saved&&!newChapter);
+    coins?.reset(progressState.coins[String(level)]??[]);world.objects.reset(progressState.brokenProps?.[String(level)]??[]);await campaign.start(progressState.mission,!!saved&&!newChapter);
 
     if(progressState.equippedSkin)await changeSkin(progressState.equippedSkin);
     lock(false);element('loading').hidden=true;pause(false);element('mode-badge').textContent='STORY';if(!saved)void campaign.presentation.playMovie('campaign/movies/fmv1a.mp4');
@@ -303,7 +315,7 @@ async function init(){
   catch(error){console.error(error);progress(0,'Game assets are missing. Run npm run extract and npm run convert, then reload.');}
 }
 void init();
-const removeDevTools=devTools(input,{scenario:async(value)=>{const [chapter,mission,phase,stage]=value.split(':');const p=newProgress();p.level=Number(chapter);p.mission=mission;p.phase=phase==='main'?'main':'intro';p.stage=Number(stage)||0;p.checkpoint={phase:p.phase,stage:p.stage};await startCampaign(p);},state:()=>`${campaign?`${level}:${campaign.progress.mission}:${campaign.progress.phase}:${campaign.progress.stage} · ${state.position.toArray().map(n=>n.toFixed(1)).join(',')} · ${campaign.error||campaign.engine.status}`:'No campaign'} · heat ${police?.meter.heat.toFixed(1)??0} · police ${police?.cars.length??0} · nearest ${police?.audibleDistance.toFixed(1)??'-'}`,resume:()=>pause(false),retry:()=>campaign?.retry(),objective:()=>{const target=campaign?.hud.target;if(target){const p=[...target] as Vec3;p[2]-=2;placePlayer(p,0,onFoot,parkedPosition.toArray());}},pursuit:()=>police?.command({op:'SetHitAndRunMeter',args:[100],line:0}),clearPursuit:()=>police?.reset(),testCoins:()=>{if(campaign)campaign.engine.earn(75);else freeMoney+=75;}});
+const removeDevTools=devTools(input,{place:value=>{const parts=value.trim().split(/\s+/),numbers=parts.slice(0,4).map(Number);if(numbers.length!==4||numbers.some(n=>!Number.isFinite(n))||!['foot','car'].includes(parts[4]))throw new Error('Use x y z heading-degrees foot/car');placePlayer(numbers.slice(0,3) as Vec3,THREE.MathUtils.degToRad(numbers[3]),parts[4]==='foot',parkedPosition.toArray());},scenario:async(value)=>{const [chapter,mission,phase,stage]=value.split(':');const p=newProgress();p.level=Number(chapter);p.mission=mission;p.phase=phase==='main'?'main':'intro';p.stage=Number(stage)||0;p.checkpoint={phase:p.phase,stage:p.stage};await startCampaign(p);},state:()=>`${campaign?`${level}:${campaign.progress.mission}:${campaign.progress.phase}:${campaign.progress.stage} · ${state.position.toArray().map(n=>n.toFixed(1)).join(',')} · ${campaign.error||campaign.engine.status}`:'No campaign'} · ${onFoot?'foot':'car'} ${state.speed.toFixed(1)} m/s ${state.grounded?'ground':'air'} · jumps ${walking.jumps} · coins ${campaign?.progress.money??freeMoney} · heat ${police?.meter.heat.toFixed(1)??0} · police ${police?.cars.length??0} · nearest ${police?.audibleDistance.toFixed(1)??'-'}`,resume:()=>pause(false),retry:()=>campaign?.retry(),objective:()=>{const target=campaign?.hud.target;if(target){const p=[...target] as Vec3;p[2]-=2;placePlayer(p,0,onFoot,parkedPosition.toArray());}},pursuit:()=>police?.command({op:'SetHitAndRunMeter',args:[100],line:0}),clearPursuit:()=>police?.reset(),testCoins:()=>{if(campaign)campaign.engine.earn(75);else freeMoney+=75;}});
 function dispose(){removeDevTools();campaign?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
 window.addEventListener('pagehide',dispose,{once:true});
 if(import.meta.hot)import.meta.hot.dispose(dispose);

@@ -6,6 +6,8 @@ import type { World } from '../world';
 import { Motion } from '../motion';
 import type { Offense } from '../hit-and-run';
 import { vehicleContact,type VehicleFootprint } from '../vehicle-collision';
+import { renderVehicleWheels,simulateVehicle,vehicleProfile,resetVehicle,collideVehicles,type VehicleProfile } from '../vehicle-physics';
+import { SteeringDriver,AI_RULES } from '../steering';
 import { CampaignEngine } from './engine';
 import { RoadNetwork,MissionRoute } from './roads';
 import { Presentation,type VoiceClip } from './presentation';
@@ -15,14 +17,14 @@ export interface Player {state:CarState;onFoot:boolean;vehicle:string;parkedPosi
 export interface CampaignCallbacks {player:()=>Player;place:(position:Vec3,heading:number,onFoot:boolean,parked?:Vec3)=>void;vehicle:(id:string)=>Promise<void>;skin:(id:string)=>Promise<void>;chapter:(id:number,progress:Progress)=>Promise<void>;toast:(message:string)=>void;traffic:(limit:number)=>void;save:()=>void;law?:{reset:()=>void;command:(command:Command)=>boolean;offense:(type:Offense,interior?:boolean)=>boolean}}
 export interface CampaignHUD {title:string;message:string;remaining:number|null;countdown:number;target?:Vec3;items:number;collected:number;failure:string;targetHealth?:number;hint:string}
 interface NPC {id:string;actor:Character;position:THREE.Vector3;heading:number;ambient:boolean;interior:string|null;waypoints:THREE.Vector3[];waypoint:number;motion:Motion;seller?:string;bonus?:string;reaction?:{phase:'flail'|'getup';remaining:number;velocity:THREE.Vector3;body:CarState}}
-interface Vehicle {id:string;mesh:THREE.Group;position:THREE.Vector3;heading:number;motion:Motion;offset:number;footprint:VehicleFootprint;health:number;speed:number;mode:string;waypoints:THREE.Vector3[];waypoint:number;path:THREE.Vector3[];pathIndex:number;route?:MissionRoute;finished:boolean;hitCooldown:number;repath:number}
+interface Vehicle extends CarState {id:string;mesh:THREE.Group;motion:Motion;offset:number;footprint:VehicleFootprint;profile:VehicleProfile;driver:SteeringDriver;tuning:Record<string,number>;cruiseSpeed:number;health:number;mode:string;waypoints:THREE.Vector3[];waypoint:number;path:THREE.Vector3[];pathIndex:number;route?:MissionRoute;finished:boolean;hitCooldown:number;repath:number}
 export class Campaign {
   readonly engine:CampaignEngine;readonly presentation=new Presentation();interior:string|null=null;error='';
   private npcs=new Map<string,NPC>();private vehicles=new Map<string,Vehicle>();private models=new Map<string,THREE.Group>();private items=new Map<number,THREE.Group>();private itemsRoot=new THREE.Group();private target=new THREE.Group();private road:RoadNetwork;
   private destructibles=new Map<number,THREE.Object3D[]>();private beam:THREE.Mesh|undefined;private cargoModel:THREE.Group|undefined;
   private busy=false;private disposed=false;private action=false;private kicked=false;private missionKey='';private phaseKey='';private time=0;private returnPosition:Vec3|null=null;private bossCharge=0;private bossHit=false;private stateProp:THREE.Group|undefined;private boss:THREE.Group|undefined;private retryKey='';
   private constructor(public world:World,public data:Chapter,public assets:CampaignAssets,public progress:Progress,private callbacks:CampaignCallbacks,rewards:Reward[]){
-    this.engine=new CampaignEngine(data,progress,rewards);this.road=new RoadNetwork(world.data.roads);world.scene.add(this.itemsRoot,this.target);
+    this.engine=new CampaignEngine(data,progress,rewards);this.road=new RoadNetwork(world.data.roads,world.data.navigation);world.scene.add(this.itemsRoot,this.target);
     const ring=new THREE.Mesh(new THREE.TorusGeometry(2.3,.10,8,48),new THREE.MeshBasicMaterial({color:0xffd900,depthTest:true}));ring.rotation.x=-Math.PI/2;this.target.add(ring);
     const arrow=new THREE.Mesh(new THREE.ConeGeometry(.6,1.2,4),new THREE.MeshBasicMaterial({color:0xffd900}));arrow.rotation.z=Math.PI;arrow.position.y=4;this.target.add(arrow);
   }
@@ -37,9 +39,10 @@ export class Campaign {
     }
     return campaign;
   }
-  get frozen(){return this.busy||this.presentation.active||this.engine.status==='failed'||!!this.error;}
+  get frozen(){return this.busy||this.presentation.active||this.engine.countdown>0||this.engine.status==='failed'||!!this.error;}
   get active(){return this.engine.status!=='idle';}
   get trafficObstacles(){return [...this.vehicles.values()].map(v=>v.position).concat([...this.npcs.values()].filter(n=>n.interior===null).map(n=>n.position));}
+  get vehicleBodies(){return [...this.vehicles.values()];}
   get hud():CampaignHUD{
     const snapshot=this.snapshot(),target=this.navigationTarget(snapshot);
     return {title:this.engine.mission?.title??'',message:this.error||this.engine.stage?.message||'',remaining:this.engine.remaining,countdown:this.engine.countdown,target,items:this.engine.stage?this.engine.items.length:0,collected:this.engine.collected.size,failure:this.error||this.engine.failure,targetHealth:this.engine.objective==='destroy'?this.engine.targetEntity(snapshot)?.health:undefined,hint:this.hint()};
@@ -75,9 +78,9 @@ export class Campaign {
   }
   private async vehicle(id:string,location:unknown,mode='NULL',tuning=''){
     let car=this.vehicles.get(id);const loc=this.locator(location);
-    if(!car){const name=this.assets.cars[id];if(!name)throw new Error(`Missing mission vehicle ${id}`);const mesh=await this.model(name),box=new THREE.Box3().setFromObject(mesh),size=box.getSize(new THREE.Vector3());this.world.scene.add(mesh);car={id,mesh,position:new THREE.Vector3(),heading:0,motion:new Motion(),offset:-box.min.y+.04,footprint:{halfWidth:size.x/2,halfLength:size.z/2},health:1,speed:13,mode:'null',waypoints:[],waypoint:0,path:[],pathIndex:0,finished:false,hitCooldown:0,repath:0};this.vehicles.set(id,car);}
+    if(!car){const name=this.assets.cars[id];if(!name)throw new Error(`Missing mission vehicle ${id}`);const mesh=await this.model(name),box=new THREE.Box3().setFromObject(mesh),size=box.getSize(new THREE.Vector3()),profile=vehicleProfile(mesh);this.world.scene.add(mesh);car={id,mesh,position:new THREE.Vector3(),heading:0,motion:new Motion(),offset:-box.min.y+.04,footprint:{halfWidth:size.x/2,halfLength:size.z/2},profile,driver:new SteeringDriver(),tuning:{},cruiseSpeed:13,health:1,speed:0,verticalSpeed:0,steer:0,distance:0,damage:0,mode:'null',waypoints:[],waypoint:0,path:[],pathIndex:0,finished:false,hitCooldown:0,repath:0};this.vehicles.set(id,car);}
     car.position.fromArray(loc.position);car.heading=loc.heading??car.heading;car.mode=key(mode);car.health=1;car.finished=false;car.waypoint=0;car.path=[];car.pathIndex=0;car.route=undefined;
-    const config=this.assets.missionTuning[key(tuning).replaceAll('\\','/')]??this.assets.tuning[id];car.speed=(config?.SetTopSpeedKmh??75)/3.6;car.motion.reset(car);return car;
+    const config=this.assets.missionTuning[key(tuning).replaceAll('\\','/')]??this.assets.tuning[id];car.tuning=config??{};car.cruiseSpeed=(config?.SetTopSpeedKmh??75)/3.6;car.speed=car.verticalSpeed=car.damage=car.steer=0;resetVehicle(car);car.driver.reset();car.motion.reset(car);return car;
   }
   private async prop(id:unknown){const name=key(id),asset=this.assets.props[`${this.data.id}:${name}`]??this.assets.props[name];return asset?this.model(asset):undefined;}
   async start(id=this.progress.mission,restore=false){
@@ -191,21 +194,28 @@ export class Campaign {
   }
   private updateVehicles(dt:number){
     const player=this.callbacks.player();let hit:string|undefined;
+    if(this.interior)return hit;
     for(const car of this.vehicles.values()){
-      car.motion.capture(car);car.hitCooldown=Math.max(0,car.hitCooldown-dt);car.repath-=dt;if(car.health<=0||car.mode==='null'||this.engine.countdown>0)continue;
+      car.motion.capture(car);car.hitCooldown=Math.max(0,car.hitCooldown-dt);car.repath-=dt;if(car.health<=0||this.engine.countdown>0)continue;
       const chase=car.mode==='chase';
       if(chase&&car.repath<=0&&!this.interior){car.route=new MissionRoute(this.road.route(car.position,player.state.position));car.repath=1.2;car.finished=false;}
-      if(!chase&&(!car.route||car.route.finished)&&!car.finished){
-        if(car.waypoint>=car.waypoints.length){car.finished=car.waypoints.length>0;continue;}
+      if(car.mode!=='null'&&!chase&&(!car.route||car.route.finished)&&!car.finished){
+        if(car.waypoint>=car.waypoints.length){car.finished=car.waypoints.length>0;}
+        else
         car.route=new MissionRoute(this.road.route(car.position,car.waypoints[car.waypoint]));
       }
       if(car.route&&!car.finished){
-        const heading=car.route.advance(car.speed*dt,car.position),turn=Math.atan2(Math.sin(heading-car.heading),Math.cos(heading-car.heading));car.heading+=turn*(1-Math.exp(-12*dt));
+        const target=car.route.follow(car.position,Math.max(AI_RULES.minimumLookahead,Math.abs(car.speed)*AI_RULES.lookaheadSeconds));
+        const obstacles=[...this.vehicles.values()].filter(v=>v!==car).map(v=>({position:v.position,heading:v.heading,footprint:v.footprint}));
+        if(!chase)obstacles.push({position:player.state.position,heading:player.state.heading,footprint:player.footprint??car.footprint});
+        const control=car.driver.controls(car,target,car.cruiseSpeed,dt,car.tuning,obstacles,car.footprint);
+        simulateVehicle(car,control,dt,car.tuning,car.profile,this.world.terrain,false);
         if(!chase&&car.route.finished){car.waypoint++;car.finished=car.waypoint>=car.waypoints.length;}
-        if(!this.interior){const ground=this.world.terrain.ground(car.position.x,car.position.z,car.position.y,3);if(ground)car.position.y=ground.point.y;}
-      }
-      if(!player.onFoot&&car.hitCooldown===0&&vehicleContact(player.state,car,player.footprint,car.footprint)){
-        const closing=Math.abs(player.state.speed-car.speed);if(closing>1){const alive=car.health>0;car.health=Math.max(0,car.health-Math.min(.35,.06+closing*.008));player.state.damage=Math.min(100,player.state.damage+closing*.18);player.state.speed*=.65;car.hitCooldown=1;hit=car.id;if(alive)this.callbacks.law?.offense(car.health===0?'vehicleDestroyed':'vehicleHit',!!this.interior);}
+      }else simulateVehicle(car,{steer:0,throttle:0,brake:0,handbrake:true},dt,car.tuning,car.profile,this.world.terrain,false);
+      car.health=Math.min(car.health,1-car.damage/100);
+      if(!player.onFoot){
+        const contact=collideVehicles(player.state,car,this.assets.tuning[player.vehicle]?.SetMass??1500,car.tuning.SetMass??1500,player.footprint,car.footprint);
+        if(contact&&contact.closing>1&&car.hitCooldown===0){const closing=contact.closing,alive=car.health>0;car.health=Math.max(0,car.health-Math.min(.35,.06+closing*.008));player.state.damage=Math.min(100,player.state.damage+closing*.18);car.hitCooldown=1;hit=car.id;if(alive)this.callbacks.law?.offense(car.health===0?'vehicleDestroyed':'vehicleHit',!!this.interior);}
       }
     }
     return hit;
@@ -247,7 +257,7 @@ export class Campaign {
   render(dt:number,alpha:number){
     const player=this.callbacks.player();
     for(const npc of this.npcs.values()){const pose=npc.motion.sample(npc,alpha);npc.actor.group.position.copy(pose.position);npc.actor.group.rotation.y=pose.heading;npc.actor.group.visible=(!npc.bonus||!this.engine.mission.optional)&&npc.interior===this.interior&&npc.position.distanceToSquared(player.state.position)<150**2;if(npc.actor.group.visible){if(this.presentation.active&&this.engine.objective==='dialogue'){const animations=all(this.engine.stage.commands,'AddAmbientNpcAnimation'),name=key(animations[(this.presentation.line-1)%Math.max(1,animations.length)]?.[0]);npc.actor.play(name&&name!=='none'?'hom_'+name:'hom_loco_idle_rest');}npc.actor.update(dt);}}
-    for(const car of this.vehicles.values()){const pose=car.motion.sample(car,alpha);car.mesh.position.copy(pose.position);car.mesh.position.y+=car.offset;car.mesh.rotation.y=pose.heading+Math.PI;car.mesh.visible=!this.interior&&car.position.distanceToSquared(player.state.position)<460**2;}
+    for(const car of this.vehicles.values()){const pose=car.motion.sample(car,alpha);car.mesh.position.copy(pose.position);car.mesh.position.y+=car.offset;car.mesh.rotation.y=pose.heading+Math.PI;if(car.vehicleMotion){car.mesh.position.copy(pose.position).add(new THREE.Vector3(0,car.offset,0).applyQuaternion(car.vehicleMotion.orientation));car.mesh.quaternion.copy(car.vehicleMotion.orientation).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI));}renderVehicleWheels(car.mesh,car.vehicleMotion,car.profile,car.tuning);car.mesh.visible=!this.interior&&car.position.distanceToSquared(player.state.position)<460**2;}
     if(this.engine.stage){const point=this.navigationTarget(this.snapshot());this.target.scale.setScalar(player.onFoot?.55:1);this.target.visible=!!point&&!this.presentation.active&&!this.error;if(point){this.target.position.fromArray(point);this.target.position.y+=.2;this.target.children[1].position.y=3.5+Math.sin(this.time*3)*.3;this.target.children[1].rotation.y=this.time;}}
     this.itemsRoot.visible=!this.presentation.active;
   }

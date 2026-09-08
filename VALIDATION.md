@@ -4,6 +4,20 @@ The local PAL PS2 extraction contains 24 disc files and 18,754 entries from 11 R
 
 ## September 8, 2026
 
+### Vehicle physics, source lanes and world interaction pass
+
+- Added four-wheel suspension, source tuning and terrain grip, angular body motion, contact-point collision impulses, rollover recovery and rendered wheel travel. Player, traffic, police and mission cars share the solver. The host integrator and collision solver remain reconstructed code.
+- Corrected directional road-lane interpretation and added 5,486 static/interactive prop placements across seven levels, with 61 extra scene exports. Every interactive ID resolves to a render document. Source ground buffers are unchanged; the earlier 9,549 exterior and 487 interior static shapes remain present. World and coin-audio conversions report zero errors.
+- Corrected the texture V orientation of all 71 vehicle GLBs. The bus has four replacement lettering meshes, verified against the original label locations and source UV atlas. A single scene-root check caught and removed an unrelated Blender default cube before release.
+- Seven native analysis passes exported 459 functions at 380 distinct physical-code addresses, with zero failures or unresolved requested functions. The original executable's SHA-256 still matches the earlier investigation. See [movement findings](docs/MOVEMENT_PHYSICS.md) for the rules and host approximations.
+- The full local suite passes **131 TypeScript tests and nine Python tests**, with zero failures or skips. Coverage includes suspension settling, thin-wall impacts, airborne steering, lateral momentum, rollover recovery, a fast corner, ramp launch/landing, jump heights and second-jump gating, finite-wall jumping, moving-car roof support and coin pool/reward behavior. All existing building, interior, campaign and pursuit regressions pass. The Pages build passes with the existing bundle-size warning.
+- The actual-map traffic regression runs 900 physics updates at the reported `(298.6, 4.2, 158.9)` junction. Vehicles do not overlap by more than 0.03 units, and crossing pairs do not remain stopped together for four seconds. A separate actual-map test starts an overturned sedan at `(401.8, 4.8, -49.6)` and verifies recovery.
+- In the browser, the stationary sedan retained 100% condition at the reported residential junction. A local stationary sample showed 120 FPS and frame p95 9.2 ms. This sample predates the final rendered-wheel/platform integration and is not a cross-device performance result.
+- A browser crate check used a vehicle approach from `(180.5, 4.1, 204.5)`. It finished at `(180.7, 4.4, 210.2)` with exactly ten coins, 100% condition and zero heat. A preceding foot kick removed the neighbouring crate; its scattered coins were not collected during that check.
+- Using normal exit and jump inputs, Homer jumped from beside the sedan and landed on its roof at `(219.5, 5.1, 179.9)`, grounded with the jump count reset. Timed input and position controls were used to stage these checks.
+- Reloading the page and choosing Load Game restored the campaign with all eleven collected coins. The isolated browser run reported zero warnings or errors after the final runtime reload.
+- A drive and turn from the reported wall location finished upright and grounded at `(426.5, 5.1, -64.8)`. It picked up one source trail coin, leaving eleven coins and 95% condition. This browser route is a driveability check, not a reproduction of the original ramp launch. The targeted ramp and overturned-wall checks are automated tests.
+
 ### Exterior collision correction and pursuit pass
 
 - The earlier interior fix was incomplete. A separate fall remained outside Kwik-E-Mart: walking straight into the building crossed its missing exterior wall and reached `(213.9, -42.0, 311.0)` before entering the room. This was reproduced in the browser from the tutorial's shop objective.

@@ -1,0 +1,5 @@
+range:00252538:00252eb0
+range:0028f6e0:0028f800
+at:00267bc8 Character_get_maximum_speed
+00478778 CoinManager_primary_vtable
+0025b778 Coin_model_assignment_callers

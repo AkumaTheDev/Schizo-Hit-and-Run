@@ -1,0 +1,6 @@
+0047ad10 PhysicsLocomotion_vtable
+range:0027efc0:00281400
+004549d8 VehicleAI_vtable
+001248f0 JumpAction_configuration_callers
+004af438 JumpAction_gravity_references
+0025b818 CoinManager_pickup_check_callers

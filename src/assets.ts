@@ -2,18 +2,19 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
+import type { RoadNavigation } from './road-data';
 
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
 export interface Place { name: string; position: [number, number, number] }
-export interface LevelData { id: number; scenes: string[]; locations: Place[]; locators: (Place & { kind: number })[]; roads: number[][][]; fences: number[][][] }
+export interface LevelData { id: number; scenes: string[]; locations: Place[]; locators: (Place & { kind: number })[]; roads: number[][][]; fences: number[][][];navigation?:RoadNavigation }
 export interface Catalog { carNames?:Record<string,string>;levels: number[]; cars: string[]; textures: Record<string,string>; stats: Record<string,number> }
 export interface SceneryMaterial {albedo:string;kind:string;detail:string;roughness:number;metalness:number;bump:number;scale:number}
 interface MaterialData {scenery?:SceneryMaterial; texture: string; textureUrl?: string; alpha: boolean; blend: number; lit: boolean; translucent: boolean }
 interface Primitive { shader: string; attributes: Record<string,[number,number]> }
-interface AssetData { collision: [number,number] | null; objects: { name: string; mesh: string; matrix: number[] }[]; meshes: Record<string,Primitive[]>; materials: Record<string,MaterialData> }
+interface AssetData { collision: [number,number] | null; objects: { name: string; mesh: string; matrix: number[];interactiveId?:string;movable?:boolean }[]; meshes: Record<string,Primitive[]>; materials: Record<string,MaterialData> }
 
 export const assetURL=(path:string)=>`${import.meta.env?.BASE_URL??'/'}assets/${path}`;
 const textureLoader=new THREE.TextureLoader();
@@ -113,10 +114,11 @@ export class Assets {
     const root = new THREE.Group(); root.name = name;
     // Batch static geometry by material inside each streaming region.
     const batches = new Map<THREE.Material,THREE.BufferGeometry[]>();
+    const interactive=new Map<string,THREE.Group>();
     for (const object of meta.objects) {
       const matrix = new THREE.Matrix4().fromArray(object.matrix);
       const group = new THREE.Group();group.name=object.name;
-      const individual=vehicle||/^powerbox\d+$/i.test(object.name);
+      const individual=vehicle||object.movable||/^powerbox\d+$/i.test(object.name);
       for (const part of groups.get(object.mesh) ?? []) {
         if (individual) {
           const mesh = new THREE.Mesh(part.geometry,part.material);
@@ -128,7 +130,10 @@ export class Assets {
           const batch=batches.get(part.material) ?? [];batch.push(geometry);batches.set(part.material,batch);
         }
       }
-      if (individual) {group.applyMatrix4(matrix);root.add(group);}
+      if (individual) {group.applyMatrix4(matrix);
+        if(object.movable){let owner=interactive.get(object.interactiveId!);if(!owner){owner=new THREE.Group();owner.name=object.interactiveId!;interactive.set(owner.name,owner);root.add(owner);}owner.add(group);}
+        else root.add(group);
+      }
     }
     for (const [mat,geometries] of batches) {
       const merged=mergeGeometries(geometries);

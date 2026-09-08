@@ -1,0 +1,12 @@
+# PAL SLES_518.97 movement, vehicle and world-interaction type references.
+00454248 WalkerLocomotionAction
+004542d0 JumpAction
+00454b10 VehicleAI
+00454b58 TrafficAI
+0046dba0 FenceEntityDSG
+00478798 CoinManager
+004798c0 CharacterController
+00479900 CameraRelativeCharacterController
+0047b1b8 VehicleLocomotion
+0047b1d0 PhysicsLocomotion
+0047b238 TrafficLocomotion

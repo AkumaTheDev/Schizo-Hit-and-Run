@@ -10,6 +10,8 @@ roots=[o for o in scene.objects if o.parent is None]
 if len(roots)!=1 or not roots[0].name.startswith('car-schoolbu'):raise ValueError('Expected one school-bus root')
 root=roots[0];root['sourceUVOrigin']='top-left';root['letteringVersion']=1
 for obj in list(scene.objects):
+    if obj.name.startswith('School bus '):
+        bpy.data.objects.remove(obj,do_unlink=True);continue
     if obj.type!='MESH':continue
     slots={i for i,m in enumerate(obj.data.materials) if m and 'schoolbusGlow_m' in m.name}
     if slots:

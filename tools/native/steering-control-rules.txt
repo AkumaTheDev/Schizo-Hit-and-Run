@@ -1,0 +1,5 @@
+range:0012d800:0012eea0
+range:001f8768:001f8ac0
+0028f6e8 Vehicle_tuning_apply_callers
+0028f648 Wheel_initialization_callers
+0028f7a8 Wheel_angle_limit_callers

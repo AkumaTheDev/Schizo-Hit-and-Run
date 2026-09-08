@@ -28,7 +28,7 @@ Press Start, then New Game. Escape opens the pause menu. Options contains the le
 | Control | Action |
 | --- | --- |
 | W A S D / arrows | Drive or move on foot |
-| Space | Handbrake or jump |
+| Space | Handbrake; jump, then press again near the apex to double jump |
 | E | Talk, enter buildings, enter or leave your vehicle |
 | F | Kick on foot |
 | Enter | Retry a failed mission |
@@ -47,7 +47,8 @@ Touch driving controls and standard gamepad steering/triggers are available. Ful
 ## Current work
 
 - Seven level variants and five player characters, with original geometry, character animations, UI artwork, bitmap fonts, and the animated living-room menu.
-- Driving, walking, road traffic, coins, vehicle damage, local saves, and an added five-stop time trial.
+- Four-wheel vehicle suspension, tyre forces, airborne rotation and collision recovery. Traffic, police and mission vehicles use steering and pedal inputs on the same solver. Source lane data replaces the earlier two-way interpretation of directional road quads. [Physics findings and remaining differences](docs/MOVEMENT_PHYSICS.md).
+- Walking, double jumping, vehicle-roof support, coin trails and bouncing crate rewards. The world includes 5,486 static and interactive prop placements. Vehicle damage, local saves and the added five-stop time trial remain available.
 - Interpolated player and NPC motion, continuous junction paths, and grass placement spread across frames.
 - Walking collision uses 9,549 original exterior static shapes across seven levels, plus 487 shapes from the 19 interiors. Buildings block movement before the door interaction; entering switches to the room's original floor and solid shapes. Primitive dimensions were checked against the PS2 executable.
 - Hit & Run heat, police pursuit, capture and the 50-coin penalty use rules traced through the PS2 executable. Level seven uses the original pursuit hearses. Traffic uses the original five-slot groups, and NPC impacts play the original flail/get-up animations. [Pursuit findings and remaining differences](docs/PURSUIT_PARITY.md).
@@ -56,7 +57,7 @@ Touch driving controls and standard gamepad steering/triggers are available. Ful
 - Original mission dialogue, opening/campaign movies, briefings, NPC conversation animations, accessible interiors, delivery and destruction targets, multi-lap races and nuclear-waste/UFO objectives. There are 67 character models, 71 vehicle models and 549 dialogue clips, plus 55 original mission briefing pictures.
 - Saves resume from the latest mission checkpoint and preserve coins, purchased cars, outfits and completed missions. Bonus missions return to the story checkpoint afterward.
 
-This is not yet a 1:1 port. Vehicle handling, AI steering and collision response are reconstructed systems. Traffic lights, parked traffic, boarding ordinary traffic vehicles, gags, general destructible physics, collectible-card gameplay and menu parity still need work. Mission AI and the UFO sequence use reconstructed behavior; their timing and difficulty have not been validated against complete original-game playthroughs. The original executable is not being recompiled.
+This is not yet a 1:1 port. Vehicle handling and AI now use rules recovered from the executable, but the rigid-body solver, collision response and driver control remain reconstructed systems. Traffic lights, parked traffic, boarding ordinary traffic vehicles, gags, free prop motion and debris, collectible-card gameplay and menu parity still need work. Mission AI and the UFO sequence use reconstructed behavior; their timing and difficulty have not been validated against complete original-game playthroughs. The original executable is not being recompiled.
 
 ## Around Springfield
 
@@ -90,6 +91,9 @@ npm run remaster
 blender --background --factory-startup --python tools/campaign_cars.py
 blender --background --factory-startup --python tools/scenery_remaster.py
 npm run pursuit:remaster
+npm run movement:convert
+npm run vehicles:repair-uv
+npm run bus:remaster
 ```
 
 The input ISO is only read. On macOS, `npm run remaster` detects `/Applications/Blender.app`. Set `BLENDER_PATH` for another installation. Use Blender's full executable path in the two direct commands if it is not on `PATH`.

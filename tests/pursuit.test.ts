@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
+import '../src/assets.ts';
+import { Terrain } from '../src/physics.ts';
+import type { LevelData } from '../src/assets.ts';
 import { Pursuit,pursuitSpawns } from '../src/pursuit.ts';
 import { pursuitSettings } from '../src/hit-and-run.ts';
 import { trafficModels,trafficGroup,trafficSpawnCandidates,trafficDesiredSpeed,TRAFFIC_RULES } from '../src/traffic.ts';
@@ -9,6 +12,7 @@ import { RoadNetwork } from '../src/campaign/roads.ts';
 import { vehicleContact,vehicleTravelDistance } from '../src/vehicle-collision.ts';
 import type { World } from '../src/world.ts';
 import type { CampaignAssets,Player } from '../src/campaign/runtime.ts';
+import { simulateVehicle,DEFAULT_VEHICLE } from '../src/vehicle-physics.ts';
 const straight=[[[0,0,-200],[0,0,200]]];
 test('vehicle footprints allow adjacent lanes and detect contact after rotation',()=>{
   const a={position:new THREE.Vector3(),heading:0},b={position:new THREE.Vector3(2.8,0,0),heading:Math.PI};
@@ -49,12 +53,14 @@ test('ordinary traffic brakes before a stopped car and does not block the opposi
 });
 test('police drive from a spawn to a stopped player and deduct a single bounded fine',async()=>{
   const scene=new THREE.Scene(),model=new THREE.Group();model.add(new THREE.Mesh(new THREE.BoxGeometry(1.7,1.4,4),new THREE.MeshStandardMaterial()));
-  const world={scene,data:{roads:straight},assets:{load:async()=>({root:model})},terrain:{ground:(x:number,z:number)=>({point:new THREE.Vector3(x,0,z)})}} as unknown as World;
+  for(let i=0;i<4;i++){const wheel=new THREE.Group();wheel.name=`w${i}`;wheel.position.set(i%2?.7:-.7,-.35,i<2?1.3:-1.3);wheel.add(new THREE.Mesh(new THREE.SphereGeometry(.35,8,6)));model.add(wheel);}
+  const floor=new THREE.PlaneGeometry(500,500).rotateX(-Math.PI/2).toNonIndexed();floor.deleteAttribute('normal');floor.deleteAttribute('uv');const terrain=new Terrain([floor],{fences:[]} as unknown as LevelData);
+  const world={scene,data:{roads:straight},assets:{load:async()=>({root:model})},terrain} as unknown as World;
   const settings=pursuitSettings([]),assets={missionTuning:{'pursuit/l1cop.con':{SetTopSpeedKmh:140,SetGasScale:10,SetMass:1750,SetHitPoints:.5}},tuning:{famil_v:{SetMass:1500}}} as unknown as CampaignAssets;
   const player:Player={state:{position:new THREE.Vector3(0,.06,0),heading:0,speed:0,verticalSpeed:0,steer:0,distance:0,damage:0},onFoot:false,vehicle:'famil_v',parkedPosition:new THREE.Vector3(),parkedHeading:0};
   let money=75,busts=0;const pursuit=new Pursuit(world,settings,assets,{toast:()=>{},fine:amount=>{const paid=Math.min(money,amount);money-=paid;return paid;},busted:()=>{busts++;}});
   await pursuit.load();pursuit.meter.setHeat(100);let closest=Infinity;
-  for(let i=0;i<600;i++){pursuit.update(1/60,player,false);for(const car of pursuit.cars)closest=Math.min(closest,car.position.distanceTo(player.state.position));}
+  for(let i=0;i<600;i++){if(!pursuit.frozen)simulateVehicle(player.state,{steer:0,throttle:0,brake:0,handbrake:false},1/60,assets.tuning.famil_v,DEFAULT_VEHICLE,terrain);pursuit.update(1/60,player,false);for(const car of pursuit.cars)closest=Math.min(closest,car.position.distanceTo(player.state.position));}
   assert(closest<10,'The car must actually reach catch distance');assert.equal(busts,1);assert.equal(money,25);assert.equal(pursuit.meter.heat,0);assert.equal(pursuit.cars.length,0);
-  pursuit.dispose();
+  pursuit.dispose();terrain.dispose();floor.dispose();
 });

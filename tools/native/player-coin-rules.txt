@@ -1,0 +1,9 @@
+# JumpAction, walking action, controller and CoinManager on PAL PS2.
+00453e68 JumpAction_vtable
+004540f8 WalkerLocomotionAction_vtable
+004796e8 CameraRelativeCharacterController_vtable
+range:00124618:00125e60
+range:00121020:001217d0
+range:0025ad00:0025c700
+range:0026b788:0026bc80
+0046cf20 FenceEntityDSG_vtable

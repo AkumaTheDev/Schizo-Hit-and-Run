@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 type Vec3 = [number, number, number];
-export type StaticShape = { name: string; center: Vec3 } & (
+export type StaticShape = { name: string; center: Vec3;transform?:number[] } & (
   { kind: 'box'; halfExtents: Vec3; axes: [Vec3, Vec3, Vec3] } |
   { kind: 'cylinder'; radius: number; length: number; flatEnds: boolean; axis: Vec3 } |
   { kind: 'sphere'; radius: number }
@@ -32,6 +32,7 @@ export function staticCollisionGeometry(data: InteriorCollision): THREE.BufferGe
       geometry = new THREE.SphereGeometry(shape.radius, 12, 8);
     }
     geometry.translate(...shape.center);
+    if(shape.transform)geometry.applyMatrix4(new THREE.Matrix4().fromArray(shape.transform));
     const triangles = geometry.toNonIndexed();
     geometry.dispose();
     triangles.deleteAttribute('normal');triangles.deleteAttribute('uv');

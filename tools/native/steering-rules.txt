@@ -1,0 +1,5 @@
+004549d8 VehicleAI_primary_vtable
+00454730 TrafficAI_vtable
+range:0012ad88:0012d400
+range:0028f5a0:0028f800
+0028f9a8 Suspension_limit_contact_callers

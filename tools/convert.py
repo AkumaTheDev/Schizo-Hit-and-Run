@@ -108,7 +108,7 @@ class Converter:
                     if prop.id==0x11002:props[key]=string(prop.data,4)[0]
                     elif prop.id==0x11003:props[key]=struct.unpack_from('<I',prop.data,4)[0]
                 self.shaders[name]=dict(texture=props.get('TEX','').lower(),alpha=bool(props.get('ATST',0)),blend=props.get('BLMD',0),lit=bool(props.get('LIT',0)),translucent=bool(translucent))
-    def export(self,path,outname,vehicle=False):
+    def export(self,path,outname,vehicle=False,mesh_name=None,instance_types=None):
         root=read(path);self.resources(root)
         meshes={sname(c):c for c in walk(root) if c.id==0x10000}
         placements=[]
@@ -133,7 +133,10 @@ class Converter:
             if c.id not in (0x3f0000e,0x3f00010,0x3f0000c):continue
             compound=next((x for x in walk(c) if x.id==0x4512),None)
             if compound is not None:composites[sname(c)]=composites.get(sname(compound),[])
-        if vehicle:
+        if mesh_name:
+            if mesh_name not in meshes:raise ValueError(f'{path}: missing mesh {mesh_name}')
+            placements=[(mesh_name,I,mesh_name)]
+        elif vehicle:
             composite=next((c for c in root.children if c.id==0x4512),None)
             if composite:
                 _,p=string(composite.data);skeleton_name,_=string(composite.data,p)
@@ -160,11 +163,12 @@ class Converter:
                         for drawable,local in composites[name]:placements.append((drawable,local@matrix,instance_name or label))
                 for sub in c.children:instances(sub,matrix,instance_name)
             for c in root.children:
+                if instance_types is not None and c.id not in instance_types:continue
                 if c.id==0x3f00000:
                     for mesh in c.children:
                         if mesh.id==0x10000:placements.append((sname(mesh),I,sname(mesh)))
                 elif c.id==0x120100:instances(c)
-                elif c.id in (0x3f00002,0x3f0000e,0x3000008):
+                elif c.id in (0x3f00002,0x3f0000a,0x3f00009,0x3f0000e,0x3000008):
                     for sub in walk(c):
                         if sub.id==0x3000008:instances(sub)
         blob=bytearray();exports=[];cache={}
@@ -191,7 +195,7 @@ class Converter:
                 cache[name]=primitives
             exports.append(dict(name=label,mesh=name,matrix=(mirror@matrix@mirror).flatten().tolist()))
         collision_parts=[]
-        for chunk in walk(root):
+        for chunk in walk(root) if mesh_name is None and instance_types is None else []:
             if chunk.id==0x3f00003:
                 ni,=struct.unpack_from('<I',chunk.data);idx=np.frombuffer(chunk.data,dtype='<u4',count=ni,offset=4)
                 p=4+ni*4;nv,=struct.unpack_from('<I',chunk.data,p);positions=floats(chunk.data,nv*3,p+4).reshape(-1,3)

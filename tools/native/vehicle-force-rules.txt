@@ -1,0 +1,13 @@
+# Wheel force, braking, lateral traction and suspension setup.
+range:002815b0:002822e0
+range:0028f7c0:0028fad0
+00477e08 SetMass
+00477e28 SetGasScale
+00477ed8 SetTireGrip
+00477ee8 SetNormalSteering
+00477f50 SetSuspensionLimit
+00477f68 SetSpringK
+00477f78 SetDamperC
+00477ea0 SetMaxWheelTurnAngle
+00477eb8 SetHighSpeedSteeringDrop
+00267bc8 Character_max_speed_callers
