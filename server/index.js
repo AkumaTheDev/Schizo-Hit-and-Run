@@ -41,6 +41,15 @@ function cleanName(value) {
   const text = String(value ?? '').replace(/[^A-Za-z0-9 _.\-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
   return text || `PLAYER${Math.floor(Math.random() * 900 + 100)}`;
 }
+/**
+ * A skin is either a game character id or a VRM filename on the shared asset host,
+ * which is case sensitive and carries a dot — so unlike a car id it cannot be
+ * lowercased or stripped of dots. It stays a bare filename: no slashes, no scheme.
+ */
+const cleanSkin = (value, fallback) => {
+  const text = String(value ?? '').replace(/[^A-Za-z0-9_.-]/g, '').replace(/\.{2,}/g, '.').slice(0, 64);
+  return text || fallback;
+};
 const cleanId = (value, fallback) => {
   const text = String(value ?? '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 32);
   return text || fallback;
@@ -107,7 +116,7 @@ const describe = (player) => ({ id: player.id, name: player.name, level: player.
 sockets.on('connection', (socket) => {
   if (players.size >= MAX_PLAYERS) { send(socket, { t: 'full' }); socket.close(); return; }
   const id = String(nextId++);
-  const player = { id, socket, name: '', level: 1, car: 'famil_v', skin: 'homer', sample: null, seen: Date.now(), joined: false };
+  const player = { id, socket, name: '', level: 1, car: 'famil_v', skin: 'SchizoAxe.vrm', sample: null, seen: Date.now(), joined: false };
   socket.isAlive = true;
   socket.on('pong', () => { socket.isAlive = true; });
 
@@ -120,7 +129,7 @@ sockets.on('connection', (socket) => {
       player.name = cleanName(message.name);
       player.level = Math.min(7, Math.max(1, Math.round(finite(message.level)) || 1));
       player.car = cleanId(message.car, 'famil_v');
-      player.skin = cleanId(message.skin, 'homer');
+      player.skin = cleanSkin(message.skin, 'SchizoAxe.vrm');
       player.joined = true;
       players.set(id, player);
       send(socket, { t: 'welcome', id, now: Date.now(), players: [...players.values()].map(describe) });
@@ -134,7 +143,7 @@ sockets.on('connection', (socket) => {
       if (!player.joined) return;
       player.level = Math.min(7, Math.max(1, Math.round(finite(message.level)) || player.level));
       player.car = cleanId(message.car, player.car);
-      player.skin = cleanId(message.skin, player.skin);
+      player.skin = cleanSkin(message.skin, player.skin);
       // The pose is stale the moment the level changes; drop it so nobody sees a ghost.
       player.sample = null;
       broadcast({ t: 'info', ...describe(player) }, id);

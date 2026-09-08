@@ -23,6 +23,7 @@ import { Challenge } from './challenge';
 import { Traffic } from './traffic';
 import { Sound } from './audio';
 import { Character } from './character';
+import { DEFAULT_VRM,isVrmSkin,VRM_MODELS,VrmAvatar,type Avatar } from './vrm-avatar';
 import { Coins } from './coins';
 import { FrameMetrics } from './performance';
 import { originalArt,OriginalMenu,OriginalHUD,FrontendRoom } from './original-ui';
@@ -47,12 +48,12 @@ let nativeMenu:OriginalMenu|undefined,menuRoom:FrontendRoom|undefined;const nati
 let coins:Coins|undefined;let campaignAssets:CampaignAssets;let kickUntil=0;let police:Pursuit|undefined,freeMoney=0;
 // Multiplayer. The net object only ever reads the local state and writes remote avatars —
 // it is never allowed to move `state`, so a bad connection cannot touch your own driving.
-const net=new Net();let remotes:RemotePlayers|undefined;let playerName=localStorage.getItem('hit-and-run:name')??'';let playerSkin='homer';
+const net=new Net();let remotes:RemotePlayers|undefined;let playerName=localStorage.getItem('hit-and-run:name')??'';let playerSkin=localStorage.getItem('hit-and-run:skin')??DEFAULT_VRM;
 const sample:Sample=[0,0,0,0,0,0,1,0,0,0,0,'hom_loco_idle_rest','famil_v'];
 let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65,footprint:VehicleFootprint=DEFAULT_FOOTPRINT;
 let chassis:VehicleProfile=DEFAULT_VEHICLE;
 let catalog:Catalog, loading=true,paused=true,highQuality=true,cameraMode=0,debug=false;
-let onFoot=false,cruise=false,character:Character|undefined,footHeading=0;const parkedPosition=new THREE.Vector3();let parkedHeading=0;
+let onFoot=false,cruise=false,character:Avatar|undefined,footHeading=0;const parkedPosition=new THREE.Vector3();let parkedHeading=0;
 let level=1, carId='famil_v',carModels=new Map<string,THREE.Group>();
 let last=performance.now(),accumulator=0,time=0,frame=0,fps=60,lastFPS=last,photo=false;
 // Orbit camera. `camYaw` is the direction the camera looks, so the car sits between it
@@ -93,6 +94,20 @@ function respawn(location?:number){
   if(car)car.position.copy(state.position).add(new THREE.Vector3(0,carOffset,0));
   updateCamera(1,true);
 }
+/**
+ * Build the body a skin names: a VRM from the shared host, or one of the game's own
+ * characters. A VRM that will not load falls back to the level's cartoon character
+ * rather than leaving the player invisible.
+ */
+async function makeAvatar(skin:string):Promise<Avatar>{
+  if(isVrmSkin(skin)){
+    try{return await new VrmAvatar().load(skin);}
+    catch(error){console.warn(`${skin} did not load; falling back to the cast`,error);}
+  }
+  const character=new Character();
+  await character.load(world.assets,campaignAssets.characters[skin]??(isVrmSkin(skin)?CHARACTER_IDS[level-1]:skin));
+  return character;
+}
 async function setCar(id:string){
   if(onFoot){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;}
   character?.group.removeFromParent();car?.removeFromParent();
@@ -113,9 +128,9 @@ async function loadLevel(nextLevel:number){
   try{
     const chapterPromise=json<Chapter>(`campaign/level${level}.json`);await world.load(level,progress);coins=new Coins(scene,world.data);freeMoney=coins.collected;progress(0.9,'Getting the cars ready…');
     locationSelect.replaceChildren(...world.data.locations.map((place,i)=>new Option(place.name,String(i))));
-    const chapter=await chapterPromise,driver=new Character();traffic=new Traffic(world,chapter.initial,campaignAssets.tuning);
+    const chapter=await chapterPromise;traffic=new Traffic(world,chapter.initial,campaignAssets.tuning);
     police=new Pursuit(world,pursuitSettings(chapter.initial),campaignAssets,{toast,fine:amount=>{const paid=Math.min(amount,freeMoney);freeMoney-=paid;saveGame();return paid;},busted:()=>sound.busted()});
-    await Promise.all([setCar(carId),driver.load(world.assets,CHARACTER_IDS[level-1]),traffic.load(),police.load(),coins.load(world.assets,world.objectData.coin)]);
+    const [driver]=await Promise.all([makeAvatar(playerSkin),setCar(carId),traffic.load(),police.load(),coins.load(world.assets,world.objectData.coin)]);
     character=driver;character.drive(car!);
     remotes=new RemotePlayers(scene,world,campaignAssets);net.describe(level,carId,playerSkin);
     element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
@@ -302,8 +317,10 @@ function placePlayer(position:Vec3,heading:number,foot:boolean,parked?:Vec3){
   camYaw=heading;camPitch=.12;lastLook=-99;motion.reset(state);smoothLook.copy(state.position);updateCamera(1,true);
 }
 async function changeSkin(id:string){
-  const asset=campaignAssets.characters[id]??id;const next=new Character();await next.load(world.assets,asset);character?.dispose();character=next;
+  playerSkin=id;try{localStorage.setItem('hit-and-run:skin',id);}catch{}
+  const next=await makeAvatar(id);character?.dispose();character=next;
   if(onFoot)character.walk(scene,state.position,state.heading);else character.drive(car!);
+  net.describe(level,carId,playerSkin);
 }
 function saveGame(){
   try{localStorage.setItem('hit-and-run:save',JSON.stringify({version:3,level,car:carId,position:state.position.toArray(),heading:state.heading,onFoot,parkedPosition:parkedPosition.toArray(),parkedHeading,money:freeMoney}));
@@ -323,22 +340,67 @@ run.addEventListener('click',startChallenge,options);
 element('pause').addEventListener('click',()=>pause(true),options);
 levelSelect.addEventListener('change',()=>void loadLevel(Number(levelSelect.value)),options);
 carSelect.addEventListener('change',async()=>{lock(true);try{await setCar(carSelect.value);respawn(Number(locationSelect.value));}catch(error){console.error(error);toast('That car could not be loaded.');}finally{lock(false);}},options);
+const skinSelect=element<HTMLSelectElement>('skin');
+skinSelect.replaceChildren(
+  ...VRM_MODELS.map(file=>new Option(file.replace(/\.vrm$/i,''),file)),
+  new Option('Springfield cast','cast'));
+skinSelect.value=playerSkin;
+// A saved cartoon character is not in the VRM list, so fall back to the cast entry.
+if(!skinSelect.value)skinSelect.value='cast';
+skinSelect.addEventListener('change',()=>{void changeSkin(skinSelect.value==='cast'?CHARACTER_IDS[level-1]:skinSelect.value).catch(()=>toast('That character would not load.'));},options);
 locationSelect.addEventListener('change',()=>{if(onFoot){onFoot=false;character?.drive(car!);}challenge.stop();respawn(Number(locationSelect.value));element('menu-place').textContent=world.data.locations[Number(locationSelect.value)].name;},options);
 lighting.addEventListener('change',()=>world.setLighting(lighting.value),options);
 element('sound').addEventListener('click',async()=>{const enabled=await sound.toggle();element('sound').textContent=enabled?'SOUND ON':'SOUND OFF';element('sound').setAttribute('aria-pressed',String(enabled));},options);
 element('quality').addEventListener('click',()=>{highQuality=!highQuality;renderer.shadowMap.enabled=highQuality;renderer.setPixelRatio(Math.min(devicePixelRatio,highQuality?2:1));composer.setPixelRatio(renderer.getPixelRatio());element('quality').textContent=highQuality?'HIGH QUALITY':'PERFORMANCE';},options);
 /**
- * Springfield is a landscape game. A phone can only be held to that by asking the
- * browser, and the browser only listens inside fullscreen and only from a gesture —
- * so the first tap takes both. When the lock is refused (every iPhone) the CSS
- * rotate gate covers the screen until the player turns the handset themselves.
+ * Springfield is a landscape game, and on a phone that means real fullscreen — the
+ * browser will not rotate a page that still has its address bar.
+ *
+ * Two rules decide whether the request is honoured, both learned the hard way in the
+ * sibling project: it must be fired SYNCHRONOUSLY inside the gesture's call stack (so
+ * nothing may be awaited first), and on Android only a RELEASE gesture counts — a
+ * pointerdown is silently ignored, which is why asking on first touch did nothing.
+ * So the request is re-fired on every tap until a real fullscreenchange confirms it,
+ * and only then is the orientation locked. Nothing is shown while this happens.
  */
-async function goLandscape(){
-  try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen({navigationUI:'hide'});}catch{}
-  try{await (screen.orientation as {lock?:(to:string)=>Promise<void>})?.lock?.('landscape');}catch{}
+type Fullscreenable=HTMLElement&{webkitRequestFullscreen?:()=>Promise<void>|void};
+type Fullscreened=Document&{webkitFullscreenElement?:Element|null;webkitExitFullscreen?:()=>Promise<void>|void};
+const isFullscreen=()=>!!(document.fullscreenElement||(document as Fullscreened).webkitFullscreenElement);
+function requestFullscreenNow(){
+  if(isFullscreen())return;
+  const root=document.documentElement as Fullscreenable;
+  const request=root.requestFullscreen??root.webkitRequestFullscreen;
+  if(!request)return;
+  // The options form throws outright on some older WebKit builds; the bare call still works.
+  try{void Promise.resolve(request.call(root,{navigationUI:'hide'})).catch(()=>{});}
+  catch{try{void Promise.resolve(request.call(root)).catch(()=>{});}catch{}}
 }
-if(matchMedia('(pointer:coarse)').matches)addEventListener('pointerdown',()=>{void goLandscape();},{once:true});
-element('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await goLandscape();}catch{toast('Fullscreen is unavailable in this browser.');}},options);
+const lockLandscape=()=>{try{void (screen.orientation as {lock?:(to:string)=>Promise<void>})?.lock?.('landscape')?.catch(()=>{});}catch{}};
+let fullscreenArmed=false;
+function armFullscreen(){
+  if(fullscreenArmed||!matchMedia('(pointer:coarse)').matches)return;
+  fullscreenArmed=true;
+  const attempt=()=>requestFullscreenNow();
+  const settled=()=>{if(isFullscreen()){lockLandscape();stop();}};
+  const stop=()=>{
+    fullscreenArmed=false;clearTimeout(timer);
+    document.removeEventListener('touchend',attempt,true);document.removeEventListener('click',attempt,true);
+    document.removeEventListener('fullscreenchange',settled);document.removeEventListener('webkitfullscreenchange',settled);
+  };
+  document.addEventListener('touchend',attempt,true);document.addEventListener('click',attempt,true);
+  document.addEventListener('fullscreenchange',settled);document.addEventListener('webkitfullscreenchange',settled);
+  // Never leave listeners armed forever on a browser that will simply never allow it.
+  const timer=setTimeout(stop,60000);
+}
+armFullscreen();
+// Anything that takes the tab away — a share sheet, a notification — drops fullscreen,
+// and Android follows it back in portrait. Coming back re-arms the same tap retry.
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!isFullscreen())armFullscreen();},options);
+document.addEventListener('fullscreenchange',()=>{if(isFullscreen())lockLandscape();else armFullscreen();},options);
+element('fullscreen').addEventListener('click',()=>{
+  if(isFullscreen()){void ((document as Fullscreened).exitFullscreen??(document as Fullscreened).webkitExitFullscreen)?.call(document);return;}
+  requestFullscreenNow();lockLandscape();armFullscreen();
+},options);
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);},options);
 window.addEventListener('blur',()=>{if(!paused&&!loading)pause(true);},options);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&!loading)pause(true);},options);

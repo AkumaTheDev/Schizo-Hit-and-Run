@@ -7,6 +7,7 @@
  */
 import * as THREE from 'three';
 import { Character } from './character';
+import { isVrmSkin,VrmAvatar,type Avatar as Body } from './vrm-avatar';
 import { peerColour,type Net,type PeerInfo,type Sample } from './net';
 import { renderVehicleWheels,vehicleProfile,type VehicleMotion,type VehicleProfile } from './vehicle-physics';
 import type { World } from './world';
@@ -21,7 +22,7 @@ interface Avatar {
   car?:THREE.Group;
   profile?:VehicleProfile;
   offset:number;
-  character?:Character;
+  character?:Body;
   tag:THREE.Sprite;
   motion:VehicleMotion;
   /** Set while the model for this peer is still downloading, so we only ask once. */
@@ -110,10 +111,12 @@ export class RemotePlayers {
   private async ensureCharacter(avatar:Avatar,skin:string){
     if(avatar.loadingSkin===skin)return;
     avatar.loadingSkin=skin;
-    const asset=this.assets.characters[skin]??skin;
     try{
-      const character=new Character();
-      await character.load(this.world.assets,asset);
+      // A peer's skin names either a VRM on the shared host or one of the game's own
+      // characters; either way the avatar that comes back is driven identically.
+      let character:Body;
+      if(isVrmSkin(skin))character=await new VrmAvatar().load(skin);
+      else{const cast=new Character();await cast.load(this.world.assets,this.assets.characters[skin]??skin);character=cast;}
       if(avatar.loadingSkin!==skin||!this.avatars.has(avatar.peer.id)){character.dispose();return;}
       avatar.character?.dispose();
       avatar.character=character;

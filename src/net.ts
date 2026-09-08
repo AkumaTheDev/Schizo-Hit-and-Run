@@ -183,7 +183,7 @@ export class Net {
   }
 
   private addPeer(raw:any){
-    const peer:PeerInfo={id:String(raw.id),name:String(raw.name??'PLAYER'),level:Number(raw.level??1),car:String(raw.car??'famil_v'),skin:String(raw.skin??'homer')};
+    const peer:PeerInfo={id:String(raw.id),name:String(raw.name??'PLAYER'),level:Number(raw.level??1),car:String(raw.car??'famil_v'),skin:String(raw.skin??'SchizoAxe.vrm')};
     this.peers.set(peer.id,peer);
     if(!this.buffers.has(peer.id))this.buffers.set(peer.id,new RemoteBuffer());
   }
