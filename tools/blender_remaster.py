@@ -45,7 +45,7 @@ def operator_object(parent,collection):
 def rebuild_car(car):
     scene=scene_get();name='car-'+car;collection=bpy.data.collections.new('Remastered '+car);scene.collection.children.link(collection)
     data=json.loads((ASSETS/(name+'.json')).read_text());blob=(ASSETS/(name+'.bin')).read_bytes()
-    root=bpy.data.objects.new(name,None);collection.objects.link(root)
+    root=bpy.data.objects.new(name,None);root['sourceUVOrigin']='top-left';collection.objects.link(root)
     totals={'sourceTriangles':0,'newWheelTriangles':0,'bevelledParts':0}
     def array(span,kind='<f4',width=3):return np.frombuffer(blob,dtype=kind,count=span[1],offset=span[0]).reshape(-1,width)
     for instance in data['objects']:
@@ -76,6 +76,9 @@ def rebuild_car(car):
             attrs=part['attributes'];pos=array(attrs['position']);positions=np.stack([pos[:,0],-pos[:,2],pos[:,1]],axis=1)
             indices=array(attrs['indices'],'<u4',3);uv=array(attrs['uv'],width=2)
             mesh=bpy.data.meshes.new(instance['mesh']);mesh.from_pydata(positions.tolist(),[],indices.tolist());mesh.update()
+            # Pure3D/exported PNG UVs start at the top; Blender starts at the
+            # bottom and glTF export flips V again. Convert exactly once here.
+            uv=uv.copy();uv[:,1]=1-uv[:,1]
             layer=mesh.uv_layers.new(name='UVMap');loops=np.array([loop.vertex_index for loop in mesh.loops]);layer.data.foreach_set('uv',uv[loops].flatten())
             obj=bpy.data.objects.new(instance['mesh'],mesh);collection.objects.link(obj);obj.parent=group;obj.data.materials.append(material(car+'_'+part['shader'],data['materials'][part['shader']]))
             # Weld packet duplication without losing UV loops, then round actual hard edges.
