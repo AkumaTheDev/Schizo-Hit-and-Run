@@ -1,0 +1,9 @@
+at:00295128 TrafficManager_constructor
+at:00293b68 TrafficManager_initialize
+at:00293dd8 TrafficManager_update
+at:002948e0 TrafficManager_distance_removal
+at:00295a68 TrafficManager_speed
+at:0017f368 AddTrafficModel_command
+# This short callback is not assigned a function by automatic analysis.
+# Its four instructions clear the script loader's current traffic-group pointer.
+at:0017f4f8 CloseTrafficGroup_command

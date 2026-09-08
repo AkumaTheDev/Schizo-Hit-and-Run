@@ -51,14 +51,19 @@ def leaves(volume, name):
         result = dict(kind='sphere', radius=struct.unpack('<f', shape.data)[0])
     result.update(name=name, center=vectors[0])
     dimensions = result.get('halfExtents', [result.get('radius'), result.get('length', 1)])
-    if not all(math.isfinite(v) and v > 0 for v in dimensions):
+    valid = all(math.isfinite(v) and v >= 0 for v in dimensions)
+    if result['kind'] == 'box':
+        valid = valid and sum(v > 0 for v in dimensions) >= 2
+    else:
+        valid = valid and result['radius'] > 0
+    if not valid:
         raise ValueError(f'{name}: invalid shape dimensions')
     if not all(math.isfinite(v) for row in vectors for v in row):
         raise ValueError(f'{name}: invalid shape vectors')
     yield result
 
 
-def convert(path):
+def convert(path, allow_empty=False):
     shapes = []
     for entity in walk(read(path)):
         if entity.id != 0x3f00001:  # StaticPhys; dynamic prop transforms differ.
@@ -69,7 +74,7 @@ def convert(path):
                 for volume in obj.children:
                     if volume.id == VOLUME:
                         shapes.extend(leaves(volume, name))
-    if not shapes:
+    if not shapes and not allow_empty:
         raise ValueError(f'{path}: no static interior physics shapes')
     return dict(version=1, source=str(path.relative_to(GAME)),
                 sha256=hashlib.sha256(path.read_bytes()).hexdigest(), shapes=shapes)

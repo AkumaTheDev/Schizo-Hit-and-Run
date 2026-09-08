@@ -1,0 +1,12 @@
+# PAL SLES_518.97 runtime type names and Hit & Run UI names.
+00478538 14HitnRunManager
+0047c370 12ChaseManager
+00454b30 7ChaseAI
+0046ae38 10HudHitNRun
+00467f28 HitNRunMeter
+00467f48 HitNRun
+0046abb8 HitNRunTicket
+00478498 HitnRunManager_vtable
+0047c2d0 ChaseManager_vtable
+range:00250d68:002523d8
+range:0029a2b0:0029ba00

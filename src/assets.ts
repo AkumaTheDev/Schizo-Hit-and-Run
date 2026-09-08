@@ -48,7 +48,7 @@ export class Assets {
 
   async load(name: string, vehicle = false) {
     if(vehicle){
-      const gltf=await new GLTFLoader().loadAsync(assetURL(`remaster/${name}.glb`));
+      const gltf=await new GLTFLoader().loadAsync(assetURL(`remaster/${name}.glb`)).catch(error=>{throw new Error(`Could not load converted vehicle ${name}: ${error.message}`,{cause:error});});
       const root=(gltf.scene.children[0]??gltf.scene) as THREE.Group;
       root.traverse(object=>{
         if(object.userData.p3dName)object.name=object.userData.p3dName;

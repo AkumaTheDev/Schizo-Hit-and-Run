@@ -1,7 +1,10 @@
 import { devTools } from './dev-tools';
 import { Campaign,type CampaignAssets } from './campaign/runtime';
 import { newProgress,validateProgress } from './campaign/engine';
-import { arg,type Progress,type Vec3 } from './campaign/types';
+import { arg,type Chapter,type Progress,type Vec3 } from './campaign/types';
+import { pursuitSettings } from './hit-and-run';
+import { Pursuit } from './pursuit';
+import { DEFAULT_FOOTPRINT,type VehicleFootprint } from './vehicle-collision';
 import { Motion } from './motion';
 import './style.css';
 import * as THREE from 'three';
@@ -38,8 +41,8 @@ const input=new Input(),hud=new HUD(),challenge=new Challenge(scene),sound=new S
 const state:CarState={position:new THREE.Vector3(220,3.5,172),heading:Math.PI/2,speed:0,verticalSpeed:0,steer:0,distance:0,damage:0};
 const motion=new Motion();motion.reset(state);
 let nativeMenu:OriginalMenu|undefined,menuRoom:FrontendRoom|undefined;const nativeHUD=new OriginalHUD();
-let coins:Coins|undefined;let campaign:Campaign|undefined,campaignAssets:CampaignAssets;let kickUntil=0;
-let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65;
+let coins:Coins|undefined;let campaign:Campaign|undefined,campaignAssets:CampaignAssets;let kickUntil=0;let police:Pursuit|undefined,freeMoney=0;
+let world:World, traffic:Traffic|undefined, car:THREE.Group|undefined,carOffset=0.65,footprint:VehicleFootprint=DEFAULT_FOOTPRINT;
 let catalog:Catalog, loading=true,paused=true,highQuality=true,cameraMode=0,debug=false;
 let onFoot=false,cruise=false,character:Character|undefined,footHeading=0;const parkedPosition=new THREE.Vector3();let parkedHeading=0;
 let level=1, carId='famil_v',carModels=new Map<string,THREE.Group>();
@@ -55,7 +58,7 @@ const play=element<HTMLButtonElement>('play'),run=element<HTMLButtonElement>('ch
 function progress(value:number,message:string){element('load-progress').style.width=`${value*100}%`;element('load-message').textContent=message;}
 function lock(value:boolean){loading=value;for(const node of document.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('#menu button,#menu select'))node.disabled=value;}
 function pause(value:boolean){
-  if(loading)return;paused=value;input.clear();accumulator=0;motion.reset(state);traffic?.resetInterpolation();campaign?.resetInterpolation();campaign?.presentation.setPaused(value);element('menu').hidden=!value;element('hud').hidden=value||photo;
+  if(loading)return;paused=value;input.clear();accumulator=0;motion.reset(state);traffic?.resetInterpolation();police?.resetInterpolation();campaign?.resetInterpolation();campaign?.presentation.setPaused(value);element('menu').hidden=!value;element('hud').hidden=value||photo;
   if(value){nativeMenu?.show('pause');cruise=false;play.querySelector('span')!.textContent='Back to Springfield';sound.pause();play.focus();}
   else{metrics.reset();sound.start();renderer.domElement.focus();smoothLook.copy(state.position);}
 }
@@ -84,21 +87,23 @@ async function setCar(id:string){
   character?.group.removeFromParent();car?.removeFromParent();
   if(!carModels.has(id)){const asset=await world.assets.load(`car-${id}`,true);carModels.set(id,asset.root);}
   car=carModels.get(id)!;carId=id;carSelect.value=id;
+  police?.enterVehicle(id);
   car.rotation.set(0,0,0);car.position.set(0,0,0);
-  const box=new THREE.Box3().setFromObject(car);carOffset=-box.min.y+0.04;
+  const box=new THREE.Box3().setFromObject(car),size=box.getSize(new THREE.Vector3());carOffset=-box.min.y+0.04;footprint={halfWidth:size.x/2,halfLength:size.z/2};
   car.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});
   scene.add(car);character?.drive(car);element('car-label').textContent=(CAR_NAMES[id]??id).toUpperCase();
   element('scene-info').textContent=`${CAR_NAMES[id]??id} · ${LEVEL_NAMES[level-1]}`;
 }
 async function loadLevel(nextLevel:number){
   lock(true);paused=true;element('loading').hidden=false;element('hud').hidden=true;challenge.stop();
-  campaign?.dispose();campaign=undefined;nativeHUD.campaign=null;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
+  campaign?.dispose();campaign=undefined;nativeHUD.campaign=null;police?.dispose();police=undefined;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
   level=nextLevel;levelSelect.value=String(nextLevel);lighting.value=level===7?'night':level>=4?'golden':'day';world=new World(scene,catalog);
   try{
-    await world.load(level,progress);coins=new Coins(scene,world.data);progress(0.9,'Getting the cars ready…');
+    const chapterPromise=json<Chapter>(`campaign/level${level}.json`);await world.load(level,progress);coins=new Coins(scene,world.data);freeMoney=coins.collected;progress(0.9,'Getting the cars ready…');
     locationSelect.replaceChildren(...world.data.locations.map((place,i)=>new Option(place.name,String(i))));
-    const driver=new Character();traffic=new Traffic(world);
-    await Promise.all([setCar(carId),driver.load(world.assets,CHARACTER_IDS[level-1]),traffic.load()]);
+    const chapter=await chapterPromise,driver=new Character();traffic=new Traffic(world,chapter.initial);
+    police=new Pursuit(world,pursuitSettings(chapter.initial),campaignAssets,{toast,fine:amount=>{const paid=Math.min(amount,campaign?.progress.money??freeMoney);if(campaign)campaign.progress.money-=paid;else freeMoney-=paid;saveGame();return paid;},busted:()=>sound.busted()});
+    await Promise.all([setCar(carId),driver.load(world.assets,CHARACTER_IDS[level-1]),traffic.load(),police.load()]);
     character=driver;character.drive(car!);
     element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
@@ -109,7 +114,7 @@ async function loadLevel(nextLevel:number){
     progress(0,error instanceof Error?error.message:String(error));element('load-message').textContent+=' · Check the console, then reload to retry.';console.error(error);
   }
 }
-function startChallenge(){campaign?.dispose();campaign=undefined;nativeHUD.campaign=null;world.leaveInterior();if(onFoot){onFoot=false;character?.drive(car!);}challenge.start(world.data);respawn(0);pause(false);element('mode-badge').textContent='SPRINGFIELD RUN';toast('Five stops. Five minutes. Make it home.');}
+function startChallenge(){campaign?.dispose();campaign=undefined;nativeHUD.campaign=null;police?.reset();world.leaveInterior();if(onFoot){onFoot=false;character?.drive(car!);}challenge.start(world.data);respawn(0);pause(false);element('mode-badge').textContent='SPRINGFIELD RUN';toast('Five stops. Five minutes. Make it home.');}
 function updateCamera(dt:number,snap=false){
   const position=motion.position;
   const conversation=campaign?.conversationCamera;if(conversation&&!paused){camera.position.copy(conversation.position);smoothLook.copy(conversation.look);camera.lookAt(smoothLook);camera.fov=45;camera.updateProjectionMatrix();return;}
@@ -144,10 +149,10 @@ function animate(now:number){
     if(input.consume('F3')){debug=!debug;element('debug').hidden=!debug;}
     if(!paused){
       if(input.consume('Enter')&&campaign?.engine.status==='failed')campaign.retry();
-      if(input.consume('KeyF')&&onFoot&&!campaign?.frozen){campaign?.kick();character?.play('hom_jump_kick');kickUntil=time+.45;}
-      if(input.consume('KeyR')){if(onFoot){onFoot=false;character?.drive(car!);}respawn();toast('Back on the road.');}
+      if(input.consume('KeyF')&&onFoot&&!campaign?.frozen&&!police?.frozen){campaign?.kick();character?.play('hom_jump_kick');kickUntil=time+.45;}
+      if(input.consume('KeyR')&&!police?.frozen){if(onFoot){onFoot=false;character?.drive(car!);}respawn();toast('Back on the road.');}
       if(input.consume('KeyH')&&!onFoot){cruise=!cruise;toast(cruise?'Cruise control · 50 km/h. Brake to cancel.':'Cruise control off.');}
-      if(input.consume('KeyE')&&character&&car&&!campaign?.frozen&&!campaign?.interact()){
+      if(input.consume('KeyE')&&character&&car&&!campaign?.frozen&&!police?.frozen&&!campaign?.interact()){
         if(onFoot){
           if(state.position.distanceTo(parkedPosition)<6){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;state.speed=0;character.drive(car);element('car-label').textContent=(CAR_NAMES[carId]??carId).toUpperCase();element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Drive</span><span><kbd>SPACE</kbd> Drift</span><span><kbd>E</kbd> Get out</span><span><kbd>H</kbd> Cruise</span><span><kbd>C</kbd> Camera</span>';toast('Back behind the wheel.');}
           else toast('Get closer to your car.');
@@ -156,7 +161,7 @@ function animate(now:number){
           state.position.add(new THREE.Vector3(Math.cos(state.heading)*2,0,-Math.sin(state.heading)*2));state.speed=0;
           character.walk(scene,state.position,state.heading);element('car-label').textContent=CHARACTER_NAMES[level-1];element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Walk</span><span><kbd>SHIFT</kbd> Run</span><span><kbd>SPACE</kbd> Jump</span><span><kbd>E</kbd> Get in</span>'; toast('WASD to walk · Shift to run · Space to jump · E to get in.');
         }else toast('Stop the car before getting out.');
-        motion.reset(state);
+        if(!onFoot)police?.enterVehicle(carId);motion.reset(state);
       }
       if(input.consume('KeyC')){cameraMode=(cameraMode+1)%3;toast(['Chase camera','Wide camera','Hood camera'][cameraMode]);}
       if(input.consume('KeyM'))hud.bigMap=!hud.bigMap;
@@ -164,7 +169,7 @@ function animate(now:number){
       accumulator+=dt;
       while(accumulator>=1/60){
         const fixed=1/60;motion.capture(state);previous.copy(state.position);const controls=input.controls;
-        if(!campaign?.frozen){
+        if(!campaign?.frozen&&!police?.frozen){
         if(onFoot){
           const x=(input.down('KeyD','ArrowRight')?1:0)-(input.down('KeyA','ArrowLeft')?1:0),z=(input.down('KeyW','ArrowUp')?1:0)-(input.down('KeyS','ArrowDown')?1:0);
           const magnitude=Math.min(1,Math.hypot(x,z));state.speed=magnitude*(input.down('ShiftLeft','ShiftRight')?7.5:3.4);
@@ -179,19 +184,21 @@ function animate(now:number){
         }
         const hit=!onFoot&&world.terrain.resolve(state,previous,fixed);
         if(hit&&state.damage>65)toast('Easy on the paintwork. R resets the car.');
-        traffic?.update(fixed,state,!onFoot);
+        if(traffic?.update(fixed,state,!onFoot,camera.getWorldDirection(new THREE.Vector3()),[...(onFoot?[parkedPosition]:[]),...(police?.cars.map(c=>c.position)??[]),...(campaign?.trafficObstacles??[])],footprint))police?.offense('vehicleHit',!!campaign?.interior);
         const result=challenge.update(fixed,state.position);
         if(result==='checkpoint')toast(`Stop ${challenge.index} reached. Keep moving.`);
         if(result==='complete'){toast(`Home in ${Math.floor(challenge.elapsed/60)}:${String(Math.floor(challenge.elapsed%60)).padStart(2,'0')}. Nice driving.`);element('mode-badge').textContent='FREE DRIVE';}
         if(result==='failed'){toast('Time’s up. Try the Springfield Run again from the menu.');element('mode-badge').textContent='FREE DRIVE';}
         if(state.position.y<world.terrain.bottom-15||state.damage>=100){if(campaign?.active)campaign.engine.fail(state.damage>=100?'VEHICLE DESTROYED':'RETURN TO THE MISSION');else{respawn();toast('A fresh start.');}}
         }
-        campaign?.update(fixed);
+        if(!campaign?.frozen)police?.update(fixed,{state,onFoot,vehicle:carId,parkedPosition,parkedHeading,footprint},!!campaign?.interior,traffic?.cars.filter(c=>c.active).map(c=>c.position));
+        if(!police?.frozen)campaign?.update(fixed);
         accumulator-=fixed;
       }
       sound.update(state.speed,input.controls.throttle);
+      sound.pursuit(!!police?.hud.active&&!campaign?.frozen,police?.audibleDistance??Infinity);
     }else{accumulator=0;motion.reset(state);}
-    const alpha=paused||campaign?.frozen?1:accumulator*60;motion.sample(state,alpha);traffic?.render(paused||campaign?.frozen?0:dt,alpha,state.position);campaign?.render(paused?0:dt,alpha);nativeHUD.campaign=campaign?.active?campaign.hud:null;
+    const frozen=paused||campaign?.frozen||police?.frozen,alpha=frozen?1:accumulator*60;motion.sample(state,alpha);traffic?.render(frozen?0:dt,alpha,state.position);police?.render(frozen?0:dt,alpha);campaign?.render(frozen?0:dt,alpha);nativeHUD.campaign=campaign?.active?campaign.hud:null;nativeHUD.pursuit=police?.hud;
     if(car&&!onFoot){
       car.position.copy(motion.position);car.position.y+=carOffset;
       normal.copy(world.terrain.normal(state.position.x,state.position.z,state.position.y));
@@ -204,7 +211,7 @@ function animate(now:number){
     if(onFoot&&character){character.group.position.copy(motion.position);character.group.rotation.y+=THREE.MathUtils.euclideanModulo(footHeading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;}
     if(campaign?.playerAnimation)character?.play(campaign.playerAnimation);character?.update(paused?dt*0.35:dt);
     if(car&&onFoot)car.visible=!campaign?.interior;if(coins)coins.mesh.visible=!campaign?.interior;if(traffic)traffic.group.visible=!campaign?.interior;sound.cinematic=!!campaign?.presentation.active;
-    if(coins){const gained=coins.update(dt,state.position,!paused);if(gained){campaign?.engine.earn(gained);if(campaign)campaign.progress.coins[String(level)]=coins.entries;toast(`+${gained} coin${gained===1?'':'s'}`);}element('coin-count').textContent=campaign?String(campaign.progress.money):`${coins.collected} / ${coins.total}`;}
+    if(coins){const gained=coins.update(dt,state.position,!frozen&&!campaign?.interior);if(gained){if(campaign){campaign.engine.earn(gained);campaign.progress.coins[String(level)]=coins.entries;}else freeMoney+=gained;toast(`+${gained} coin${gained===1?'':'s'}`);}element('coin-count').textContent=String(campaign?.progress.money??freeMoney);}
     const worldStart=performance.now();world.update(state.position);const worldMs=performance.now()-worldStart;metrics.record(frameMs,worldMs);updateCamera(dt);
     if(now-metricTime>500){metricText=metrics.summary();metricTime=now;}
     hud.update(dt,state,world.data,challenge,traffic);nativeHUD.draw(dt,state,world.data,challenge,traffic,hud.bigMap,onFoot);
@@ -233,7 +240,7 @@ async function changeSkin(id:string){
 }
 function saveGame(){
   try{if(campaign&&coins)campaign.progress.coins[String(level)]=coins.entries;
-    localStorage.setItem('hit-and-run:save',JSON.stringify({version:2,level,car:carId,position:state.position.toArray(),heading:state.heading,onFoot,parkedPosition:parkedPosition.toArray(),parkedHeading,campaign:campaign?.progress??null}));
+    localStorage.setItem('hit-and-run:save',JSON.stringify({version:2,level,car:carId,position:state.position.toArray(),heading:state.heading,onFoot,parkedPosition:parkedPosition.toArray(),parkedHeading,money:freeMoney,campaign:campaign?.progress??null}));
   }catch{toast('Could not save in this browser.');}
 }
 async function startCampaign(saved?:Progress,location?:{position:Vec3;heading:number;onFoot:boolean;parkedPosition:Vec3}){
@@ -241,8 +248,8 @@ async function startCampaign(saved?:Progress,location?:{position:Vec3;heading:nu
   try{
     if(level!==progressState.level)await loadLevel(progressState.level);campaign?.dispose();campaign=undefined;world.leaveInterior();
     campaign=await Campaign.create(world,level,progressState,{
-      player:()=>({state,onFoot,vehicle:carId,parkedPosition,parkedHeading}),place:placePlayer,vehicle:setCar,skin:changeSkin,
-      chapter:async(next,progressState)=>{await loadLevel(next);progressState.mission='';progressState.stage=0;progressState.phase='intro';progressState.equippedSkin=null;await startCampaign(progressState);},toast,traffic:limit=>{if(traffic)traffic.limit=limit;},save:saveGame
+      player:()=>({state,onFoot,vehicle:carId,parkedPosition,parkedHeading,footprint}),place:placePlayer,vehicle:setCar,skin:changeSkin,
+      chapter:async(next,progressState)=>{await loadLevel(next);progressState.mission='';progressState.stage=0;progressState.phase='intro';progressState.equippedSkin=null;await startCampaign(progressState);},toast,traffic:limit=>{if(traffic)traffic.limit=limit;},save:saveGame,law:police
     });
     if(newChapter){const initial=arg(campaign.data.initial,'InitLevelPlayerVehicle');await setCar(String(initial[0]));state.damage=0;}
     coins?.reset(progressState.coins[String(level)]??[]);await campaign.start(progressState.mission,!!saved&&!newChapter);
@@ -258,7 +265,7 @@ async function loadGame(){
   if(!catalog.levels.includes(saved.level)||!catalog.cars.includes(saved.car)||!vector(saved.position)||!Number.isFinite(saved.heading)){nativeMenu?.notice('THIS SAVE IS NOT VALID');return;}
   carId=saved.car;await loadLevel(saved.level);
   if(saved.campaign&&validateProgress(saved.campaign))await startCampaign(saved.campaign,{position:saved.position,heading:saved.heading,onFoot:!!saved.onFoot,parkedPosition:vector(saved.parkedPosition)?saved.parkedPosition:saved.position});
-  else{placePlayer(saved.position,saved.heading,false);pause(false);}
+  else{if(Number.isFinite(saved.money)&&saved.money>=0)freeMoney=saved.money;placePlayer(saved.position,saved.heading,false);pause(false);}
 }
 play.addEventListener('click',()=>pause(false),options);
 run.addEventListener('click',startChallenge,options);
@@ -296,7 +303,7 @@ async function init(){
   catch(error){console.error(error);progress(0,'Game assets are missing. Run npm run extract and npm run convert, then reload.');}
 }
 void init();
-const removeDevTools=devTools(input,{scenario:async(value)=>{const [chapter,mission,phase,stage]=value.split(':');const p=newProgress();p.level=Number(chapter);p.mission=mission;p.phase=phase==='main'?'main':'intro';p.stage=Number(stage)||0;p.checkpoint={phase:p.phase,stage:p.stage};await startCampaign(p);},state:()=>campaign?`${level}:${campaign.progress.mission}:${campaign.progress.phase}:${campaign.progress.stage} · ${state.position.toArray().map(n=>n.toFixed(1)).join(',')} · ${campaign.error||campaign.engine.status}`:'No campaign',resume:()=>pause(false),retry:()=>campaign?.retry(),objective:()=>{const target=campaign?.hud.target;if(target){const p=[...target] as Vec3;p[2]-=2;placePlayer(p,0,onFoot,parkedPosition.toArray());}}});
-function dispose(){removeDevTools();campaign?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
+const removeDevTools=devTools(input,{scenario:async(value)=>{const [chapter,mission,phase,stage]=value.split(':');const p=newProgress();p.level=Number(chapter);p.mission=mission;p.phase=phase==='main'?'main':'intro';p.stage=Number(stage)||0;p.checkpoint={phase:p.phase,stage:p.stage};await startCampaign(p);},state:()=>`${campaign?`${level}:${campaign.progress.mission}:${campaign.progress.phase}:${campaign.progress.stage} · ${state.position.toArray().map(n=>n.toFixed(1)).join(',')} · ${campaign.error||campaign.engine.status}`:'No campaign'} · heat ${police?.meter.heat.toFixed(1)??0} · police ${police?.cars.length??0} · nearest ${police?.audibleDistance.toFixed(1)??'-'}`,resume:()=>pause(false),retry:()=>campaign?.retry(),objective:()=>{const target=campaign?.hud.target;if(target){const p=[...target] as Vec3;p[2]-=2;placePlayer(p,0,onFoot,parkedPosition.toArray());}},pursuit:()=>police?.command({op:'SetHitAndRunMeter',args:[100],line:0}),clearPursuit:()=>police?.reset(),testCoins:()=>{if(campaign)campaign.engine.earn(75);else freeMoney+=75;}});
+function dispose(){removeDevTools();campaign?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
 window.addEventListener('pagehide',dispose,{once:true});
 if(import.meta.hot)import.meta.hot.dispose(dispose);

@@ -22,6 +22,11 @@ class FormatTests(unittest.TestCase):
     def test_interior_unknown_and_truncated_volumes_fail(self):
         with self.assertRaises(ValueError):list(leaves(Chunk(VOLUME,struct.pack('<IiI',0,-1,0),[Chunk(0x7010006,b'',[])]),'unknown'))
         with self.assertRaises(ValueError):list(leaves(Chunk(VOLUME,struct.pack('<IiI',0,-1,1),[]),'missing child'))
+    def test_static_box_can_represent_a_finite_plane(self):
+        vectors=[Chunk(VECTOR,struct.pack('<3f',*v),[]) for v in [(0,0,0),(1,0,0),(0,1,0),(0,0,1)]]
+        box=Chunk(0x7010004,struct.pack('<3f',2,0,1),vectors)
+        result=list(leaves(Chunk(VOLUME,struct.pack('<IiI',0,-1,0),[box]),'plane'))
+        self.assertEqual(result[0]['halfExtents'],[2,0,1])
     def test_lzr_literals_and_overlap(self):
         # Four literal bytes followed by an overlapping eight-byte match.
         encoded=b'\x04abcd'+bytes([0x48,0])

@@ -49,13 +49,14 @@ Touch driving controls and standard gamepad steering/triggers are available. Ful
 - Seven level variants and five player characters, with original geometry, character animations, UI artwork, bitmap fonts, and the animated living-room menu.
 - Driving, walking, road traffic, coins, vehicle damage, local saves, and an added five-stop time trial.
 - Interpolated player and NPC motion, continuous junction paths, and grass placement spread across frames.
-- Interior walls and furniture use 487 static collision shapes decoded from the original 19 room files, with primitive dimensions checked against the PS2 executable.
+- Walking collision uses 9,549 original exterior static shapes across seven levels, plus 487 shapes from the 19 interiors. Buildings block movement before the door interaction; entering switches to the room's original floor and solid shapes. Primitive dimensions were checked against the PS2 executable.
+- Hit & Run heat, police pursuit, capture and the 50-coin penalty use rules traced through the PS2 executable. Level seven uses the original pursuit hearses. Traffic uses the original five-slot groups, and NPC impacts play the original flail/get-up animations. [Pursuit findings and remaining differences](docs/PURSUIT_PARITY.md).
 - A Blender scenery pass over 100 exterior/interior files: preserved UVs and baked colors, rounded hard edges, and 11 surface-detail material classes covering 1,672 textures. Enlarging source artwork does not recover missing detail; signs and illustrations still retain their original designs and resolution limits.
 - 89 scripted missions across seven chapters: 49 story missions, the opening tutorial, four chapter transitions, seven bonus missions, 21 street races and seven wager races. The 610 stages include original objectives, timers, failure conditions, checkpoints, purchases, rewards and chapter progression.
-- Original mission dialogue, opening/campaign movies, briefings, NPC conversation animations, accessible interiors, delivery and destruction targets, multi-lap races and nuclear-waste/UFO objectives. There are 67 character models, 64 vehicle models and 549 dialogue clips, plus 55 original mission briefing pictures.
+- Original mission dialogue, opening/campaign movies, briefings, NPC conversation animations, accessible interiors, delivery and destruction targets, multi-lap races and nuclear-waste/UFO objectives. There are 67 character models, 71 vehicle models and 549 dialogue clips, plus 55 original mission briefing pictures.
 - Saves resume from the latest mission checkpoint and preserve coins, purchased cars, outfits and completed missions. Bonus missions return to the story checkpoint afterward.
 
-This is not yet a 1:1 port. Vehicle handling and traffic are reconstructed systems. Original police behavior, gags, general destructible physics, collectible-card gameplay and menu parity still need work. Mission AI and the UFO sequence use reconstructed behavior; their timing and difficulty have not been validated against complete original-game playthroughs. The original executable is not being recompiled.
+This is not yet a 1:1 port. Vehicle handling, AI steering and collision response are reconstructed systems. Traffic lights, parked traffic, boarding ordinary traffic vehicles, gags, general destructible physics, collectible-card gameplay and menu parity still need work. Mission AI and the UFO sequence use reconstructed behavior; their timing and difficulty have not been validated against complete original-game playthroughs. The original executable is not being recompiled.
 
 ## Around Springfield
 
@@ -84,9 +85,11 @@ python3 -m pip install -r requirements.txt
 npm run extract -- --iso '/path/to/your/Hit and Run.iso'
 npm run convert
 npm run campaign:convert
+npm run pursuit:convert
 npm run remaster
 blender --background --factory-startup --python tools/campaign_cars.py
 blender --background --factory-startup --python tools/scenery_remaster.py
+npm run pursuit:remaster
 ```
 
 The input ISO is only read. On macOS, `npm run remaster` detects `/Applications/Blender.app`. Set `BLENDER_PATH` for another installation. Use Blender's full executable path in the two direct commands if it is not on `PATH`.
@@ -94,12 +97,12 @@ The input ISO is only read. On macOS, `npm run remaster` detects `/Applications/
 ## Tests
 
 ```sh
-npm run test:unit  # Runs without game assets
+npm run test:unit  # Uses included browser assets; no raw disc extraction
 npm run build
 npm test           # Also checks locally converted assets
 ```
 
-CI builds the code and runs tests that do not require game data. Local asset checks cover extracted archives, geometry, collision datasets, skin weights, UI resources, textures, and Blender vehicle exports. Campaign checks exercise every compiled stage with valid objective events and verify resource references; they do not establish that every mission has been played through in the browser. The production build currently has a bundle-size warning.
+CI runs the full suite against the included browser assets, then builds the code. Checks cover geometry, collision datasets, character textures, skin weights, UI resources, Blender exports, pursuit rules and traffic spawning. The raw extraction-manifest check runs only when the disc has been extracted locally. Campaign checks exercise every compiled stage with valid objective events and verify resource references; they do not establish that every mission has been played through in the browser. The production build currently has a bundle-size warning.
 
 ## Format references
 

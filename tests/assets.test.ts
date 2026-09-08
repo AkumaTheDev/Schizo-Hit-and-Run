@@ -8,6 +8,14 @@ import type { LevelData } from '../src/assets.ts';
 import { Terrain } from '../src/physics.ts';
 const root=resolve('public/assets');
 const json=(name:string)=>JSON.parse(readFileSync(resolve(root,name),'utf8'));
+test('every campaign character and outfit has resolved textures and original reaction clips',()=>{
+  const assets=json('campaign/assets.json');
+  for(const name of Object.values(assets.characters) as string[]){
+    const data=json(`${name}.json`);
+    for(const [shader,material] of Object.entries(data.materials) as [string,any][]){assert(material.textureUrl,`${name}/${shader}: missing texture`);assert(existsSync(resolve(root,material.textureUrl)),`${name}/${shader}: texture file missing`);}
+    for(const clip of ['_flail','_get_up'])assert(data.animations.some((a:any)=>a.name.endsWith(clip)),`${name}: no original ${clip} animation`);
+  }
+});
 for(let level=1;level<=7;level++)test(`level ${level}: every converted buffer and spawn is valid`,()=>{
   const data=json(`level${level}.json`) as LevelData;
   const collisions:THREE.BufferGeometry[]=[];

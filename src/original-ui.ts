@@ -1,4 +1,5 @@
 import type { CampaignHUD } from './campaign/runtime';
+import type { PursuitHUD } from './pursuit';
 import * as THREE from 'three';
 import { Assets,assetURL,json,type Catalog,type LevelData } from './assets';
 import type { CarState } from './physics';
@@ -13,7 +14,7 @@ export class OriginalArt {
   images=new Map<string,HTMLImageElement>();private textCache=new Map<string,{canvas:HTMLCanvasElement;width:number}>();fonts:Record<string,Font>={};layouts:Record<string,any[]>={};ready=false;
   async load(){
     this.fonts=await json<Record<string,Font>>('ui/fonts.json');this.layouts=await json<Record<string,any[]>>('ui/layouts.json');
-    const names=['gamelogo.png','tvframe.png','larrow.png','rarrow.png','accept.png','back.png','radar.png','radartop.png','hrmetter.png','hrsector.png','hitnrun0.png','hitnrun1.png','hitnrun2.png','damage.png','greybar.png','coins.png','user.png','aicar.png','mission.png','phone.png','checkflag.png','collect.png','helptext.png','frame_t.png','frame_b.png','frame_l.png','frame_r.png','frame_tl.png','frame_tr.png','frame_bl.png','frame_br.png','qhomer.png','check.png',...Array.from({length:10},(_,i)=>`${i}.png`),'colon.png','slash.png',...Object.values(this.fonts).map(f=>f.file)];
+    const names=['gamelogo.png','tvframe.png','larrow.png','rarrow.png','accept.png','back.png','radar.png','radartop.png','hrmetter.png','hrsector.png','hrticket.png','hitnrun0.png','hitnrun1.png','hitnrun2.png','damage.png','greybar.png','coins.png','user.png','aicar.png','mission.png','phone.png','checkflag.png','collect.png','helptext.png','frame_t.png','frame_b.png','frame_l.png','frame_r.png','frame_tl.png','frame_tr.png','frame_bl.png','frame_br.png','qhomer.png','check.png',...Array.from({length:10},(_,i)=>`${i}.png`),'colon.png','slash.png',...Object.values(this.fonts).map(f=>f.file)];
     await Promise.all(names.map(name=>this.loadImage(name)));this.ready=true;
   }
   // The load event is used instead of decode(): Chrome can defer decode() of a detached image for a very long time.
@@ -44,10 +45,10 @@ export class OriginalArt {
 }
 export const originalArt=new OriginalArt();
 export class OriginalHUD {
-  campaign:CampaignHUD|null=null;canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private lastDamage=0;private heat=0;
+  campaign:CampaignHUD|null=null;pursuit?:PursuitHUD;canvas=document.createElement('canvas');private c=this.canvas.getContext('2d')!;private time=0;
   constructor(){this.canvas.id='original-hud';this.canvas.setAttribute('role','img');element('hud').append(this.canvas);}
   draw(dt:number,state:CarState,data:LevelData,challenge:Challenge,traffic:Traffic|undefined,bigMap=false,onFoot=false){
-    if(!originalArt.ready)return;
+    if(!originalArt.ready)return;this.time+=dt;
     const dpr=Math.min(devicePixelRatio,2),width=innerWidth,height=innerHeight;
     if(this.canvas.width!==width*dpr||this.canvas.height!==height*dpr){this.canvas.width=width*dpr;this.canvas.height=height*dpr;}
     const scale=Math.min(width/640,height/480),w=width/scale,h=height/scale,c=this.c;
@@ -56,15 +57,16 @@ export class OriginalHUD {
     originalArt.draw(c,'radar.png',x,y,152,152);
     c.save();c.beginPath();c.arc(cx,cy,51,0,Math.PI*2);c.clip();c.translate(cx,cy);c.scale(bigMap?.17:.58,bigMap?.17:.58);c.translate(-state.position.x,-state.position.z);
     c.strokeStyle='#86cc73';c.lineWidth=7;c.lineCap='round';c.beginPath();for(const [a,b] of data.roads){c.moveTo(a[0],a[2]);c.lineTo(b[0],b[2]);}c.stroke();
-    c.fillStyle='#ffca17';for(const vehicle of traffic?.cars??[]){c.beginPath();c.arc(vehicle.mesh.position.x,vehicle.mesh.position.z,3,0,Math.PI*2);c.fill();}
+    c.fillStyle='#ffca17';for(const vehicle of traffic?.cars??[])if(vehicle.active){c.beginPath();c.arc(vehicle.mesh.position.x,vehicle.mesh.position.z,3,0,Math.PI*2);c.fill();}
+    for(const position of this.pursuit?.cars??[]){c.fillStyle=Math.sin(this.time*10)>0?'#ff2626':'#315eff';c.beginPath();c.arc(position.x,position.z,6,0,Math.PI*2);c.fill();originalArt.draw(c,'aicar.png',position.x-6,position.z-6,12,12);}
     if(this.campaign?.target){const p=this.campaign.target;originalArt.draw(c,'mission.png',p[0]-10,p[2]-10,20,20);}
     if(challenge.active){const p=challenge.route[challenge.index].position;originalArt.draw(c,'mission.png',p[0]-10,p[2]-10,20,20);}
     c.restore();
-    this.heat=Math.max(0,this.heat-dt*3.5)+Math.max(0,state.damage-this.lastDamage)*1.8;this.heat=Math.min(100,this.heat);this.lastDamage=state.damage;
-    if(this.heat>2){c.save();c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,70,-Math.PI/2,-Math.PI/2+Math.PI*2*this.heat/100);c.closePath();c.clip();originalArt.draw(c,'hrmetter.png',x,y,152,152);c.restore();}
+    const heat=this.pursuit?.heat??0;
+    if(heat>0){c.save();c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,70,-Math.PI/2,-Math.PI/2+Math.PI*2*heat/100);c.closePath();c.clip();originalArt.draw(c,'hrmetter.png',x,y,152,152);c.restore();}
     originalArt.draw(c,'radartop.png',x+4,y,150,150);
     c.save();c.translate(cx,cy);c.rotate(Math.PI-state.heading);originalArt.draw(c,'user.png',-9,-11,19,22);c.restore();
-    originalArt.draw(c,this.heat>70?'hitnrun2.png':'hitnrun0.png',x+40,y+113,73,30);
+    originalArt.draw(c,this.pursuit?.active?(Math.sin(this.time*10)>0?'hitnrun2.png':'hitnrun1.png'):heat>78?'hitnrun1.png':'hitnrun0.png',x+40,y+113,73,30);
     const count=element('coin-count').textContent?.split('/')[0].trim()??'0';originalArt.draw(c,'coins.png',w-180,31,39,34);originalArt.digits(c,count,w-135,21,44);
     // The damage frame and fill use the original Hud.pag coordinates and artwork.
     if(!onFoot){
@@ -82,7 +84,8 @@ export class OriginalHUD {
       originalArt.text(c,mission.hint,w/2,h-31,12,'center');
     }
     const message=element('toast');if(message.classList.contains('visible')){originalArt.draw(c,'helptext.png',(w-330)/2,h*.26,330,88);originalArt.text(c,(message.textContent??'').slice(0,50),w/2,h*.26+25,13,'center');}
-    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour.${this.campaign?` Mission: ${this.campaign.title}. ${this.campaign.failure||this.campaign.message}. ${this.campaign.hint}`:''}`);
+    if(this.pursuit&&this.pursuit.busted>0){originalArt.draw(c,'hrticket.png',w/2-38,h*.33,76,98);originalArt.text(c,'BUSTED!',w/2,h*.33+102,30,'center','#ffe02a');originalArt.text(c,`-${this.pursuit.fine} COINS`,w/2,h*.33+141,20,'center');}
+    this.canvas.setAttribute('aria-label',`Original HUD. ${count} coins. ${Math.round(100-state.damage)} percent vehicle condition. ${Math.round(Math.abs(state.speed)*3.6)} kilometres per hour. Hit and Run heat ${Math.round(heat)} percent. ${this.pursuit?.active?`${this.pursuit.cars.length} police vehicles pursuing.`:''}${this.pursuit?.busted?` BUSTED. ${this.pursuit.fine} coins lost.`:''}${this.campaign?` Mission: ${this.campaign.title}. ${this.campaign.failure||this.campaign.message}. ${this.campaign.hint}`:''}`);
   }
 }
 

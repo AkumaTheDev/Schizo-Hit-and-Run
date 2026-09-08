@@ -31,7 +31,7 @@ def convert_homer(model='art/chars/homer_m.p3d',animation_file='art/chars/homer_
         name,p=string(c.data);parent,=struct.unpack_from('<I',c.data,p)
         bones.append(dict(name=name,parent=parent,matrix=(mirror@mat(c.data,p+24)@mirror).flatten().tolist()))
     animations=[]
-    chosen=['hom_in_car_idle','hom_loco_idle_rest','hom_loco_walk','hom_loco_run','hom_loco_dash','hom_jump_idle_in_air','hom_jump_kick','hom_victory_small']
+    chosen=['hom_in_car_idle','hom_loco_idle_rest','hom_loco_walk','hom_loco_run','hom_loco_dash','hom_jump_idle_in_air','hom_jump_kick','hom_victory_small','hom_flail','hom_get_up']
     for animation in walk(read(GAME/animation_file)):
         if animation.id!=0x121000:continue
         name,p=string(animation.data,4)
@@ -62,7 +62,19 @@ def convert_homer(model='art/chars/homer_m.p3d',animation_file='art/chars/homer_
                     if bone!='Motion_Root':tracks.append(dict(bone=bone,kind='position',times=times.tolist(),values=values.flatten().tolist()))
         animations.append(dict(name=name,duration=(frames-1)/fps,tracks=tracks))
     used={p['shader'] for p in primitives}
-    data=dict(primitives=primitives,bones=bones,animations=animations,materials={key:dict(converter.shaders[key],textureUrl=converter.textures.get(converter.shaders[key]['texture'])) for key in used})
+    materials={};remaps=[]
+    for key in used:
+        shader=converter.shaders[key];texture=shader['texture'];url=converter.textures.get(texture)
+        # Native character setup (PAL 0x270830) supplies shared swatch palettes
+        # separately from the model. These three source meshes retain placeholder
+        # names; the browser's lit skin material uses the shared lit palette.
+        if not url and shader['lit'] and texture in ['char_swatches.bmp','char_swatches_lit.bmp1']:
+            url=converter.textures.get('char_swatches_lit.bmp')
+            remaps.append(dict(shader=key,source=texture,resolved='char_swatches_lit.bmp'))
+        if texture and not url:raise ValueError(f'{model}: unresolved texture {texture} for {key}')
+        materials[key]=dict(shader,textureUrl=url)
+    data=dict(primitives=primitives,bones=bones,animations=animations,materials=materials)
+    if remaps:data['textureRemaps']=remaps
     if output=='menu-homer':
         node=next(c for c in walk(root) if c.id==0x120103 and string(c.data)[0]=='Maya_Root');_,p=string(node.data)
         data['placement']=(mirror@mat(node.data,p+4)@mirror).flatten().tolist()

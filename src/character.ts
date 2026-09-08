@@ -12,7 +12,8 @@ export class Character {
     data.bones.forEach((source,i)=>{if(i===0)this.group.add(this.bones[i]);else this.bones[source.parent].add(this.bones[i]);});
     this.group.updateMatrixWorld(true);this.skeleton=new THREE.Skeleton(this.bones);
     for(const primitive of data.primitives){
-      const source=data.materials[primitive.shader],textureKey=`character:${source.textureUrl}`;let texture=assets.textures.get(textureKey);
+      const source=data.materials[primitive.shader];if(!source?.textureUrl)throw new Error(`Missing character texture: ${asset}/${primitive.shader}`);
+      const textureKey=`character:${source.textureUrl}`;let texture=assets.textures.get(textureKey);
       if(!texture){texture=await assets.texture(source.textureUrl,t=>{t.colorSpace=THREE.SRGBColorSpace;t.flipY=true;t.wrapS=t.wrapT=THREE.RepeatWrapping;},textureKey);}
       const geometry=new THREE.BufferGeometry();
       for(const [name,[offset,length]] of Object.entries(primitive.attributes)){
@@ -30,9 +31,10 @@ export class Character {
     if(data.placement)this.group.applyMatrix4(new THREE.Matrix4().fromArray(data.placement));
     this.play(asset==='menu-homer'?'PTRN_Motion_Root':'hom_loco_idle_rest');
   }
-  play(name:string){
+  duration(name:string){return this.actions.get(name)?.getClip().duration??0;}
+  play(name:string,once=false){
     if(name===this.active)return;
-    this.actions.get(this.active)?.fadeOut(.15);const next=this.actions.get(name);next?.reset().fadeIn(.15).play();this.active=name;
+    this.actions.get(this.active)?.fadeOut(.15);const next=this.actions.get(name);if(next){next.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);next.clampWhenFinished=once;next.reset().fadeIn(.15).play();}this.active=name;
   }
   drive(car:THREE.Group){
     car.add(this.group);this.group.position.set(-0.48,-0.32,-0.15);this.group.rotation.set(0,Math.PI,0);this.group.scale.setScalar(1);

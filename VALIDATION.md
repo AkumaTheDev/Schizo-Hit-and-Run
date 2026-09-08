@@ -4,6 +4,20 @@ The local PAL PS2 extraction contains 24 disc files and 18,754 entries from 11 R
 
 ## September 8, 2026
 
+### Exterior collision correction and pursuit pass
+
+- The earlier interior fix was incomplete. A separate fall remained outside Kwik-E-Mart: walking straight into the building crossed its missing exterior wall and reached `(213.9, -42.0, 311.0)` before entering the room. This was reproduced in the browser from the tutorial's shop objective.
+- Converted 9,549 world-space static collision shapes across all seven levels: 8,345 boxes, 1,073 rounded cylinders and 131 spheres. Per-level outputs record every source file's hash. Zero conversion errors; original ground buffers remain unchanged. Flat box volumes are retained as planes. Dynamic and instanced prop physics are outside this conversion's scope.
+- Added ten building regression checks: outside walking and sprint/jump tests at Kwik-E-Mart in levels 1, 4 and 7, plus eight-direction exterior entrance approaches across all seven levels. The existing 19-room floor, wall and entrance checks also pass.
+- In the browser, a 3.5-second sprint into the exterior stopped at `(213.7, 5.0, 301.3)`. The door interaction entered the room and advanced to Talk to Apu. A 2.5-second sprint/jump against the back wall stayed at `(499.4, -19.9, 305.5)`. Exiting returned to `(213.7, 5.0, 300.9)`; walking away remained above the street. Objective-position assistance was used to reach the door.
+- Police checks verified that kicking Marge raises heat without advancing her talk objective, a cruiser catches the player and deducts exactly 50 from 75 coins, level seven spawns two pursuit vehicles, and retry clears pursuit while preserving the remaining balance. A race's disable command prevents police spawning. Forced pursuit inside Kwik-E-Mart decays to zero without capture or coin loss. Meter and coin setup used development controls; these are assisted behavior checks.
+- Nine seconds of parked-player traffic testing preserved 100% vehicle condition while adjacent traffic passed. This followed fixes to vehicle footprints, braking and collision checks along turns. A Halloween loading failure exposed three unresolved character texture references; these now resolve and all 67 character/outfit resources pass validation. There were no new browser warnings or errors after that correction.
+- Nine vehicles received a Blender material, wheel and light-bar pass, including the cruiser and pursuit hearse. Exports retain source part identifiers, have finite geometry and include tagged beacon materials and tyre normal maps. The review render in [pursuit findings](docs/PURSUIT_PARITY.md) is from Blender.
+- Eleven further native analysis passes exported 485 functions at 380 distinct physical-code addresses. Two requested addresses lacked recognized functions: the four-instruction traffic-group close callback was decoded manually; a vehicle-collision emitter remains unresolved. See [pursuit findings](docs/PURSUIT_PARITY.md) for the recovered rules and remaining behavior differences.
+- The full local suite passes **105 TypeScript tests and nine Python tests**, with zero failures or skips. The Pages production build passes; the existing bundle-size warning remains. These checks do not establish full original-game parity.
+
+### Earlier interior correction
+
 - Reproduced the Kwik-E-Mart fall by entering through the tutorial objective and holding backwards for two seconds. The player crossed the back wall and fell below the original floor. The missing data was the separate static physics hierarchy.
 - Converted 487 static shape leaves from all 19 interior files: 427 boxes, 43 rounded cylinders and 17 spheres. Each output records its source hash. Zero conversion errors; existing terrain buffers are unchanged.
 - Added capsule collision against the original floor and solid shapes, with movement split into short steps. All 19 room-entry, exit-approach and eight-direction sprint checks pass. The Kwik-E-Mart wall/jump regression passes at 60 Hz and 15 Hz.

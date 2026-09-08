@@ -34,6 +34,10 @@ export class TrafficPath {
     this.distance+=metres;
     for(let guard=0;this.distance>=this.length&&guard<32;guard++){this.distance-=this.length;this.transition();}
   }
+  peek(metres:number){
+    const copy=Object.assign(Object.create(TrafficPath.prototype),this) as TrafficPath;copy.scratch=new THREE.Vector3();copy.advance(metres);
+    const position=new THREE.Vector3(),heading=copy.sample(position);return {position,heading};
+  }
   sample(position:THREE.Vector3){
     const u=THREE.MathUtils.clamp(this.distance/this.length,0,1);this.curve.getPointAt(u,position);this.curve.getTangentAt(u,this.scratch);
     return Math.atan2(this.scratch.x,this.scratch.z);

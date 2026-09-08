@@ -15,9 +15,15 @@ public class InspectNative extends GhidraScript {
     @Override public void run() throws Exception {
         String[] args=getScriptArgs();if(args.length!=2)throw new IllegalArgumentException("Expected targets-file and output-directory");
         Path out=Paths.get(args[1]);Files.createDirectories(out.resolve("pseudocode"));Files.createDirectories(out.resolve("assembly"));
-        Map<String,Function> roots=new TreeMap<>(),selected=new TreeMap<>();List<Map<String,Object>> strings=new ArrayList<>();
+        Map<String,Function> roots=new TreeMap<>(),selected=new TreeMap<>();List<Map<String,Object>> strings=new ArrayList<>();List<String> unresolvedTargets=new ArrayList<>();
         for(String line:Files.readAllLines(Paths.get(args[0]))) {
             if(line.isBlank()||line.startsWith("#"))continue;
+            if(line.startsWith("at:")){
+                Function f=getFunctionContaining(toAddr(line.substring(3).split(" ",2)[0]));
+                if(f==null||!physical(f)){unresolvedTargets.add(line);println("Unresolved physical function: "+line);continue;}
+                if(roots.size()>=80)throw new IllegalArgumentException("Too many root functions; split the targets file");
+                roots.put(f.getEntryPoint().toString(),f);continue;
+            }
             if(line.startsWith("range:")){
                 String[] range=line.split(":");long end=Long.parseLong(range[2],16);
                 FunctionIterator iterator=currentProgram.getFunctionManager().getFunctions(toAddr(range[1]),true);
@@ -48,7 +54,7 @@ public class InspectNative extends GhidraScript {
                 results.add(row);
             }
         } finally {decompiler.dispose();}
-        Map<String,Object> report=new LinkedHashMap<>();report.put("program",currentProgram.getName());report.put("language",currentProgram.getLanguageID().toString());report.put("strings",strings);report.put("roots",roots.size());report.put("attempted",results.size());report.put("exported",success);report.put("failed",results.size()-success);report.put("functions",results);
-        Files.writeString(out.resolve("report.json"),new GsonBuilder().setPrettyPrinting().create().toJson(report));println("Native inspection: "+roots.size()+" roots, "+success+"/"+results.size()+" exports.");
+        Map<String,Object> report=new LinkedHashMap<>();report.put("program",currentProgram.getName());report.put("language",currentProgram.getLanguageID().toString());report.put("strings",strings);report.put("roots",roots.size());report.put("attempted",results.size());report.put("exported",success);report.put("failed",results.size()-success);report.put("unresolvedTargets",unresolvedTargets);report.put("functions",results);
+        Files.writeString(out.resolve("report.json"),new GsonBuilder().setPrettyPrinting().create().toJson(report));println("Native inspection: "+roots.size()+" roots, "+success+"/"+results.size()+" exports, "+unresolvedTargets.size()+" unresolved targets.");
     }
 }

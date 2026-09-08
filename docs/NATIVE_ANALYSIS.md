@@ -1,5 +1,7 @@
 # Native executable findings
 
+The later [pursuit and traffic investigation](PURSUIT_PARITY.md) adds address-grounded meter, police, traffic and character-palette findings, together with the implemented behavior and remaining differences.
+
 The Kwik-E-Mart fall came from missing wall collision. Its floor had been converted, but the separate static physics objects had not. Walking backwards from the entry crossed the visible back wall, left the finite floor and dropped Homer into the void. This was reproduced in the browser before the fix.
 
 The investigation used both the original Pure3D files and a Ghidra analysis of the disc's executable. The assembly and decompiler output are stored locally under `artifacts/native/`; the original files are unchanged. These are selected function exports from a stripped executable. They do not recover the original C++ project.

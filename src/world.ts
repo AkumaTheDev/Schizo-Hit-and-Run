@@ -28,7 +28,7 @@ export class World {
   }
   async load(level:number,progress:(value:number,message:string)=>void){
     this.data=await json<LevelData>(`level${level}.json`);
-    const [surfaces,scenery,ground]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json'),json<Record<string,string>>('remaster/surfaces.json')]);
+    const [surfaces,scenery,ground,physics]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json'),json<Record<string,string>>('remaster/surfaces.json'),json<InteriorCollision>(`collision/world-level${level}.json`)]);
     for(const [source,albedo] of Object.entries(ground))if(surfaces[source])surfaces[source].albedo=albedo;
     this.assets.sceneryMaterials=surfaces;this.assets.sceneryScenes=new Set(scenery.scenes);
     // Every region downloads at once; the progress bar advances as each one is built.
@@ -38,7 +38,7 @@ export class World {
     }));
     const collision:THREE.BufferGeometry[]=[];
     for(const result of results){this.group.add(result.root);if(result.collision)collision.push(result.collision);}
-    this.terrain=new Terrain(collision,this.data);this.exteriorTerrain=this.terrain;
+    const bodies=staticCollisionGeometry(physics);this.terrain=new Terrain(collision,this.data,bodies);bodies.dispose();this.exteriorTerrain=this.terrain;
     // A separate receiver preserves the original baked environmental art.
     this.shadowGround=new THREE.Mesh(this.terrain.mesh.geometry,new THREE.ShadowMaterial({opacity:0.05}));
     this.shadowGround.receiveShadow=true;this.shadowGround.position.y=0.025;this.group.add(this.shadowGround);await this.grass.load(this.group);

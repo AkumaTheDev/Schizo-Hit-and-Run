@@ -45,6 +45,7 @@ export class Terrain {
         for(let i=0;i<(indices?.count??positions.count);i+=3){
           const points=[0,1,2].map(j=>new THREE.Vector3().fromBufferAttribute(positions,indices?indices.getX(i+j):i+j));
           const triangle=new THREE.Triangle(points[0],points[1],points[2]);
+          if(triangle.getArea()<1e-8)continue;
           // Intersect surfaces were exported for double-sided ground rays. The
           // capsule solver needs upward floor winding; static solids face outward.
           if(source===geometry&&triangle.getNormal(new THREE.Vector3()).y<0){triangle.a=points[2];triangle.c=points[0];}
@@ -68,12 +69,12 @@ export class Terrain {
     return this.ray.intersectObject(this.mesh,false)[0];
   }
   resolve(state:CarState,previous:THREE.Vector3,dt:number,radius=1.2,collideMesh=false) {
-    if(collideMesh&&this.bodyTree)return this.resolveBody(state,previous,dt,radius);
+    const bodyCollision=collideMesh&&!!this.bodyTree;
     let impact=false;
     const candidates=new Set<number>();
     const gx=Math.floor(state.position.x/20),gz=Math.floor(state.position.z/20);
     for(let x=gx-1;x<=gx+1;x++)for(let z=gz-1;z<=gz+1;z++)this.grid.get(`${x},${z}`)?.forEach(n=>candidates.add(n));
-    if(collideMesh){
+    if(collideMesh&&!bodyCollision){
       const direction=state.position.clone().sub(previous);direction.y=0;const travel=direction.length();
       if(travel>0){this.ray.set(previous.clone().add(new THREE.Vector3(0,.8,0)),direction.normalize());this.ray.far=travel+radius;const wall=this.ray.intersectObject(this.mesh,false)[0];if(wall&&wall.face&&Math.abs(wall.face.normal.y)<.5){state.position.x=previous.x+direction.x*Math.max(0,wall.distance-radius);state.position.z=previous.z+direction.z*Math.max(0,wall.distance-radius);}}
     }
@@ -95,6 +96,7 @@ export class Terrain {
       }
     }
     if(impact){if(radius>=1){state.damage=Math.min(100,state.damage+Math.abs(state.speed)*0.55);state.speed*=-0.25;}else state.speed=0;}
+    if(bodyCollision)return this.resolveBody(state,previous,dt,radius)||impact;
     const ground=this.ground(state.position.x,state.position.z,previous.y,2.4);
     if(ground){
       const target=ground.point.y+0.06;

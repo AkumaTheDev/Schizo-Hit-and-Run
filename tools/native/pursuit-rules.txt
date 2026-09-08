@@ -1,0 +1,18 @@
+# Entry points traced from the PAL executable's manager, command table and callers.
+at:00250d68 HitnRunManager_constructor
+at:00251328 HitnRunManager_events
+at:00251c78 HitnRunManager_update
+at:002512b0 ResetHitAndRun
+at:0017fad8 DisableHitAndRun_command
+at:0017fb20 EnableHitAndRun_command
+at:0017fb50 ResetHitAndRun_command
+at:0017fb78 SetNumChaseCars_command
+at:0017fba8 SetHitAndRunDecay_command
+at:0017fbe0 SetHitAndRunMeter_command
+at:0025b950 CoinManager_fine
+at:00287e10 Vehicle_speed_update
+at:0029a178 ChaseManager_constructor
+at:0029ad20 ChaseManager_spawn
+at:0029b550 ChaseManager_activate
+at:0029b8b8 ChaseManager_nearest
+at:0029a6e0 ChaseManager_retire
