@@ -16,6 +16,14 @@ export function drive(state:CarState,control:Controls,dt:number,tuning?:Record<s
   simulateVehicle(state,control,dt,tuning);
 }
 
+/**
+ * How far the ground may fall away beneath a walking player before they are treated as
+ * having left it. A full run (8 m/s) down a 1:1 slope drops 0.13 m in a 60 Hz step, and
+ * twice that if a frame is dropped, so a third of a metre covers running down anything
+ * walkable while staying far short of a ledge worth falling off.
+ */
+const STEP_DOWN=0.34;
+
 export class Terrain {
   mesh:THREE.Mesh;readonly bottom:number;
   readonly solids?:THREE.Mesh;
@@ -161,6 +169,7 @@ export class Terrain {
   }
   private resolveBody(state:CarState,previous:THREE.Vector3,dt:number,radius:number,gravity:number){
     const clearance=.06,height=1.8;
+    const wasGrounded=!!state.grounded;
     state.grounded=false;state.supportVehicle=undefined;state.verticalSpeed-=gravity*dt;
     const movement=state.position.clone().sub(previous);movement.y+=state.verticalSpeed*dt;
     // Bound each sweep so sprinting, jumping and long frames cannot cross a thin
@@ -185,6 +194,18 @@ export class Terrain {
       }
     }
     state.position.copy(capsule.start).add(new THREE.Vector3(0,clearance-radius,0));
+    // Walking downhill, the slope drops away faster than gravity pulls the capsule onto
+    // it, so the sweep found no floor at all between steps: `grounded` flickered off on
+    // every frame, the walk played the airborne clip, and speed fell to the air cap —
+    // measurably 100% of frames and half pace on a 10 degree hill. If the player was on
+    // the ground, is not rising, and there is floor within a stride below, re-seat on it.
+    // The probe can only ever move the player DOWN, so it cannot launch anyone up a
+    // pitch, and STEP_DOWN is short enough that a real ledge is still a fall.
+    if(!state.grounded&&wasGrounded&&state.verticalSpeed<=0){
+      const hit=this.support(state.position.x,state.position.z,state.position.y,clearance,STEP_DOWN);
+      const drop=hit?state.position.y-hit.point.y:Infinity;
+      if(hit&&drop>=0&&drop<=STEP_DOWN){state.position.y=hit.point.y;state.verticalSpeed=0;state.grounded=true;}
+    }
     return impact;
   }
   normal(x:number,z:number,y:number){
