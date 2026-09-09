@@ -17,7 +17,6 @@ import { json, type Catalog } from './assets';
 import { Input,LOOK_SENSITIVITY } from './input';
 import { drive, type CarState } from './physics';
 import { cameraRelative,PlayerMovement } from './player-movement';
-import { fighterFor,fighterLine } from './fighters';
 import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,resetVehicle,type VehicleProfile } from './vehicle-physics';
 import { HUD, element } from './hud';
 import { Challenge } from './challenge';
@@ -166,7 +165,7 @@ async function loadLevel(nextLevel:number){
     const chapter=await chapterPromise;traffic=new Traffic(world,chapter.initial,campaignAssets.tuning);
     police=new Pursuit(world,pursuitSettings(chapter.initial),campaignAssets,{toast,fine:amount=>{const paid=Math.min(amount,freeMoney);freeMoney-=paid;saveGame();return paid;},busted:()=>sound.busted()});
     const [driver]=await Promise.all([makeAvatar(playerSkin),setCar(carId),traffic.load(),police.load(),coins.load(world.assets,world.objectData.coin)]);
-    character=driver;character.drive(car!);walking.setFighter(fighterFor(playerSkin));
+    character=driver;character.drive(car!);
     remotes=new RemotePlayers(scene,world,campaignAssets);net.describe(level,carId,playerSkin);
     sound.setCharacter(VOICE_ACTORS[level-1],campaignAssets.dialogue);
         element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
@@ -375,8 +374,6 @@ function placePlayer(position:Vec3,heading:number,foot:boolean,parked?:Vec3){
 async function changeSkin(id:string){
   playerSkin=id;try{localStorage.setItem('hit-and-run:skin',id);}catch{}
   const next=await makeAvatar(id);character?.dispose();character=next;
-  // The body you picked is the fighter you picked: its build drives how it moves.
-  const fighter=fighterFor(id);walking.setFighter(fighter);toast(fighterLine(fighter));
   if(onFoot)character.walk(scene,state.position,state.heading);else character.drive(car!);
   net.describe(level,carId,playerSkin);
 }
