@@ -2,14 +2,30 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import '../src/assets.ts';
 import { Terrain } from '../src/physics.ts';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { staticCollisionGeometry } from '../src/collision.ts';
 import type { WorldObjectsData } from '../src/world-objects.ts';
 import type { LevelData } from '../src/assets.ts';
 export const assetJSON=(name:string)=>JSON.parse(readFileSync(`public/assets/${name}.json`,'utf8'));
-export function worldFixture(level=1){
+/**
+ * The real world, headless. `buildings:false` leaves out the generated building
+ * colliders — tools/building_collision.mjs needs the world WITHOUT its own output, or
+ * each run would detect against the last one and quietly shrink the file.
+ */
+export function worldFixture(level=1,{buildings=true}={}){
   const data=assetJSON(`level${level}`) as LevelData;data.navigation=assetJSON(`world/navigation${level}`);const objects=assetJSON(`world/objects${level}`) as WorldObjectsData;
   const geometries=data.scenes.flatMap(scene=>{const meta=assetJSON(scene);if(!meta.collision)return [];const b=readFileSync(`public/assets/${scene}.bin`),[offset,length]=meta.collision;return [new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(new Float32Array(b.buffer,b.byteOffset+offset,length).slice(),3))];});
-  const physics=assetJSON(`collision/world-level${level}`),bodies=staticCollisionGeometry({...physics,shapes:[...physics.shapes,...objects.props.filter(p=>p.kind===2).flatMap(p=>p.shapes)]});
+  const physics=assetJSON(`collision/world-level${level}`);
+  let bodies=staticCollisionGeometry({...physics,shapes:[...physics.shapes,...objects.props.filter(p=>p.kind===2).flatMap(p=>p.shapes)]});
+  // The buildings the export left without a shape, exactly as the game loads them.
+  const buildingMeta=buildings?assetJSON(`collision/buildings-level${level}`):{positions:[0,0]};
+  if(buildingMeta.positions[1]){
+    const b=readFileSync(`public/assets/collision/buildings-level${level}.bin`);
+    const extra=new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(new Float32Array(b.buffer,b.byteOffset+buildingMeta.positions[0]*4,buildingMeta.positions[1]).slice(),3));
+    const merged=mergeGeometries([bodies,extra]);
+    bodies.dispose();extra.dispose();
+    if(merged)bodies=merged;
+  }
   const terrain=new Terrain(geometries,data,bodies,data.scenes.flatMap(scene=>objects.terrainTypes[scene]));bodies.dispose();geometries.forEach(g=>g.dispose());
   for(const p of objects.props)if(p.kind!==2)terrain.addSolid(p.id,staticCollisionGeometry({version:1,source:p.id,sha256:'',shapes:p.shapes}));
   return {data,objects,terrain};

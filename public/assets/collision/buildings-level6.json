@@ -1,0 +1,111 @@
+{
+ "version": 1,
+ "level": 6,
+ "source": "level6",
+ "objects": [
+  {
+   "scene": "l6r3",
+   "mesh": "pPlaneShape1_012",
+   "triangles": 8,
+   "probe": [
+    -336.51,
+    -66.45,
+    -36.08
+   ]
+  },
+  {
+   "scene": "l6r3",
+   "mesh": "pPlaneShape1_002",
+   "triangles": 20,
+   "probe": [
+    -371.5,
+    -65.27,
+    -140.83
+   ]
+  },
+  {
+   "scene": "l6r3",
+   "mesh": "pPlaneShape1_039",
+   "triangles": 77,
+   "probe": [
+    -315.36,
+    -66.84,
+    -37.53
+   ]
+  },
+  {
+   "scene": "l6r3",
+   "mesh": "pPlaneShape1_043",
+   "triangles": 18,
+   "probe": [
+    -397.8,
+    -67.38,
+    -22.52
+   ]
+  },
+  {
+   "scene": "l6r3",
+   "mesh": "pPlaneShape1_041",
+   "triangles": 19,
+   "probe": [
+    -302.1,
+    -66.84,
+    -57.98
+   ]
+  },
+  {
+   "scene": "l6r3",
+   "mesh": "pPlaneShape1_053",
+   "triangles": 24,
+   "probe": [
+    -391.36,
+    -67.36,
+    -22.44
+   ]
+  },
+  {
+   "scene": "l6r5",
+   "mesh": "r5_forest_Shape154_009",
+   "triangles": 76,
+   "probe": [
+    95.42,
+    6.29,
+    -46.62
+   ]
+  },
+  {
+   "scene": "l6z2",
+   "mesh": "pPlaneShape9_006",
+   "triangles": 28,
+   "probe": [
+    -176.8,
+    -35.2,
+    176
+   ]
+  },
+  {
+   "scene": "l6z2",
+   "mesh": "pPlaneShape9_029",
+   "triangles": 18,
+   "probe": [
+    -151.38,
+    -25.06,
+    215.4
+   ]
+  },
+  {
+   "scene": "l6z2",
+   "mesh": "pPlaneShape9_032",
+   "triangles": 20,
+   "probe": [
+    -154.78,
+    -29.36,
+    129.54
+   ]
+  }
+ ],
+ "positions": [
+  0,
+  2772
+ ]
+}

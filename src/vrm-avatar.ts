@@ -442,6 +442,7 @@ export class VrmAvatar {
     await this.ensure('hom_loco_idle_rest').catch(()=>{});
     this.play('hom_loco_idle_rest');
     this.ground();
+    this.measureSeat();
     // Whatever else the mode allows follows in the background: the Mixamo set, and the
     // blends cut from it. Nothing here is waited on.
     if(this.source!=='game')void (async()=>{
@@ -601,6 +602,29 @@ export class VrmAvatar {
   }
 
   /**
+   * How high this body's hips ride once it is sitting in the driving clip.
+   *
+   * The seat is set by the HIPS, and the clip moves them: it carries its own hips track,
+   * and grounding has already shifted the whole body down onto the floor. Measuring the
+   * seated pose is the only way to land every build on the same seat height. Without it
+   * the driver sits as far above the seat as the grounding moved the feet.
+   */
+  private measureSeat(){
+    const vrm=this.vrm,seat=this.actions.get('hom_in_car_idle');
+    this.seatHeight=this.hipsHeight-this.footOffset;
+    if(!vrm||!seat)return;
+    const clip=seat.getClip();
+    const measure=new THREE.AnimationMixer(vrm.scene);
+    measure.clipAction(clip).play();measure.setTime(0);vrm.humanoid.update();
+    this.group.updateMatrixWorld(true);
+    const hips=vrm.humanoid.getNormalizedBoneNode('hips');
+    if(hips)this.seatHeight=hips.getWorldPosition(new THREE.Vector3()).y-this.group.getWorldPosition(new THREE.Vector3()).y;
+    measure.stopAllAction();measure.uncacheClip(clip);
+    vrm.humanoid.resetNormalizedPose();vrm.humanoid.update();
+  }
+  private seatHeight=0.618;
+
+  /**
    * The vertices the floor can touch: the ones the foot and toe bones drive.
    *
    * Collected once, by dominant weight, so grounding transforms a few hundred vertices
@@ -656,14 +680,19 @@ export class VrmAvatar {
     // the car's origin. Dropping any avatar's measured hips onto that same height is
     // what lets a short VRM and a tall one both sit in the seat instead of hovering
     // over it or sinking through the floor.
-    // `footOffset` belongs to standing on the floor, so the seat cancels it back out:
-    // the hips land on 0.298 whatever the grounding had to do to the feet.
-    this.group.position.set(-0.48,0.298-this.hipsHeight-this.footOffset,-0.15);
+    // Drop the MEASURED seated hips onto the same 0.298, so grounding and the clip's own
+    // hips track both come out in the wash and every build sits at the same height.
+    this.group.position.set(-0.48,0.298-this.seatHeight,-0.15);
     this.group.rotation.set(0,Math.PI,0);this.group.scale.setScalar(1);
     this.seated=true;
     // Sit in the game's own driving animation, retargeted like every other clip. The
     // hand-written pose this replaces was authored in the other handedness: on a VRM 0
     // body it put the thighs 180 degrees out, pointing back down the car.
+    //
+    // Clear the mixer on the way in and out of the seat. Fading between a clip that owns
+    // the whole body and one that owns the legs leaves the loser playing underneath, and
+    // that is how the driving pose walked out of the car and ran around in it.
+    this.mixer?.stopAllAction();this.active='';
     this.play('hom_in_car_idle');
     void this.seatClip();
   }
@@ -690,12 +719,25 @@ export class VrmAvatar {
 
   walk(scene:THREE.Scene,position:THREE.Vector3,heading:number){
     scene.add(this.group);this.group.position.copy(position);this.group.rotation.set(0,heading,0);
-    this.seated=false;this.active='';this.play('hom_loco_idle_rest');
+    this.seated=false;this.mixer?.stopAllAction();this.active='';this.play('hom_loco_idle_rest');
   }
 
   update(dt:number){
     if(!this.vrm)return;
     this.mixer?.update(dt);
+    // Behind the wheel, look where you are going. The cast's driving clip carries its own
+    // head angle, and on a differently proportioned neck that reads as staring off the
+    // road, so the head's pitch is levelled against the horizon while seated. It runs
+    // after the mixer and before `vrm.update`, which is what pushes the normalized bones
+    // onto the rig.
+    if(this.seated){
+      const head=this.vrm.humanoid.getNormalizedBoneNode('head');
+      if(head){
+        head.updateWorldMatrix(true,false);
+        const gaze=new THREE.Vector3(0,0,1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+        head.rotation.x+=Math.atan2(gaze.y,Math.hypot(gaze.x,gaze.z));
+      }
+    }
     this.vrm.update(dt);
   }
 

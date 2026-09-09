@@ -1,0 +1,71 @@
+{
+ "version": 1,
+ "level": 4,
+ "source": "level4",
+ "objects": [
+  {
+   "scene": "l4z1",
+   "mesh": "z1_glows_5Shape_037",
+   "triangles": 34,
+   "probe": [
+    187.21,
+    4.98,
+    178.11
+   ]
+  },
+  {
+   "scene": "l4z1",
+   "mesh": "z1_glows_5Shape_039",
+   "triangles": 4,
+   "probe": [
+    289.84,
+    5.22,
+    134.44
+   ]
+  },
+  {
+   "scene": "l4z1",
+   "mesh": "z1_glows_5Shape_055",
+   "triangles": 230,
+   "probe": [
+    364.71,
+    4.57,
+    142.82
+   ]
+  },
+  {
+   "scene": "l4z1",
+   "mesh": "z1_glows_5Shape_017",
+   "triangles": 16,
+   "probe": [
+    340.34,
+    13.11,
+    191.33
+   ]
+  },
+  {
+   "scene": "l4z1",
+   "mesh": "z1_glows_5Shape_012",
+   "triangles": 8,
+   "probe": [
+    301.7,
+    4.71,
+    138.75
+   ]
+  },
+  {
+   "scene": "l4z6",
+   "mesh": "frontShape_027",
+   "triangles": 52,
+   "probe": [
+    -229.6,
+    -5.93,
+    -327.01
+   ]
+  }
+ ],
+ "positions": [
+  0,
+  3096
+ ]
+}

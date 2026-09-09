@@ -1,0 +1,51 @@
+{
+ "version": 1,
+ "level": 7,
+ "source": "level7",
+ "objects": [
+  {
+   "scene": "l7r1",
+   "mesh": "dontlight_glows114Shape_026",
+   "triangles": 55,
+   "probe": [
+    160.7,
+    6.45,
+    163.75
+   ]
+  },
+  {
+   "scene": "l7r2",
+   "mesh": "itchynscratchy1Shape",
+   "triangles": 2,
+   "probe": [
+    275.32,
+    6.8,
+    483.5
+   ]
+  },
+  {
+   "scene": "l7z2",
+   "mesh": "spiderweb3Shape_011",
+   "triangles": 108,
+   "probe": [
+    310.65,
+    5.72,
+    295.93
+   ]
+  },
+  {
+   "scene": "l7z2",
+   "mesh": "spiderweb3Shape_012",
+   "triangles": 148,
+   "probe": [
+    309.22,
+    5.83,
+    273.79
+   ]
+  }
+ ],
+ "positions": [
+  0,
+  2817
+ ]
+}

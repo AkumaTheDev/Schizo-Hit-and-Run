@@ -1,0 +1,31 @@
+{
+ "version": 1,
+ "level": 1,
+ "source": "level1",
+ "objects": [
+  {
+   "scene": "l1r2",
+   "mesh": "itchynscratchy1Shape",
+   "triangles": 2,
+   "probe": [
+    275.32,
+    6.8,
+    483.5
+   ]
+  },
+  {
+   "scene": "l1z6",
+   "mesh": "frontShape_027",
+   "triangles": 52,
+   "probe": [
+    -229.6,
+    -5.93,
+    -327.01
+   ]
+  }
+ ],
+ "positions": [
+  0,
+  486
+ ]
+}

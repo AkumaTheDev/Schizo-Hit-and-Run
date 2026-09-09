@@ -1,0 +1,221 @@
+{
+ "version": 1,
+ "level": 5,
+ "source": "level5",
+ "objects": [
+  {
+   "scene": "l5r1",
+   "mesh": "glow164Shape293_014",
+   "triangles": 8,
+   "probe": [
+    -43.53,
+    6.95,
+    -6.07
+   ]
+  },
+  {
+   "scene": "l5r1",
+   "mesh": "glow164Shape293_032",
+   "triangles": 233,
+   "probe": [
+    52.11,
+    8.08,
+    28
+   ]
+  },
+  {
+   "scene": "l5r1",
+   "mesh": "glow164Shape293_031",
+   "triangles": 688,
+   "probe": [
+    59.15,
+    7.8,
+    44.03
+   ]
+  },
+  {
+   "scene": "l5r2",
+   "mesh": "common208Shape_003",
+   "triangles": 8,
+   "probe": [
+    -240.65,
+    12.21,
+    -215.29
+   ]
+  },
+  {
+   "scene": "l5r4",
+   "mesh": "r4_landmarksShape19_001",
+   "triangles": 34,
+   "probe": [
+    116.6,
+    25.85,
+    -356.64
+   ]
+  },
+  {
+   "scene": "l5r4",
+   "mesh": "r4_landmarksShape19_012",
+   "triangles": 56,
+   "probe": [
+    141.55,
+    17.64,
+    -320.76
+   ]
+  },
+  {
+   "scene": "l5z2",
+   "mesh": "common171Shape_031",
+   "triangles": 70,
+   "probe": [
+    -248.69,
+    7.94,
+    -75.65
+   ]
+  },
+  {
+   "scene": "l5z2",
+   "mesh": "common171Shape_010",
+   "triangles": 258,
+   "probe": [
+    -214.55,
+    7.8,
+    -124.4
+   ]
+  },
+  {
+   "scene": "l5z2",
+   "mesh": "common171Shape_050",
+   "triangles": 76,
+   "probe": [
+    -173.39,
+    8,
+    -29.23
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_054",
+   "triangles": 10,
+   "probe": [
+    -368.39,
+    8.19,
+    -395.65
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_050",
+   "triangles": 25,
+   "probe": [
+    -356.19,
+    8.01,
+    -396.68
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_046",
+   "triangles": 8,
+   "probe": [
+    -316.64,
+    6.28,
+    -286.06
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_044",
+   "triangles": 57,
+   "probe": [
+    -316.64,
+    6.28,
+    -279.37
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_040",
+   "triangles": 170,
+   "probe": [
+    -370.8,
+    8.59,
+    -308.71
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_027",
+   "triangles": 32,
+   "probe": [
+    -339.96,
+    8.91,
+    -364.26
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_017",
+   "triangles": 518,
+   "probe": [
+    -305.97,
+    9.24,
+    -330.59
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_011",
+   "triangles": 49,
+   "probe": [
+    -242.23,
+    8.19,
+    -342.69
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_010",
+   "triangles": 319,
+   "probe": [
+    -254.19,
+    7.97,
+    -353.92
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_008",
+   "triangles": 30,
+   "probe": [
+    -253.17,
+    7.56,
+    -335.03
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_085",
+   "triangles": 14,
+   "probe": [
+    -333.13,
+    8.02,
+    -400.63
+   ]
+  },
+  {
+   "scene": "l5z3",
+   "mesh": "windowglow28Shape_075",
+   "triangles": 49,
+   "probe": [
+    -309.29,
+    9.65,
+    -332.54
+   ]
+  }
+ ],
+ "positions": [
+  0,
+  24408
+ ]
+}

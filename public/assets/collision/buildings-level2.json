@@ -1,0 +1,201 @@
+{
+ "version": 1,
+ "level": 2,
+ "source": "level2",
+ "objects": [
+  {
+   "scene": "l2r1",
+   "mesh": "common195Shape_014",
+   "triangles": 8,
+   "probe": [
+    -43.53,
+    6.95,
+    -6.07
+   ]
+  },
+  {
+   "scene": "l2r1",
+   "mesh": "common195Shape_030",
+   "triangles": 688,
+   "probe": [
+    59.15,
+    7.8,
+    44.03
+   ]
+  },
+  {
+   "scene": "l2r1",
+   "mesh": "common195Shape_031",
+   "triangles": 233,
+   "probe": [
+    52.11,
+    8.08,
+    28
+   ]
+  },
+  {
+   "scene": "l2r4",
+   "mesh": "r4_landmarksShape58_001",
+   "triangles": 34,
+   "probe": [
+    116.6,
+    25.85,
+    -356.64
+   ]
+  },
+  {
+   "scene": "l2z2",
+   "mesh": "common53Shape_029",
+   "triangles": 70,
+   "probe": [
+    -248.69,
+    7.94,
+    -75.65
+   ]
+  },
+  {
+   "scene": "l2z2",
+   "mesh": "common53Shape_008",
+   "triangles": 258,
+   "probe": [
+    -214.55,
+    7.8,
+    -124.4
+   ]
+  },
+  {
+   "scene": "l2z2",
+   "mesh": "common53Shape_048",
+   "triangles": 76,
+   "probe": [
+    -173.39,
+    8,
+    -29.23
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_053",
+   "triangles": 10,
+   "probe": [
+    -368.39,
+    8.19,
+    -395.65
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_049",
+   "triangles": 25,
+   "probe": [
+    -356.19,
+    8.01,
+    -396.68
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_045",
+   "triangles": 8,
+   "probe": [
+    -316.64,
+    6.28,
+    -286.06
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_042",
+   "triangles": 57,
+   "probe": [
+    -316.64,
+    6.28,
+    -279.37
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_039",
+   "triangles": 170,
+   "probe": [
+    -370.8,
+    8.59,
+    -308.71
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_026",
+   "triangles": 32,
+   "probe": [
+    -339.96,
+    8.91,
+    -364.26
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_016",
+   "triangles": 518,
+   "probe": [
+    -305.97,
+    9.24,
+    -330.59
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_010",
+   "triangles": 49,
+   "probe": [
+    -242.23,
+    8.19,
+    -342.69
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_009",
+   "triangles": 319,
+   "probe": [
+    -254.19,
+    7.97,
+    -353.92
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_007",
+   "triangles": 30,
+   "probe": [
+    -253.17,
+    7.56,
+    -335.03
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_085",
+   "triangles": 14,
+   "probe": [
+    -333.13,
+    8.02,
+    -400.63
+   ]
+  },
+  {
+   "scene": "l2z3",
+   "mesh": "common153Shape_074",
+   "triangles": 49,
+   "probe": [
+    -309.29,
+    9.65,
+    -332.54
+   ]
+  }
+ ],
+ "positions": [
+  0,
+  23832
+ ]
+}

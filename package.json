@@ -13,7 +13,7 @@
     "world-collision:convert": "python3 tools/world_collision.py",
     "test": "python3 tools/test_formats.py && node --import tsx --test tests/*.test.ts",
     "remaster": "node tools/remaster.mjs",
-    "test:unit": "python3 tools/test_formats.py && node --import tsx --test tests/physics.test.ts tests/motion.test.ts tests/traffic.test.ts tests/interiors.test.ts tests/building-collision.test.ts tests/hit-and-run.test.ts tests/pursuit.test.ts tests/player-world.test.ts tests/vehicle-dynamics.test.ts tests/world-driving.test.ts tests/world-assets.test.ts tests/multiplayer.test.ts tests/touch-controls.test.ts tests/audio.test.ts tests/slope.test.ts",
+    "test:unit": "python3 tools/test_formats.py && node --import tsx --test tests/physics.test.ts tests/motion.test.ts tests/traffic.test.ts tests/interiors.test.ts tests/building-collision.test.ts tests/hit-and-run.test.ts tests/pursuit.test.ts tests/player-world.test.ts tests/vehicle-dynamics.test.ts tests/world-driving.test.ts tests/world-assets.test.ts tests/multiplayer.test.ts tests/touch-controls.test.ts tests/audio.test.ts tests/slope.test.ts tests/building-colliders.test.ts",
     "pursuit:convert": "python3 tools/vehicle_tuning.py && python3 tools/pursuit_assets.py",
     "pursuit:remaster": "blender --background --factory-startup --python tools/pursuit_remaster.py",
     "campaign:convert": "python3 tools/campaign.py && python3 tools/campaign_assets.py",
