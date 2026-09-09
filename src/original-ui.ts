@@ -58,9 +58,14 @@ export class OriginalHUD {
     c.setTransform(dpr*scale,0,0,dpr*scale,0,0);c.clearRect(0,0,w,h);c.imageSmoothingEnabled=true;
     // The radar lives top-right, and turns with you: the map rotates under a fixed
     // arrow so the direction you are facing is always up the screen.
-    const x=w-166,y=12,cx=x+76,cy=y+76;
-    originalArt.draw(c,'radar.png',x,y,152,152);
-    c.save();c.beginPath();c.arc(cx,cy,51,0,Math.PI*2);c.clip();c.translate(cx,cy);c.rotate(state.heading-Math.PI);c.scale(bigMap?.17:.58,bigMap?.17:.58);c.translate(-state.position.x,-state.position.z);
+    // The three radar layers are each natively 150 square, but the circle each one draws
+    // sits somewhere slightly different inside that square, so a shared rect does NOT
+    // stack them. These offsets are measured off the artwork itself — the centre of each
+    // layer's own visible circle, lined up on the rim's — which is what puts the heat
+    // meter's curve on the minimap's edge instead of a few pixels off it.
+    const size=150,x=w-166,y=12,cx=x+70.5,cy=y+73.5;
+    originalArt.draw(c,'radar.png',x-1,y+2,size,size);
+    c.save();c.beginPath();c.arc(cx,cy,50,0,Math.PI*2);c.clip();c.translate(cx,cy);c.rotate(state.heading-Math.PI);c.scale(bigMap?.17:.58,bigMap?.17:.58);c.translate(-state.position.x,-state.position.z);
     c.strokeStyle='#86cc73';c.lineWidth=7;c.lineCap='round';c.beginPath();for(const [a,b] of data.roads){c.moveTo(a[0],a[2]);c.lineTo(b[0],b[2]);}c.stroke();
     c.fillStyle='#ffca17';for(const vehicle of traffic?.cars??[])if(vehicle.active){c.beginPath();c.arc(vehicle.mesh.position.x,vehicle.mesh.position.z,3,0,Math.PI*2);c.fill();}
     for(const position of this.pursuit?.cars??[]){c.fillStyle=Math.sin(this.time*10)>0?'#ff2626':'#315eff';c.beginPath();c.arc(position.x,position.z,6,0,Math.PI*2);c.fill();originalArt.draw(c,'aicar.png',position.x-6,position.z-6,12,12);}
@@ -68,11 +73,14 @@ export class OriginalHUD {
     if(challenge.active){const p=challenge.route[challenge.index].position;originalArt.draw(c,'mission.png',p[0]-10,p[2]-10,20,20);}
     c.restore();
     const heat=this.pursuit?.heat??0;
-    if(heat>0){c.save();c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,70,-Math.PI/2,-Math.PI/2+Math.PI*2*heat/100);c.closePath();c.clip();originalArt.draw(c,'hrmetter.png',x,y,152,152);c.restore();}
-    originalArt.draw(c,'radartop.png',x+4,y,150,150);
+    // The meter fills clockwise from twelve o'clock as a pie wedge cut out of the ring,
+    // so the wedge has to reach past the square's corners or it would crop the rim on
+    // the diagonals.
+    if(heat>0){c.save();c.beginPath();c.moveTo(cx,cy);c.arc(cx,cy,size,-Math.PI/2,-Math.PI/2+Math.PI*2*heat/100);c.closePath();c.clip();originalArt.draw(c,'hrmetter.png',x-3,y+0.5,size,size);c.restore();}
+    originalArt.draw(c,'radartop.png',x,y,size,size);
     // The arrow no longer turns — the map does, so it always points up the screen.
     originalArt.draw(c,'user.png',cx-9,cy-11,19,22);
-    originalArt.draw(c,this.pursuit?.active?(Math.sin(this.time*10)>0?'hitnrun2.png':'hitnrun1.png'):heat>78?'hitnrun1.png':'hitnrun0.png',x+40,y+113,73,30);
+    originalArt.draw(c,this.pursuit?.active?(Math.sin(this.time*10)>0?'hitnrun2.png':'hitnrun1.png'):heat>78?'hitnrun1.png':'hitnrun0.png',cx-36,y+112,73,30);
     // Coins keep their height and move to the middle, out from under the radar.
     const count=element('coin-count').textContent?.split('/')[0].trim()??'0';
     originalArt.draw(c,'coins.png',w/2-52,31,39,34);originalArt.digits(c,count,w/2-7,21,44);
