@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { assetURL,json, type Assets } from './assets';
-import { GUN_FALLBACK } from './vrm-avatar';
 interface CharacterData {placement?:number[];bones:{name:string;parent:number;matrix:number[]}[];primitives:{shader:string;attributes:Record<string,[number,number]>}[];materials:Record<string,{textureUrl:string}>;animations:{name:string;duration:number;tracks:{bone:string;kind:string;times:number[];values:number[]}[]}[]}
 export class Character {
   group=new THREE.Group();private mixer=new THREE.AnimationMixer(this.group);private actions=new Map<string,THREE.AnimationAction>();private active='';
@@ -37,11 +36,9 @@ export class Character {
   duration(name:string){return this.actions.get(name)?.getClip().duration??0;}
   play(name:string,once=false){
     if(name===this.active)return;
-    // The conversion made no firing clips, so a gun state falls back to the locomotion
-    // it stands on and the arms are posed by `holdPose`. Anything still unknown leaves
-    // the body animating rather than fading it out into a frozen pose — asking for a
-    // clip that does not exist is what stopped the cast dead while carrying the rifle.
-    const next=this.actions.get(name)??this.actions.get(GUN_FALLBACK[name]??'');
+    // A clip this body does not have leaves it animating rather than fading it out into
+    // a frozen pose: asking for one that does not exist is what stopped the cast dead.
+    const next=this.actions.get(name);
     if(!next){this.active=name;return;}
     const current=this.actions.get(this.active);
     if(current&&current!==next)current.fadeOut(.15);
@@ -50,33 +47,11 @@ export class Character {
     if(current!==next)next.reset().fadeIn(.15).play();
     this.active=name;
   }
-  /** The cast's head bone sits at 1.33 m in the converted rest pose — measured, not guessed. */
-  height(){return this.bones.find(bone=>bone.name==='Head')?.getWorldPosition(new THREE.Vector3()).y??1.33;}
-  /** The bone a weapon hangs from. The converted rig names the right wrist `Wrist_R`. */
-  hand(){return this.bones.find(bone=>bone.name==='Wrist_R');}
-  /**
-   * Hold a long gun.
-   *
-   * The cartoon rig has no firing clips — the conversion never produced any — so the
-   * arms are posed straight onto the bones after the mixer runs, the way the seated
-   * pose works. The angles put the right hand on the grip and the left out on the
-   * magwell, which is the same two-hand carry the sibling project's rifle uses.
-   */
-  holdPose(active:boolean){this.holding=active;}
-  private holding=false;
-  private applyHold(){
-    if(!this.holding)return;
-    const bone=(name:string)=>this.bones.find(b=>b.name===name);
-    const set=(name:string,x:number,y:number,z:number)=>{const b=bone(name);if(b)b.rotation.set(x,y,z);};
-    set('Shoulder_R',-0.55,0.15,-0.35);set('Elbow_R',-1.15,0.2,0);
-    set('Shoulder_L',-0.75,-0.5,0.3);set('Elbow_L',-1.35,-0.15,0);
-  }
-
   drive(car:THREE.Group){
     car.add(this.group);this.group.position.set(-0.48,-0.32,-0.15);this.group.rotation.set(0,Math.PI,0);this.group.scale.setScalar(1);
     this.play('hom_in_car_idle');
   }
   walk(scene:THREE.Scene,position:THREE.Vector3,heading:number){scene.add(this.group);this.group.position.copy(position);this.group.rotation.set(0,heading,0);this.play('hom_loco_idle_rest');}
-  update(dt:number){this.mixer.update(dt);this.applyHold();}
+  update(dt:number){this.mixer.update(dt);}
   dispose(){this.mixer.stopAllAction();this.mixer.uncacheRoot(this.group);this.group.removeFromParent();this.skeleton?.dispose();}
 }

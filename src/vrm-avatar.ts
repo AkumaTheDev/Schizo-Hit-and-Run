@@ -21,12 +21,6 @@ import { json } from './assets';
 export interface Avatar {
   readonly group:THREE.Group;
   readonly playing:string;
-  /** The bone a weapon hangs from, once the body has loaded. */
-  hand():THREE.Object3D|undefined;
-  /** Head height in metres, measured from the body's own rest pose. */
-  height():number;
-  /** Ask for the two-hand carry. Bodies with firing clips answer with those instead. */
-  holdPose(active:boolean):void;
   duration(name:string):number;
   play(name:string,once?:boolean):void;
   drive(car:THREE.Group):void;
@@ -59,19 +53,15 @@ export const CLIPS={
   // NOT a Mixamo rig: an Unreal mannequin (pelvis/spine_01/thigh_l). Without the UE
   // half of the bone map it retargets to nothing and plays as a silent no-op.
   backflip:{file:'BackFlip.glb',names:['hom_backflip']},
-  gunIdle:{file:'Breathing Idle.fbx',names:['hom_gun_idle']},
-  gunShoot:{file:'Firing Rifle.fbx',names:['hom_gun_fire']},
-  gunShootWalk:{file:'Shoot Rifle.fbx',names:['hom_gun_fire_walk']},
 } as const;
 type Slot=keyof typeof CLIPS|Blend;
 /**
  * Clips this game builds for itself by splitting two others at the waist, because no
- * single recording covers them: holding a gun while your legs walk or run, and the
- * jump's upper body over a running stride.
+ * single recording covers them: the jump's upper body over a running stride.
  */
-type Blend='gunWalk'|'gunRun'|'jumpRun';
+type Blend='jumpRun';
 const BLEND_NAMES:Record<Blend,string[]>={
-  gunWalk:['hom_gun_walk'],gunRun:['hom_gun_run'],jumpRun:['hom_jump_run'],
+  jumpRun:['hom_jump_run'],
 };
 const SLOT_FOR=new Map<string,Slot>();
 for(const [slot,clip] of Object.entries(CLIPS))for(const name of clip.names)SLOT_FOR.set(name,slot as Slot);
@@ -82,9 +72,6 @@ export const VRM_BONES=['hips','spine','chest','upperChest','neck','head','leftS
 /** Everything the legs do: the half a locomotion clip keeps in a blend. */
 export const LOWER=new Set(['hips','leftUpperLeg','leftLowerLeg','leftFoot','leftToes','rightUpperLeg','rightLowerLeg','rightFoot','rightToes']);
 const UPPER=new Set(VRM_BONES.filter(bone=>!LOWER.has(bone)));
-/** Running with the gun keeps the LEFT arm swinging on the run cycle; it holds nothing. */
-const LEFT_ARM=new Set(VRM_BONES.filter(bone=>bone.startsWith('left')&&!LOWER.has(bone)&&bone!=='leftEye'));
-const UPPER_NO_LEFT_ARM=new Set([...UPPER].filter(bone=>!LEFT_ARM.has(bone)));
 
 const MIXAMO_TO_VRM:Record<string,string>={
   'mixamorigHips': 'hips',
@@ -357,11 +344,6 @@ function tileClip(clip:THREE.AnimationClip,duration:number){
 
 /** Which two clips each blend is cut from, and which half each one contributes. */
 export const BLEND_PARTS:Record<Blend,{upper:keyof typeof CLIPS;lower:keyof typeof CLIPS;bones:Set<string>}>={
-  // The gun is held in the same pose whether standing or moving, so the legs come
-  // from the locomotion clip and everything above the hips from the gun pose.
-  gunWalk:{upper:'gunShootWalk',lower:'walk',bones:UPPER},
-  // Sprinting keeps the left arm on the run cycle: it is not holding anything.
-  gunRun:{upper:'gunShootWalk',lower:'run',bones:UPPER_NO_LEFT_ARM},
   jumpRun:{upper:'jump',lower:'run',bones:UPPER},
 };
 
@@ -444,18 +426,12 @@ function sourceClip(slot:Downloaded){
 }
 
 /**
- * What a gun state falls back to when the cast's own set is the only one loaded: the
- * conversion never made a firing clip, so the legs keep walking or running and the
- * arms are posed onto the rig by `HOLD_POSE` instead.
+ * What a Mixamo-only state falls back to when the cast's own set is the only one
+ * loaded — those clips have no equivalent in the conversion, so they stand on the
+ * locomotion underneath them rather than leaving the body with nothing to play.
  */
-export const GUN_FALLBACK:Record<string,string>={
-  hom_gun_idle:'hom_loco_idle_rest',hom_gun_walk:'hom_loco_walk',
-  hom_gun_run:'hom_loco_run',hom_gun_fire:'hom_loco_idle_rest',hom_jump_run:'hom_loco_run',
-};
-/** The two-hand carry, written onto the humanoid — the same shape the cast's rig holds. */
-const HOLD_POSE:Record<string,{x?:number;y?:number;z?:number}>={
-  rightUpperArm:{x:-0.55,y:0.15,z:-0.35},rightLowerArm:{x:-1.15,y:0.2},
-  leftUpperArm:{x:-0.75,y:-0.5,z:0.3},leftLowerArm:{x:-1.35,y:-0.15},
+const CAST_FALLBACK:Record<string,string>={
+  hom_jump_run:'hom_loco_run',
 };
 
 /** The seated pose, copied bone for bone from the sibling project's driving pose. */
@@ -479,8 +455,7 @@ export class VrmAvatar {
   private seated=false;
   /** This avatar's hip height in metres, measured from its own rest pose — see `drive`. */
   private hipsHeight=0.618;
-  /** And its head, which is what a held weapon is scaled against. */
-  private headHeight=1.33;
+
   get playing(){return this.active;}
   get loaded(){return !!this.vrm;}
 
@@ -515,8 +490,7 @@ export class VrmAvatar {
     const origin=this.group.getWorldPosition(new THREE.Vector3()).y;
     const hips=vrm.humanoid.getNormalizedBoneNode('hips');
     if(hips)this.hipsHeight=Math.abs(hips.getWorldPosition(new THREE.Vector3()).y-origin);
-    const head=vrm.humanoid.getNormalizedBoneNode('head');
-    if(head)this.headHeight=Math.abs(head.getWorldPosition(new THREE.Vector3()).y-origin);
+
     this.mixer=new THREE.AnimationMixer(vrm.scene);
 
     // Track names are node names on this particular rig, so the way back to humanoid
@@ -609,8 +583,8 @@ export class VrmAvatar {
    * Find the action for a name under the current source.
    *
    * The game's own clips answer first — they are this game's animation, and the cast
-   * and the VRMs then move alike. Mixamo covers what the conversion never had (the gun,
-   * the backflip) and, on its own setting, everything.
+   * and the VRMs then move alike. Mixamo covers what the conversion never had (the
+   * backflip) and, on its own setting, everything.
    */
   private async ensure(name:string){
     const existing=this.actions.get(name);
@@ -621,9 +595,9 @@ export class VrmAvatar {
       if(fromGame)return fromGame;
     }
     if(this.source==='game'){
-      const fallback=GUN_FALLBACK[name];
+      const fallback=CAST_FALLBACK[name];
       const stand=fallback?this.actions.get(fallback):undefined;
-      // Share the locomotion action under the gun's name: the arms come from HOLD_POSE.
+      // Share the locomotion action under the missing clip's name.
       if(stand){this.actions.set(name,stand);return stand;}
       throw new Error(`${name} is not in the cast's animation set`);
     }
@@ -672,7 +646,7 @@ export class VrmAvatar {
 
   play(name:string,once=false){
     if(name===this.active)return;
-    const from=this.actions.get(this.active),to=this.actions.get(name)??this.actions.get(GUN_FALLBACK[name]??'');
+    const from=this.actions.get(this.active),to=this.actions.get(name)??this.actions.get(CAST_FALLBACK[name]??'');
     this.active=name;
     if(!to){
       // Nothing to play yet. Leave whatever is running alone rather than fading the body
@@ -686,16 +660,6 @@ export class VrmAvatar {
     to.clampWhenFinished=once;
     if(from!==to)to.reset().fadeIn(.15).play();
   }
-
-  height(){return this.headHeight;}
-  /** The bone a weapon hangs from: the RAW node, so it follows the skinned rig. */
-  hand(){return this.vrm?.humanoid.getRawBoneNode('rightHand')??undefined;}
-  /**
-   * Hold a long gun. With the Mixamo set loaded the gun clips do this themselves, so
-   * the pose is only written when the clip playing is a plain locomotion one.
-   */
-  holdPose(active:boolean){this.holding=active;}
-  private holding=false;
 
   drive(car:THREE.Group){
     car.add(this.group);
@@ -719,12 +683,6 @@ export class VrmAvatar {
     this.mixer?.update(dt);
     // The seated pose is written straight onto the humanoid, so it goes on after the
     // mixer and before `vrm.update`, which is what pushes normalized bones onto the rig.
-    // The carry is written onto the arms only when the clip in play is not already a
-    // firing clip — otherwise it would fight the animation that came with the gun.
-    if(this.holding&&!this.seated&&!SLOT_FOR.has(this.active))for(const [bone,angles] of Object.entries(HOLD_POSE)){
-      const node=this.vrm.humanoid.getNormalizedBoneNode(bone as never);
-      if(node)node.rotation.set(angles.x??0,angles.y??0,angles.z??0);
-    }
     if(this.seated)for(const [bone,angles] of Object.entries(DRIVING_POSE)){
       const node=this.vrm.humanoid.getNormalizedBoneNode(bone as never);
       if(!node)continue;
