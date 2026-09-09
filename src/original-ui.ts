@@ -80,7 +80,11 @@ export class OriginalHUD {
     originalArt.draw(c,'radartop.png',x,y,size,size);
     // The arrow no longer turns — the map does, so it always points up the screen.
     originalArt.draw(c,'user.png',cx-9,cy-11,19,22);
-    originalArt.draw(c,this.pursuit?.active?(Math.sin(this.time*10)>0?'hitnrun2.png':'hitnrun1.png'):heat>78?'hitnrun1.png':'hitnrun0.png',cx-36,y+112,73,30);
+    // The siren plate is the radar's light bar: its underside is cut to the rim's own
+    // curve — 26px deep at the wings, 19 in the middle — so it belongs ACROSS THE TOP of
+    // the circle with the wings overlapping the rim, not hanging off the bottom. The
+    // artwork is 71px of paint inside a 73px frame, so cx-35.5 centres it on the rim.
+    originalArt.draw(c,this.pursuit?.active?(Math.sin(this.time*10)>0?'hitnrun2.png':'hitnrun1.png'):heat>78?'hitnrun1.png':'hitnrun0.png',cx-35.5,y-4,73,30);
     // Coins keep their height and move to the middle, out from under the radar.
     const count=element('coin-count').textContent?.split('/')[0].trim()??'0';
     originalArt.draw(c,'coins.png',w/2-52,31,39,34);originalArt.digits(c,count,w/2-7,21,44);
