@@ -21,7 +21,7 @@ import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,rese
 import { HUD, element } from './hud';
 import { Challenge } from './challenge';
 import { Traffic,type TrafficCar } from './traffic';
-import { Pedestrians } from './pedestrians';
+import { Pedestrians,type Recruit } from './pedestrians';
 import { Sound } from './audio';
 import { Character } from './character';
 import { DEFAULT_VRM,isVrmSkin,VRM_MODELS,VrmAvatar,type AnimationSource,type Avatar } from './vrm-avatar';
@@ -143,6 +143,31 @@ async function makeAvatar(skin:string):Promise<Avatar>{
   await character.load(world.assets,campaignAssets.characters[skin]??(isVrmSkin(skin)?CHARACTER_IDS[level-1]:skin));
   return character;
 }
+/**
+ * Who walks Springfield, in the order they arrive.
+ *
+ * Springfield's own residents come FIRST — every character the game ships, costume
+ * variants and all — because they are already on this device: the level's own models,
+ * loaded from the same place the player's body is, so they are out on the pavement almost
+ * immediately. The VRM roster follows, each of those a multi-megabyte download from the
+ * asset host, so they join the crowd as they arrive rather than holding up the town.
+ *
+ * Whoever the player is wearing is left out: you cannot pass yourself in the street.
+ */
+function streetCast():Recruit[]{
+  const springfield=Object.keys(campaignAssets.characters).filter(id=>id!==playerSkin).map(id=>({id,load:async()=>{
+    const character=new Character();
+    await character.load(world.assets,campaignAssets.characters[id]);
+    // Not every entry in the cast is a person. At least one is a bare rig that carries the
+    // shared animations and no geometry at all, and putting that on the pavement is an
+    // invisible pedestrian holding a place in the crowd. Anything bodiless is turned away.
+    let bodied=false;character.group.traverse(node=>{if((node as THREE.SkinnedMesh).isSkinnedMesh)bodied=true;});
+    if(!bodied){character.dispose();throw new Error(`${id} has no body`);}
+    return character as Avatar;
+  }}));
+  const roster=VRM_MODELS.filter(skin=>skin!==playerSkin).map(skin=>({id:skin,load:()=>makeAvatar(skin)}));
+  return [...springfield,...roster];
+}
 async function setCar(id:string){
   if(onFoot){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;}
   character?.group.removeFromParent();car?.removeFromParent();
@@ -168,10 +193,10 @@ async function loadLevel(nextLevel:number){
     const [driver]=await Promise.all([makeAvatar(playerSkin),setCar(carId),traffic.load(),police.load(),coins.load(world.assets,world.objectData.coin)]);
     character=driver;character.drive(car!);
     remotes=new RemotePlayers(scene,world,campaignAssets);net.describe(level,carId,playerSkin);
-    // The cast walks in behind the loading bar rather than through it: eleven VRM bodies
+    // The cast walks in behind the loading bar rather than through it: seventy-odd bodies
     // is tens of megabytes, and none of it is needed before the world is playable.
     pedestrians=new Pedestrians(world,scene);
-    void pedestrians.populate(state.position,{exclude:playerSkin,animations:animationSource(),cast:campaignAssets.characters[animationCast()]??animationCast()});
+    void pedestrians.populate(state.position,streetCast());
     sound.setCharacter(VOICE_ACTORS[level-1],campaignAssets.dialogue);
         element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
@@ -414,6 +439,7 @@ async function jack(target:TrafficCar){
 }
 async function changeSkin(id:string){
   playerSkin=id;try{localStorage.setItem('hit-and-run:skin',id);}catch{}
+  // You cannot pass yourself in the street, so that face leaves the crowd.
   pedestrians?.exclude(id);
   const next=await makeAvatar(id);character?.dispose();character=next;
   if(onFoot)character.walk(scene,state.position,state.heading);else character.drive(car!);

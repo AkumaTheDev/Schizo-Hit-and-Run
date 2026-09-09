@@ -1,8 +1,12 @@
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { assetJSON,worldFixture } from './world-fixture.ts';
-import { carriagewayEdges,carriagewayGrid,clearFootway,footwayClear,footwayFloor,footwayPoint,onCarriageway,pavementSides,rightOf,PAVEMENT_RULES } from '../src/pedestrians.ts';
+import { carriagewayEdges,carriagewayGrid,clearFootway,footwayClear,footwayFloor,footwayPoint,measureLift,onCarriageway,pavementSides,rightOf,Pedestrians,PAVEMENT_RULES } from '../src/pedestrians.ts';
+import { Character } from '../src/character.ts';
+import type { Assets } from '../src/assets.ts';
+import type { World } from '../src/world.ts';
 import { TrafficPath } from '../src/traffic-path.ts';
 import type { RoadNavigation } from '../src/road-data.ts';
 
@@ -179,4 +183,147 @@ test('a side with no footway is refused rather than pushed across the street', (
   for(let i=0;i<sides.length;i++)
     assert.ok(sides[i]===0||(sides[i]>=PAVEMENT_RULES.offset&&sides[i]<=PAVEMENT_RULES.offset+PAVEMENT_RULES.budget+1e-5),
       `offset ${sides[i]} is neither refused nor within the budget`);
+});
+
+/**
+ * The crowd, driven through the real streets with stand-in bodies.
+ *
+ * The whole cast has a body but only a crowd's worth is out at once, so what matters is
+ * that the street is always populated, that nobody is out twice, and that over a drive the
+ * turn comes round to everybody rather than the same twenty faces.
+ */
+function stubAvatar(){
+  const group=new THREE.Group();
+  return {group,playing:'',duration:()=>0,play(){},drive(){},walk(scene:THREE.Scene,position:THREE.Vector3){scene.add(group);group.position.copy(position);},update(){},dispose(){group.removeFromParent();}};
+}
+
+test('the crowd stays filled, never doubles up, and works through the whole cast', async () => {
+  const {terrain,data}=worldFixture();
+  const scene=new THREE.Scene();
+  const world={data,terrain,scene} as unknown as World;
+  const crowd=new Pedestrians(world,scene);
+  const names=Array.from({length:70},(_,i)=>`extra${i}`);
+  await crowd.populate(new THREE.Vector3(298.6,4.2,158.9),names.map(id=>({id,load:async()=>stubAvatar()})));
+  assert.equal(crowd.cast.length,names.length,'not everybody got a body');
+  assert.ok(crowd.skins.length<=PAVEMENT_RULES.crowd,`${crowd.skins.length} out at once, over the crowd limit`);
+
+  // Drive the roads, the way a player would. Everybody left behind is retired and replaced.
+  const roads=data.roads.map(road=>road.map(p=>new THREE.Vector3(...p as [number,number,number])));
+  const route=new TrafficPath(roads,0,false,0,data.navigation);
+  const player=new THREE.Vector3();
+  const seen=new Set(crowd.skins);
+  let empty=0;
+  for(let step=0;step<1500;step++){
+    route.advance(12/30);                                  // about 43 km/h
+    route.sample(player);
+    crowd.update(1/30,player);
+    const out=crowd.skins;
+    assert.equal(new Set(out).size,out.length,'somebody is out on the street twice');
+    assert.ok(out.length<=PAVEMENT_RULES.crowd,`${out.length} out at once at step ${step}`);
+    if(out.length<PAVEMENT_RULES.crowd)empty++;
+    for(const skin of out)seen.add(skin);
+  }
+  // The street stays populated, and the turn comes round to nearly everybody in one drive.
+  assert.ok(empty<40,`the crowd was short of its ${PAVEMENT_RULES.crowd} on ${empty} of 1500 frames`);
+  assert.ok(seen.size>names.length*.7,`only ${seen.size} of ${names.length} of the cast ever came out`);
+  crowd.dispose();
+  assert.equal(crowd.cast.length,0,'disposing left bodies behind');
+  terrain.dispose();
+});
+
+test('the player\'s own face can be taken off the street', async () => {
+  const {terrain,data}=worldFixture();
+  const scene=new THREE.Scene();
+  const world={data,terrain,scene} as unknown as World;
+  const crowd=new Pedestrians(world,scene);
+  await crowd.populate(new THREE.Vector3(298.6,4.2,158.9),['homer','marge','bart'].map(id=>({id,load:async()=>stubAvatar()})));
+  crowd.exclude('marge');
+  assert.deepEqual(crowd.cast,['homer','bart']);
+  crowd.update(1/30,new THREE.Vector3(298.6,4.2,158.9));
+  assert.ok(!crowd.skins.includes('marge'),'still walking around as the player');
+  crowd.dispose();
+  terrain.dispose();
+});
+
+test('every one of Springfield\'s own has the clips the crowd asks it to play', () => {
+  const assets=assetJSON('campaign/assets') as {characters:Record<string,string>};
+  const cast=Object.entries(assets.characters);
+  assert.ok(cast.length>60,`only ${cast.length} characters in the cast`);
+  let walkers=0,bodiless=0;
+  for(const [id,file] of cast){
+    const data=assetJSON(file) as {animations?:{name:string}[]};
+    // Character renames each clip's own prefix to hom_, which is the name a pedestrian plays.
+    const clips=new Set((data.animations??[]).map(clip=>clip.name.replace(/^[^_]+_/,'hom_')));
+    for(const wanted of ['hom_loco_walk','hom_loco_idle_rest'])
+      assert.ok(clips.has(wanted),`${id} (${file}) cannot ${wanted}`);
+    if(readFileSync(`public/assets/${file}.bin`).length)walkers++;
+    else{
+      // A bare rig carrying the shared clips and no geometry. The game turns these away
+      // rather than seating an invisible pedestrian, so it must have no primitives at all
+      // — a half-empty one would load as a body with pieces missing.
+      assert.equal((assetJSON(file) as {primitives:unknown[]}).primitives.length,0,`${id} has geometry it cannot load`);
+      bodiless++;
+    }
+  }
+  assert.ok(walkers>60,`only ${walkers} of the cast have a body`);
+  assert.ok(bodiless<3,`${bodiless} of the cast are bodiless rigs`);
+});
+
+/**
+ * Feet on the floor. Springfield's own characters are not authored standing on their own
+ * origin, so placing them by it walks Patty and Selma 41cm through the pavement and floats
+ * Ralph 38cm over it. This loads every real body with the real Character class and checks
+ * the shipped lift puts the soles on the ground.
+ */
+test('every one of the cast stands on the pavement rather than through it', async () => {
+  const assets=assetJSON('campaign/assets') as {characters:Record<string,string>};
+  const store={textures:new Map(),materials:new Map(),geometries:new Set(),texture:async()=>new THREE.Texture()} as unknown as Assets;
+  // Character loads through fetch and json; headless, those are the files on disk.
+  const realFetch=globalThis.fetch;
+  globalThis.fetch=(async(url:RequestInfo|URL)=>{
+    const bytes=readFileSync(`public/assets/${String(url).replace(/^.*\/assets\//,'')}`);
+    return {ok:true,
+      arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.length),
+      json:async()=>JSON.parse(bytes.toString('utf8'))} as Response;
+  }) as typeof fetch;
+  const point=new THREE.Vector3();
+  let checked=0,worstSink=0,worstFloat=0,worstName='';
+  for(const [id,file] of Object.entries(assets.characters)){
+    if(!readFileSync(`public/assets/${file}.bin`).length)continue;      // the bare animation rig
+    const body=new Character();
+    await body.load(store,file);
+    const lift=measureLift(body);
+    body.group.position.set(0,lift,0);
+    const meshes:THREE.SkinnedMesh[]=[];
+    body.group.traverse(node=>{if((node as THREE.SkinnedMesh).isSkinnedMesh)meshes.push(node as THREE.SkinnedMesh);});
+    // Sample the walk on a different phase to the measurement, so a lift that only happens
+    // to fit the frames it was measured on does not pass.
+    const duration=body.duration('hom_loco_walk');
+    body.play('hom_loco_walk');
+    let lowest=Infinity;
+    for(let step=0;step<7;step++){
+      body.update(step?duration/7:0);
+      body.group.updateMatrixWorld(true);
+      for(const mesh of meshes){
+        mesh.skeleton.update();
+        const position=mesh.geometry.attributes.position;
+        for(let i=0;i<position.count;i++){
+          point.fromBufferAttribute(position,i);
+          mesh.applyBoneTransform(i,point);
+          point.applyMatrix4(mesh.matrixWorld);
+          if(point.y<lowest)lowest=point.y;
+        }
+      }
+    }
+    if(lowest<worstSink){worstSink=lowest;worstName=id;}
+    worstFloat=Math.max(worstFloat,lowest);
+    // A couple of centimetres either way is the gap between the sampled frames and the
+    // real ones, and is inside the clearance the walker already leaves under the feet.
+    assert.ok(lowest>-.03,`${id} sinks ${(-lowest).toFixed(3)}m through the pavement`);
+    assert.ok(lowest<.05,`${id} floats ${lowest.toFixed(3)}m above the pavement`);
+    body.dispose();checked++;
+  }
+  globalThis.fetch=realFetch;
+  assert.ok(checked>60,`only ${checked} of the cast were checked`);
+  assert.ok(worstSink>-.03,`${worstName} is the worst at ${worstSink.toFixed(3)}m`);
 });

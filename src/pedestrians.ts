@@ -14,7 +14,8 @@
 import * as THREE from 'three';
 import { TrafficPath } from './traffic-path';
 import { FOOT_CLEARANCE,type Terrain } from './physics';
-import { VRM_MODELS,VrmAvatar,type AnimationSource,type Avatar } from './vrm-avatar';
+import { Character } from './character';
+import type { Avatar } from './vrm-avatar';
 import type { RoadNavigation } from './road-data';
 import type { World } from './world';
 
@@ -33,6 +34,8 @@ export const PAVEMENT_RULES={
   drawDistance:110,
   /** How long they stand still when the player is in the way. */
   waitSeconds:1.2,
+  /** How many of the cast are out on the street at once. The rest wait their turn. */
+  crowd:20,
   /** A footway more than this above or below its road is not the footway: a wall, a roof, a ditch. */
   kerb:1.5,
   /** How much further than the offset a footway may be nudged to clear the opposing carriageway. */
@@ -216,6 +219,47 @@ export function pavementSides(navigation:RoadNavigation,offset=PAVEMENT_RULES.of
   return table;
 }
 
+/**
+ * How far to lift a body so its feet are on the floor, measured off the walking pose.
+ *
+ * Springfield's own characters are not authored standing on their own origin: measured
+ * across the cast, Patty and Selma hang 41cm below it and Ralph floats 38cm above. Placed
+ * by the origin they would walk through the pavement or over it. A VRM grounds itself when
+ * it loads; these never had to, because the player is only ever one of them and the camera
+ * sits behind that one body.
+ *
+ * The sole is a MESH, not a joint. Ankle and toe bones are in the wrong place by
+ * centimetres, and centimetres is the whole quantity being measured, so this pushes real
+ * vertices through the skin and takes the lowest — the same thing the VRM path does.
+ */
+export function measureLift(avatar:Avatar,clip='hom_loco_walk',samples=12){
+  const meshes:THREE.SkinnedMesh[]=[];
+  avatar.group.traverse(node=>{if((node as THREE.SkinnedMesh).isSkinnedMesh)meshes.push(node as THREE.SkinnedMesh);});
+  if(!meshes.length)return 0;
+  const duration=avatar.duration(clip);
+  avatar.play(clip);
+  const point=new THREE.Vector3();
+  let lowest=Infinity;
+  for(let sample=0;sample<samples;sample++){
+    avatar.update(sample?duration/samples:0);
+    avatar.group.updateMatrixWorld(true);
+    for(const mesh of meshes){
+      mesh.skeleton.update();
+      const position=mesh.geometry.attributes.position;
+      for(let i=0;i<position.count;i++){
+        point.fromBufferAttribute(position,i);
+        mesh.applyBoneTransform(i,point);
+        point.applyMatrix4(mesh.matrixWorld);
+        if(point.y<lowest)lowest=point.y;
+      }
+    }
+  }
+  return Number.isFinite(lowest)?-lowest:0;
+}
+
+/** Somebody who can be sent out walking: a name, and how to build their body. */
+export interface Recruit {id:string;load:()=>Promise<Avatar>}
+
 interface Person {
   skin:string;
   avatar:Avatar;
@@ -224,6 +268,8 @@ interface Person {
   position:THREE.Vector3;
   /** Where they are walking to: the last footway point that was actually on a pavement. */
   target:THREE.Vector3;
+  /** Raises this body so its soles meet the floor rather than sinking through it. */
+  lift:number;
   heading:number;
   /** Counts down while they stand still: something is in the way, or they just arrived. */
   wait:number;
@@ -239,38 +285,53 @@ export class Pedestrians {
   /** Set once the level is going away, so a model still downloading is dropped on arrival. */
   private gone=false;
   private grid:ReturnType<typeof carriagewayGrid>|undefined;
+  /** Where the next turn goes, so the whole cast rotates through rather than the same faces. */
+  private queue=0;
+  /** The middle of every strip, so somewhere to stand can be looked for near the player. */
+  private centres:THREE.Vector3[]=[];
   constructor(private world:World,private scene:THREE.Scene){
     this.routes=world.data.roads.map(road=>road.map(point=>new THREE.Vector3(...point as [number,number,number])));
     this.offsets=world.data.navigation?pavementSides(world.data.navigation):new Float32Array();
     this.grid=world.data.navigation?carriagewayGrid(world.data.navigation):undefined;
+    this.centres=(world.data.navigation?.segments??[]).map(segment=>{
+      const corners=segment.corners.map(corner=>new THREE.Vector3(...corner));
+      return corners[0].add(corners[1]).add(corners[2]).add(corners[3]).multiplyScalar(.25);
+    });
   }
   /** The footway offset on this side of this strip, or 0 where that side has no footway. */
   private offsetFor(segment:number,side:1|-1){return this.offsets[segment*2+(side>0?0:1)]??0;}
-  /** The cast currently on the street, for the tests and the debug read-out. */
+  /** Who is out walking right now. */
   get skins(){return this.people.filter(person=>person.placed).map(person=>person.skin);}
+  /** Everybody who has a body, whether they are out or waiting their turn. */
+  get cast(){return this.people.map(person=>person.skin);}
 
   /**
    * Bring the cast in one at a time, in the background.
    *
-   * The models are a few megabytes each and there are eleven of them, so downloading them
-   * as part of the level would put minutes on the loading bar. They arrive after the world
-   * does instead, one after another rather than all at once, and each one starts walking
-   * the moment it lands. A model that will not load is simply a member of the cast who
-   * stayed at home.
+   * They arrive in the order given and start walking the moment they land, so whoever is
+   * listed first is who you see first. Loading is sequential rather than all at once: the
+   * world is already playable by this point, and a burst of parallel model parsing would
+   * stutter the frame you are looking at. Somebody who will not load is simply a member of
+   * the cast who stayed at home.
    */
-  async populate(near:THREE.Vector3,options:{exclude?:string;animations?:AnimationSource;cast?:string}={}){
-    for(const skin of VRM_MODELS){
+  async populate(near:THREE.Vector3,recruits:Recruit[]){
+    for(const recruit of recruits){
       if(this.gone)return;
-      if(skin===options.exclude)continue;
+      if(this.people.some(person=>person.skin===recruit.id))continue;
       try{
-        const avatar=await new VrmAvatar().load(skin,{animations:options.animations,cast:options.cast});
+        const avatar=await recruit.load();
         if(this.gone){avatar.dispose();return;}
-        const person:Person={skin,avatar,path:new TrafficPath(this.routes,0,false,0,this.world.data.navigation),side:1,position:new THREE.Vector3(),target:new THREE.Vector3(),heading:0,wait:0,placed:false};
+        // A VRM has already stood itself on the floor by this point; the game's own
+        // characters have not, so they are measured here, once, before anyone sees them.
+        const lift=avatar instanceof Character?measureLift(avatar):0;
+        const person:Person={skin:recruit.id,avatar,path:new TrafficPath(this.routes,0,false,0,this.world.data.navigation),side:1,position:new THREE.Vector3(),target:new THREE.Vector3(),lift,heading:0,wait:0,placed:false};
         avatar.walk(this.scene,person.position,0);
         avatar.group.visible=false;
         this.people.push(person);
-        this.reseat(person,near);
-      }catch(error){console.warn(`${skin} is not out today`,error);}
+        // Straight out on the street while there is room, so the first faces to load are
+        // the first ones walking rather than everybody appearing at the end.
+        if(this.people.filter(other=>other.placed).length<PAVEMENT_RULES.crowd)this.reseat(person,near);
+      }catch(error){console.warn(`${recruit.id} is not out today`,error);}
     }
   }
 
@@ -284,17 +345,36 @@ export class Pedestrians {
     this.people=this.people.filter(person=>person.skin!==skin);
   }
 
-  /** Put somebody on a stretch of footway near the player, out of sight, facing along it. */
+  /** Take somebody off the street without destroying them; they go back in the queue. */
+  private retire(person:Person){person.placed=false;person.avatar.group.visible=false;}
+
+  /**
+   * Put somebody on a stretch of footway near the player, out of sight, facing along it.
+   *
+   * The strips to try are the ones actually near the player, gathered by walking the list
+   * of centres. Drawing segments at random out of the level's thousand instead means most
+   * draws are the far side of town, and the crowd thins out to nothing on a long drive
+   * because nobody can be seated in the attempts allowed.
+   */
   private reseat(person:Person,near:THREE.Vector3){
     const navigation=this.world.data.navigation;
     if(!navigation||!this.routes.length)return;
-    for(let attempt=0;attempt<48;attempt++){
-      const segment=Math.floor(Math.random()*navigation.segments.length);
-      const owner=navigation.roads[navigation.segments[segment].road];
-      if(owner?.shortcut)continue;
+    // A strip is a candidate if any part of it could reach the band; its centre being
+    // inside is too strict for a long strip that only crosses the band at one end.
+    const reach=(PAVEMENT_RULES.farRadius-PAVEMENT_RULES.nearRadius)/2+PAVEMENT_RULES.nearRadius;
+    const candidates:number[]=[];
+    for(let segment=0;segment<this.centres.length;segment++){
+      if(!this.offsetFor(segment,1)&&!this.offsetFor(segment,-1))continue;
+      if(navigation.roads[navigation.segments[segment].road]?.shortcut)continue;
+      const away=this.centres[segment].distanceTo(near);
+      if(away<PAVEMENT_RULES.nearRadius-reach||away>PAVEMENT_RULES.farRadius+reach)continue;
+      candidates.push(segment);
+    }
+    for(let attempt=0;attempt<24&&candidates.length;attempt++){
+      const pick=Math.floor(Math.random()*candidates.length);
+      const segment=candidates[pick];candidates.splice(pick,1);
       const first:1|-1=Math.random()<.5?1:-1;
-      const side=this.offsetFor(segment,first)?first:this.offsetFor(segment,-first as 1|-1)?-first as 1|-1:0;
-      if(!side)continue;                                   // this strip's kerbs are both other people's roads
+      const side=this.offsetFor(segment,first)?first:-first as 1|-1;
       const path=new TrafficPath(this.routes,segment,false,Math.random(),navigation);
       const heading=path.sample(this.scratch);
       const spot=footwayPoint(this.scratch,heading,carriagewayEdges(navigation,segment),side,this.offsetFor(segment,side));
@@ -305,7 +385,8 @@ export class Pedestrians {
       person.path=path;person.side=side;person.heading=heading;
       person.position.copy(spot);person.position.y=floor+FOOT_CLEARANCE;person.target.copy(person.position);
       person.wait=Math.random()*PAVEMENT_RULES.waitSeconds;person.placed=true;
-      person.avatar.group.position.copy(person.position);person.avatar.group.rotation.set(0,heading,0);
+      person.avatar.group.position.copy(person.position);person.avatar.group.position.y+=person.lift;
+      person.avatar.group.rotation.set(0,heading,0);person.avatar.group.visible=true;
       return;
     }
   }
@@ -313,10 +394,25 @@ export class Pedestrians {
   update(dt:number,player:THREE.Vector3){
     const navigation=this.world.data.navigation;
     if(!navigation)return;
+    // The whole cast has a body, but only a crowd's worth is out at any moment: seventy
+    // skinned characters within sight of one another is a lot of Springfield and not much
+    // frame rate. Whoever walks out of range makes room for whoever has waited longest, so
+    // over a drive you meet all of them rather than the same twenty.
+    let out=0;
     for(const person of this.people){
-      if(!person.placed){this.reseat(person,player);continue;}
+      if(!person.placed)continue;
+      if(person.position.distanceTo(player)>PAVEMENT_RULES.removeRadius)this.retire(person);
+      else out++;
+    }
+    for(let offset=0;offset<this.people.length&&out<PAVEMENT_RULES.crowd;offset++){
+      const person=this.people[(this.queue+offset)%this.people.length];
+      if(person.placed)continue;
+      this.reseat(person,player);
+      if(person.placed){out++;this.queue=(this.queue+offset+1)%this.people.length;}
+    }
+    for(const person of this.people){
+      if(!person.placed)continue;
       const distance=person.position.distanceTo(player);
-      if(distance>PAVEMENT_RULES.removeRadius){this.reseat(person,player);continue;}
       const visible=distance<=PAVEMENT_RULES.drawDistance;
       person.avatar.group.visible=visible;
       // Out of sight they hold their place rather than walking on unseen, which keeps the
@@ -336,7 +432,7 @@ export class Pedestrians {
       // its own outer edge. Cross over where it does, and start again where it runs out.
       if(!this.offsetFor(person.path.segment,person.side)){
         const other=-person.side as 1|-1;
-        if(!this.offsetFor(person.path.segment,other)){this.reseat(person,player);continue;}
+        if(!this.offsetFor(person.path.segment,other)){this.retire(person);continue;}
         person.side=other;
       }
       // The target only moves onto pavement. Where the path swings across a junction there
@@ -361,7 +457,7 @@ export class Pedestrians {
       const floor=this.world.terrain.ground(person.position.x,person.position.z,person.position.y,4);
       const climb=PAVEMENT_RULES.climb*dt;
       person.position.y=(floor?THREE.MathUtils.clamp(floor.point.y,feet-climb,feet+climb):feet)+FOOT_CLEARANCE;
-      person.avatar.group.position.copy(person.position);
+      person.avatar.group.position.copy(person.position);person.avatar.group.position.y+=person.lift;
       person.avatar.group.rotation.y=person.heading;
       person.avatar.play(moving?'hom_loco_walk':'hom_loco_idle_rest');
       person.avatar.update(dt);
