@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { cameraRelative } from '../src/player-movement.ts';
 
 /**
@@ -39,4 +40,25 @@ test('a stick beyond the unit circle cannot outrun a straight push', () => {
 test('a centred stick asks for no movement at all', () => {
   const walk=cameraRelative(0,0,1.2,-0.6);
   close(walk.x,0,'x');close(walk.z,0,'z');
+});
+
+/**
+ * A camera drag has to be allowed to start.
+ *
+ * Only the stick and the face buttons declared `touch-action:none`, so a thumb put down
+ * on bare screen was a browser pan gesture: the drag was taken away as `pointercancel`
+ * before the first move reached the look handler. Holding a face button orbited, standing
+ * still on foot did not, because then there is no button under the thumb. The canvas is
+ * the game surface, so no gesture on it belongs to the browser.
+ */
+test('the game surface keeps its own touch gestures', () => {
+  const css=readFileSync(new URL('../src/style.css',import.meta.url),'utf8');
+  const canvas=css.match(/#game canvas\{([^}]*)\}/);
+  assert.ok(canvas,'no rule for the game canvas');
+  assert.match(canvas[1],/touch-action:\s*none/,'a drag on the canvas is still a browser gesture');
+  // The stick and the buttons already had it, and losing it would break the drag again.
+  const rules=[...css.matchAll(/([^{}]+)\{([^}]*)\}/g)];
+  for(const selector of ['#touch-stick','.action-btn'])
+    assert.ok(rules.some(([,head,body])=>head.split(',').some(part=>part.trim().endsWith(selector))&&/touch-action:\s*none/.test(body)),
+      `${selector} lost touch-action:none`);
 });
