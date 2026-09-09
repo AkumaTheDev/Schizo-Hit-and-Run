@@ -136,14 +136,13 @@ export class Input {
   get controls() {
     const pad=Array.from(navigator.getGamepads?.()??[]).find(Boolean);
     const steer=(this.down('KeyD','ArrowRight')?1:0)-(this.down('KeyA','ArrowLeft')?1:0);
+    // Behind the wheel the stick steers and does nothing else. Pushing it up the screen
+    // used to open the throttle as well, so every turn was also an accelerator pedal;
+    // the gas and brake live on their own buttons where a thumb can hold them.
     const stickSteer=this.stick.active?this.stick.x:0;
-    // The gas and brake buttons stay live alongside the stick, so a thumb can push
-    // forward to drive or hold the pedals and use the stick for steering alone.
-    const stickThrottle=this.stick.active?Math.max(0,-this.stick.y):0;
-    const stickBrake=this.stick.active?Math.max(0,this.stick.y):0;
     return {steer:steer||stickSteer||(pad && Math.abs(pad.axes[0])>0.12 ? pad.axes[0] :0),
-      throttle:Math.max(this.down('KeyW','ArrowUp')?1:0,stickThrottle,pad?.buttons[7]?.value??0),
-      brake:Math.max(this.down('KeyS','ArrowDown')?1:0,stickBrake,pad?.buttons[6]?.value??0),
+      throttle:Math.max(this.down('KeyW','ArrowUp')?1:0,pad?.buttons[7]?.value??0),
+      brake:Math.max(this.down('KeyS','ArrowDown')?1:0,pad?.buttons[6]?.value??0),
       handbrake:this.down('Space')||!!pad?.buttons[0]?.pressed};
   }
   clear(){this.keys.clear();this.pressed.clear();this.touch.clear();this.releaseStick();this.lookX=0;this.lookY=0;this.lookPointer=-1;}

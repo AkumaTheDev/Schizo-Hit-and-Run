@@ -3,7 +3,7 @@ import type { CarState,Terrain } from './physics';
 
 // PAL CharacterManager 0x26e9f0, WalkerLocomotionAction 0x121438,
 // JumpAction 0x1248f0 / 0x125b38, and jump dispatch 0x107f60.
-export const PLAYER_RULES={walkSpeed:4,runSpeed:8,acceleration:20,deceleration:10,gravity:25,jumpHeight:1.9,doubleJumpHeight:1,doubleJumpUpSpeed:2,doubleJumpFallSpeed:12,airSpeed:4,airAcceleration:Math.fround(.078)*60,stompGravityScale:Math.fround(3.22)};
+export const PLAYER_RULES={walkSpeed:4,runSpeed:8,acceleration:20,deceleration:10,stopDeceleration:60,gravity:25,jumpHeight:1.9,doubleJumpHeight:1,doubleJumpUpSpeed:2,doubleJumpFallSpeed:12,airSpeed:4,airAcceleration:Math.fround(.078)*60,stompGravityScale:Math.fround(3.22)};
 export interface WalkingControls {x:number;z:number;run:boolean;jump:boolean}
 
 /**
@@ -38,7 +38,10 @@ export class PlayerMovement {
     const speed=magnitude*(state.grounded?(controls.run?PLAYER_RULES.runSpeed:PLAYER_RULES.walkSpeed):PLAYER_RULES.airSpeed);
     const direction=state.heading-Math.atan2(controls.x,controls.z);
     const desired=new THREE.Vector3(Math.sin(direction)*speed,0,Math.cos(direction)*speed);
-    const delta=desired.sub(this.velocity),rate=state.grounded?(speed>this.velocity.length()?PLAYER_RULES.acceleration:PLAYER_RULES.deceleration):PLAYER_RULES.airAcceleration;
+    // Letting go stops you. Coasting to a halt over three quarters of a second is what
+    // left the run cycle playing while the body slid on, so an empty stick brakes hard.
+    const braking=state.grounded&&!magnitude;
+    const delta=desired.sub(this.velocity),rate=state.grounded?(braking?PLAYER_RULES.stopDeceleration:speed>this.velocity.length()?PLAYER_RULES.acceleration:PLAYER_RULES.deceleration):PLAYER_RULES.airAcceleration;
     if(delta.length()>rate*dt)delta.setLength(rate*dt);this.velocity.add(delta);
     if(!state.grounded&&this.velocity.length()>PLAYER_RULES.airSpeed)this.velocity.setLength(PLAYER_RULES.airSpeed);
     if(this.stomping)this.velocity.set(0,0,0);
@@ -48,6 +51,12 @@ export class PlayerMovement {
     const travelled=state.position.clone().sub(previous);travelled.y=0;state.speed=travelled.length()/dt;state.distance+=travelled.length();
     if(state.grounded&&!this.wasGrounded){this.jumps=0;this.stomping=false;}
     this.wasGrounded=!!state.grounded;
-    return this.stomping?'hom_jump_kick':!state.grounded?(this.jumps===2?'hom_jump_dash_in_air':'hom_jump_idle_in_air'):state.speed>4.1?'hom_loco_run':state.speed>.1?'hom_loco_walk':'hom_loco_idle_rest';
+    // The animation follows the THUMB, not the leftover speed: releasing the stick
+    // stands the body up on the same frame instead of running on the spot.
+    const moving=magnitude>0;
+    return this.stomping?'hom_jump_kick'
+      :!state.grounded?(this.jumps===2?'hom_jump_dash_in_air':'hom_jump_idle_in_air')
+      :!moving?'hom_loco_idle_rest'
+      :state.speed>4.1?'hom_loco_run':state.speed>.1?'hom_loco_walk':'hom_loco_idle_rest';
   }
 }
