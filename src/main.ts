@@ -79,7 +79,24 @@ const CHARACTER_NAMES=['HOMER SIMPSON','BART SIMPSON','LISA SIMPSON','MARGE SIMP
 const levelSelect=element<HTMLSelectElement>('level'),carSelect=element<HTMLSelectElement>('car'),locationSelect=element<HTMLSelectElement>('location'),lighting=element<HTMLSelectElement>('lighting');
 const play=element<HTMLButtonElement>('play'),run=element<HTMLButtonElement>('challenge');
 
-function progress(value:number,message:string){element('load-progress').style.width=`${value*100}%`;element('load-message').textContent=message;}
+/**
+ * What the loading screen says. It is not a progress report: the bar already is one,
+ * so the line under it just cycles these while the level builds.
+ */
+const LOAD_MESSAGES=[
+  'this game is Ai vibe coded slop',
+  'this game is for experimental purposes only',
+  'this game is a port of a game',
+  'this game is a game',
+  'hey honey I shrunk my dick',
+];
+let loadLine=0,loadTicker=0;
+function progress(value:number){element('load-progress').style.width=`${value*100}%`;}
+function sayLoading(){element('load-message').textContent=LOAD_MESSAGES[loadLine++%LOAD_MESSAGES.length];}
+function startLoadMessages(){if(loadTicker)return;sayLoading();loadTicker=window.setInterval(sayLoading,2600);}
+function stopLoadMessages(){clearInterval(loadTicker);loadTicker=0;}
+/** A real failure is the one thing worth reading, so it stops the cycle and stands. */
+function loadFailed(message:string){stopLoadMessages();progress(0);element('load-message').textContent=message;}
 function lock(value:boolean){loading=value;for(const node of document.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('#menu button,#menu select'))node.disabled=value;}
 function pause(value:boolean){
   if(loading)return;paused=value;input.clear();accumulator=0;motion.reset(state);traffic?.resetInterpolation();police?.resetInterpolation();element('menu').hidden=!value;element('hud').hidden=value||photo;
@@ -139,11 +156,11 @@ async function setCar(id:string){
   element('scene-info').textContent=`${CAR_NAMES[id]??id} · ${LEVEL_NAMES[level-1]}`;
 }
 async function loadLevel(nextLevel:number){
-  lock(true);paused=true;element('loading').hidden=false;element('hud').hidden=true;challenge.stop();
+  lock(true);paused=true;element('loading').hidden=false;startLoadMessages();element('hud').hidden=true;challenge.stop();
   remotes?.dispose();remotes=undefined;police?.dispose();police=undefined;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
   level=nextLevel;levelSelect.value=String(nextLevel);lighting.value=level===7?'night':level>=4?'golden':'day';world=new World(scene,catalog);
   try{
-    const chapterPromise=json<Chapter>(`campaign/level${level}.json`);await world.load(level,progress);coins=new Coins(scene,world.data);freeMoney=coins.collected;progress(0.9,'Getting the cars ready…');
+    const chapterPromise=json<Chapter>(`campaign/level${level}.json`);await world.load(level,progress);coins=new Coins(scene,world.data);freeMoney=coins.collected;progress(0.9);
     locationSelect.replaceChildren(...world.data.locations.map((place,i)=>new Option(place.name,String(i))));
     const chapter=await chapterPromise;traffic=new Traffic(world,chapter.initial,campaignAssets.tuning);
     police=new Pursuit(world,pursuitSettings(chapter.initial),campaignAssets,{toast,fine:amount=>{const paid=Math.min(amount,freeMoney);freeMoney-=paid;saveGame();return paid;},busted:()=>sound.busted()});
@@ -154,10 +171,10 @@ async function loadLevel(nextLevel:number){
         element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
     world.setLighting(lighting.value);respawn(0);renderer.compile(scene,camera);
-    progress(1,'Ready');lock(false);element('loading').hidden=true;element('menu').hidden=false;
+    progress(1);stopLoadMessages();lock(false);element('loading').hidden=true;element('menu').hidden=false;
     nativeMenu?.show(nativeMenu.mode);
   }catch(error){
-    progress(0,error instanceof Error?error.message:String(error));element('load-message').textContent+=' · Check the console, then reload to retry.';console.error(error);
+    loadFailed(`${error instanceof Error?error.message:String(error)} · Check the console, then reload to retry.`);console.error(error);
   }
 }
 function startChallenge(){police?.reset();world.leaveInterior();if(onFoot){onFoot=false;character?.drive(car!);}challenge.start(world.data);respawn(0);pause(false);element('mode-badge').textContent='SPRINGFIELD RUN';toast('Five stops. Five minutes. Make it home.');}
@@ -474,9 +491,10 @@ element('fullscreen').addEventListener('click',()=>{
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);},options);
 window.addEventListener('blur',()=>{if(!paused&&!loading)pause(true);},options);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&!loading)pause(true);},options);
-renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();pause(true);element('loading').hidden=false;progress(0,'The graphics context was interrupted. Reload to reconnect.');},options);
+renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();pause(true);element('loading').hidden=false;loadFailed('The graphics context was interrupted. Reload to reconnect.');},options);
 renderer.setAnimationLoop(animate);
 async function init(){
+  startLoadMessages();
   try{
     // The menu art, catalogue and campaign index have no dependencies, so they download together.
     const artReady=originalArt.load();const catalogReady=Promise.all([json<Catalog>('catalog.json'),json<CampaignAssets>('campaign/assets.json')]);
@@ -517,10 +535,10 @@ async function init(){
     if(!animationSelect.value){animationChoice='game';animationSelect.value='game';}
     // The menu room and the first level share no state, so they load side by side.
     const room=new FrontendRoom(catalog);await Promise.all([room.load().then(()=>{menuRoom=room;}),loadLevel(1)]);}
-  catch(error){console.error(error);progress(0,'Game assets are missing. Run npm run extract and npm run convert, then reload.');}
+  catch(error){console.error(error);loadFailed('Game assets are missing. Run npm run extract and npm run convert, then reload.');}
 }
 void init();
 const removeDevTools=devTools(input,{place:value=>{const parts=value.trim().split(/\s+/),numbers=parts.slice(0,4).map(Number);if(numbers.length!==4||numbers.some(n=>!Number.isFinite(n))||!['foot','car'].includes(parts[4]))throw new Error('Use x y z heading-degrees foot/car');placePlayer(numbers.slice(0,3) as Vec3,THREE.MathUtils.degToRad(numbers[3]),parts[4]==='foot',parkedPosition.toArray());},state:()=>`${onFoot?'foot':'car'} ${state.speed.toFixed(1)} m/s ${state.grounded?'ground':'air'} · jumps ${walking.jumps} · coins ${freeMoney} · heat ${police?.meter.heat.toFixed(1)??0} · police ${police?.cars.length??0} · net ${net.status} ${net.peers.size} peers`,resume:()=>pause(false),pursuit:()=>police?.command({op:'SetHitAndRunMeter',args:[100],line:0}),clearPursuit:()=>police?.reset(),testCoins:()=>{freeMoney+=75;}});
-function dispose(){removeDevTools();net.close();remotes?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
+function dispose(){stopLoadMessages();removeDevTools();net.close();remotes?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
 window.addEventListener('pagehide',dispose,{once:true});
 if(import.meta.hot)import.meta.hot.dispose(dispose);

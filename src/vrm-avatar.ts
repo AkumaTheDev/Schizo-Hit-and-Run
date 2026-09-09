@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { VRMLoaderPlugin,VRMUtils,type VRM } from '@pixiv/three-vrm';
 import { json } from './assets';
+import { FOOT_CLEARANCE } from './physics';
 
 /**
  * VRM player avatars, sharing the sibling project's models and animation set.
@@ -347,60 +348,6 @@ export const BLEND_PARTS:Record<Blend,{upper:keyof typeof CLIPS;lower:keyof type
   jumpRun:{upper:'jump',lower:'run',bones:UPPER},
 };
 
-/**
- * Put the retargeted feet back where the source rig's feet are.
- *
- * Retargeting preserves each bone's rotation relative to its own rest pose, which is
- * faithful and still lands the foot at a different ANGLE TO THE WORLD when the two
- * skeletons' legs are built differently — measurably 19° flatter on one avatar and 25°
- * on another through the whole run cycle, which reads as running on your heels.
- *
- * So each foot key is corrected by the error at that key: play both rigs at that time,
- * measure the angle of the ankle→toe line in each, and rotate the foot about its own
- * pitch axis by the difference. Three passes because the correction moves the toes it
- * is measured from; it converges to zero.
- */
-export function alignFeet(clip:THREE.AnimationClip,source:THREE.AnimationClip,rig:THREE.Object3D,vrm:VRM){
-  const forward=new THREE.Vector3(0,0,1),a=new THREE.Vector3(),b=new THREE.Vector3();
-  // Signed against the rig's own forward, so a foot pointing straight down does not fold
-  // the way atan2(dy, |horizontal|) does.
-  const sole=(ankle:THREE.Object3D,toe:THREE.Object3D)=>{
-    const delta=toe.getWorldPosition(b).sub(ankle.getWorldPosition(a));
-    return Math.atan2(delta.y,delta.dot(forward));
-  };
-  const sides=([['leftFoot','leftToes','Ankle_L','Ball_L'],['rightFoot','rightToes','Ankle_R','Ball_R']] as const).flatMap(([foot,toes,sourceAnkle,sourceBall])=>{
-    const node=vrm.humanoid.getNormalizedBoneNode(foot),raw=vrm.humanoid.getRawBoneNode(foot);
-    const rawToes=vrm.humanoid.getRawBoneNode(toes);
-    const ankle=rig.getObjectByName(sourceAnkle),ball=rig.getObjectByName(sourceBall);
-    const track=node&&clip.tracks.find(t=>t.name===`${node.name}.quaternion`) as THREE.QuaternionKeyframeTrack|undefined;
-    return raw&&rawToes&&ankle&&ball&&track?[{raw,rawToes,ankle,ball,track}]:[];
-  });
-  if(!sides.length)return clip;
-  const rigMixer=new THREE.AnimationMixer(rig);rigMixer.clipAction(source).play();
-  const vrmMixer=new THREE.AnimationMixer(vrm.scene);
-  const pitch=new THREE.Quaternion(),key=new THREE.Quaternion(),X=new THREE.Vector3(1,0,0);
-  for(let pass=0;pass<3;pass++){
-    vrmMixer.stopAllAction();vrmMixer.uncacheClip(clip);vrmMixer.clipAction(clip).play();
-    for(const side of sides){
-      for(let i=0;i<side.track.times.length;i++){
-        const time=side.track.times[i];
-        rigMixer.setTime(time);rig.updateMatrixWorld(true);
-        vrmMixer.setTime(time);vrm.humanoid.update();vrm.scene.updateMatrixWorld(true);
-        const error=sole(side.ankle,side.ball)-sole(side.raw,side.rawToes);
-        if(!Number.isFinite(error))continue;
-        key.set(side.track.values[i*4],side.track.values[i*4+1],side.track.values[i*4+2],side.track.values[i*4+3]);
-        key.multiply(pitch.setFromAxisAngle(X,error));
-        side.track.values[i*4]=key.x;side.track.values[i*4+1]=key.y;side.track.values[i*4+2]=key.z;side.track.values[i*4+3]=key.w;
-      }
-    }
-  }
-  rigMixer.stopAllAction();vrmMixer.stopAllAction();
-  // Hand the rig back AT REST. Measuring a pose it was left in is how the grounding
-  // below first read a mid-stride foot as the standing one.
-  vrm.humanoid.resetNormalizedPose();vrm.humanoid.update();
-  return clip;
-}
-
 /** One shared loader set, and one download per clip however many avatars are wearing it. */
 const gltf=new GLTFLoader();gltf.register(parser=>new VRMLoaderPlugin(parser));
 const fbx=new FBXLoader();
@@ -525,14 +472,14 @@ export class VrmAvatar {
     if(!this.vrm||!this.mixer)return;
     const {scene,clips}=await gameRig(this.cast);
     if(!this.vrm||!this.mixer)return;
-    const aligned=new Map<THREE.AnimationClip,THREE.AnimationClip>();
+    const done=new Map<THREE.AnimationClip,THREE.AnimationClip>();
     for(const [name,clip] of clips){
       if(this.actions.has(name))continue;
-      // The cast share clips under two names, so each is retargeted and aligned once.
-      let retargeted=aligned.get(clip);
+      // The cast share clips under two names, so each one is retargeted once.
+      let retargeted=done.get(clip);
       if(!retargeted){
-        retargeted=alignFeet(retargetMixamoClip(clip,scene,this.vrm),clip,scene,this.vrm);
-        aligned.set(clip,retargeted);
+        retargeted=retargetMixamoClip(clip,scene,this.vrm);
+        done.set(clip,retargeted);
       }
       if(!retargeted.tracks.length)continue;
       const action=this.mixer.clipAction(retargeted);
@@ -609,36 +556,86 @@ export class VrmAvatar {
   /**
    * Stand the avatar on the floor.
    *
-   * A retargeted clip does not put the feet where the source put them: the same joint
-   * angles on different leg proportions leave the body riding higher. Measured on the
-   * standing clip, that is ~5 cm of hover on both avatars tested — which is the float.
-   * The cast's own rig has none of this (its feet reach the floor as authored), so the
-   * correction belongs HERE, on the VRM inside its own group, and never on the shared
-   * placement the game does for every body.
+   * Two things put a VRM in the air. The walker holds the player FOOT_CLEARANCE above
+   * whatever it is standing on, and this group hangs off that position; and a clip
+   * retargeted onto different leg proportions does not leave the sole where the source
+   * left it. Both are answered by measuring where the sole ACTUALLY is in the standing
+   * pose and subtracting it.
+   *
+   * The sole is a mesh, not a joint. Measuring the ankle and toe bones instead compares
+   * two differently-rotated feet — the rest pose against the standing one — and misses
+   * by centimetres, which is exactly the hover this used to leave behind.
    */
   private ground(){
     const vrm=this.vrm,idle=this.actions.get('hom_loco_idle_rest');
-    if(!vrm||!this.mixer)return;
-    const feet=['leftToes','rightToes','leftFoot','rightFoot']
-      .map(bone=>vrm.humanoid.getRawBoneNode(bone as never)).filter(Boolean) as THREE.Object3D[];
-    if(!feet.length)return;
-    const lowest=()=>{vrm.scene.updateMatrixWorld(true);
-      return Math.min(...feet.map(node=>node.getWorldPosition(new THREE.Vector3()).y));};
+    if(!vrm)return;
+    const soles=this.soleVertices();
     vrm.scene.position.y=0;
-    // The rest pose, explicitly — not whatever pose the rig happens to be left in.
-    vrm.humanoid.resetNormalizedPose();vrm.humanoid.update();
-    const rest=lowest();
-    if(!idle){this.footOffset=0;return;}
-    // Sample the standing clip: the foot that stays down is the one to stand on.
-    let standing=Infinity;
-    const previous=this.mixer.time;
-    for(let i=0;i<=12;i++){
-      this.mixer.setTime(idle.getClip().duration*i/12);vrm.humanoid.update();
-      standing=Math.min(standing,lowest());
+    if(!soles.length){this.footOffset=0;return;}
+    const point=new THREE.Vector3();
+    const lowest=()=>{
+      vrm.scene.updateMatrixWorld(true);
+      let low=Infinity;
+      for(const {mesh,indices} of soles){
+        mesh.skeleton.update();
+        const position=mesh.geometry.attributes.position;
+        for(const i of indices){
+          point.fromBufferAttribute(position,i);
+          mesh.applyBoneTransform(i,point);
+          point.applyMatrix4(mesh.matrixWorld);
+          if(point.y<low)low=point.y;
+        }
+      }
+      return low;
+    };
+    let standing:number;
+    if(idle){
+      // Sample the standing clip on a mixer of its own: the playing one is mid-fade, and
+      // a half-faded pose is not the pose anybody stands in.
+      const measure=new THREE.AnimationMixer(vrm.scene);
+      const clip=idle.getClip();measure.clipAction(clip).play();
+      standing=Infinity;
+      for(let i=0;i<=12;i++){
+        measure.setTime(clip.duration*i/12);vrm.humanoid.update();
+        standing=Math.min(standing,lowest());
+      }
+      measure.stopAllAction();measure.uncacheClip(clip);
+    }else{
+      // No standing clip yet: the rest pose is the best the avatar can be stood on.
+      vrm.humanoid.resetNormalizedPose();vrm.humanoid.update();
+      standing=lowest();
     }
-    this.mixer.setTime(previous);vrm.humanoid.update();
-    this.footOffset=Number.isFinite(standing)?rest-standing:0;
+    vrm.humanoid.resetNormalizedPose();vrm.humanoid.update();
+    this.footOffset=Number.isFinite(standing)?-standing-FOOT_CLEARANCE:0;
     vrm.scene.position.y=this.footOffset;
+  }
+
+  /**
+   * The vertices the floor can touch: the ones the foot and toe bones drive.
+   *
+   * Collected once, by dominant weight, so grounding transforms a few hundred vertices
+   * per sample rather than the whole body.
+   */
+  private soleVertices(){
+    const vrm=this.vrm;
+    if(!vrm)return [];
+    const feet=new Set(['leftFoot','leftToes','rightFoot','rightToes']
+      .map(bone=>vrm.humanoid.getRawBoneNode(bone as never)?.name).filter(Boolean) as string[]);
+    const found:{mesh:THREE.SkinnedMesh;indices:number[]}[]=[];
+    vrm.scene.traverse(node=>{
+      const mesh=node as THREE.SkinnedMesh;
+      if(!mesh.isSkinnedMesh)return;
+      const {position,skinIndex,skinWeight}=mesh.geometry.attributes;
+      if(!position||!skinIndex||!skinWeight)return;
+      const indices:number[]=[];
+      for(let i=0;i<position.count;i++){
+        let heaviest=0,bone=-1;
+        for(let k=0;k<4;k++){const weight=skinWeight.getComponent(i,k);if(weight>heaviest){heaviest=weight;bone=skinIndex.getComponent(i,k);}}
+        if(feet.has(mesh.skeleton.bones[bone]?.name??''))indices.push(i);
+      }
+      if(indices.length)found.push({mesh,indices});
+    });
+    return found;
   }
   private footOffset=0;
 
@@ -669,7 +666,9 @@ export class VrmAvatar {
     // the car's origin. Dropping any avatar's measured hips onto that same height is
     // what lets a short VRM and a tall one both sit in the seat instead of hovering
     // over it or sinking through the floor.
-    this.group.position.set(-0.48,0.298-this.hipsHeight,-0.15);
+    // `footOffset` belongs to standing on the floor, so the seat cancels it back out:
+    // the hips land on 0.298 whatever the grounding had to do to the feet.
+    this.group.position.set(-0.48,0.298-this.hipsHeight-this.footOffset,-0.15);
     this.group.rotation.set(0,Math.PI,0);this.group.scale.setScalar(1);
     this.seated=true;this.mixer?.stopAllAction();this.active='hom_in_car_idle';
   }

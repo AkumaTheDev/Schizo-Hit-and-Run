@@ -38,16 +38,16 @@ export class World {
     this.sun.shadow.bias=-0.0005;this.sun.shadow.normalBias=0.05;
     this.setLighting('golden');
   }
-  async load(level:number,progress:(value:number,message:string)=>void){
+  async load(level:number,progress:(value:number)=>void){
     this.data=await json<LevelData>(`level${level}.json`);
     const [surfaces,scenery,ground,physics,objects,navigation]=await Promise.all([json<Record<string,SceneryMaterial>>('remaster/scenery-materials.json'),json<{scenes:string[]}>('remaster/scenery.json'),json<Record<string,string>>('remaster/surfaces.json'),json<InteriorCollision>(`collision/world-level${level}.json`),json<WorldObjectsData>(`world/objects${level}.json`),json<RoadNavigation>(`world/navigation${level}.json`)]);
     this.data.navigation=navigation;this.objectData=objects;
     for(const [source,albedo] of Object.entries(ground))if(surfaces[source])surfaces[source].albedo=albedo;
     this.assets.sceneryMaterials=surfaces;this.assets.sceneryScenes=new Set(scenery.scenes);
     // Every region downloads at once; the progress bar advances as each one is built.
-    const scenes=[...this.data.scenes,...objects.extras];let built=0;const total=scenes.length;progress(0,`Building ${LEVEL_NAMES[level-1]} · 0/${total}`);
+    const scenes=[...this.data.scenes,...objects.extras];let built=0;const total=scenes.length;progress(0);
     const results=await Promise.all(scenes.map(async name=>{
-      const result=await this.assets.load(name);built++;progress(built/(total+3),`Building ${LEVEL_NAMES[level-1]} · ${built}/${total}`);return result;
+      const result=await this.assets.load(name);built++;progress(built/(total+3));return result;
     }));
     const collision:THREE.BufferGeometry[]=[];
     for(const result of results){this.group.add(result.root);if(result.collision)collision.push(result.collision);}
@@ -55,17 +55,17 @@ export class World {
     // What follows is one long synchronous block: merging the collision meshes and
     // building the tree the on-foot solver walks against takes about ten seconds on a
     // desktop and considerably longer on a phone, and nothing can repaint while it runs.
-    // Naming the phase and handing the browser a frame to paint it FIRST is what stops a
-    // slow build reading as a hang — the counter would otherwise sit at its last scene
-    // for the whole of it, which is exactly what it looked like.
-    progress((total+1)/(total+3),`Building ${LEVEL_NAMES[level-1]} · collision`);await paint();
+    // Moving the bar and handing the browser a frame to paint it FIRST is what stops a
+    // slow build reading as a hang — the bar would otherwise sit where its last scene
+    // left it for the whole of it, which is exactly what it looked like.
+    progress((total+1)/(total+3));await paint();
     const bodies=staticCollisionGeometry({...physics,shapes});this.terrain=new Terrain(collision,this.data,bodies,this.data.scenes.flatMap(scene=>objects.terrainTypes[scene]));bodies.dispose();this.exteriorTerrain=this.terrain;
-    progress((total+2)/(total+3),`Building ${LEVEL_NAMES[level-1]} · props`);await paint();
+    progress((total+2)/(total+3));await paint();
     this.objects=new WorldObjects(this.terrain,this.group,objects);
     // A separate receiver preserves the original baked environmental art.
     this.shadowGround=new THREE.Mesh(this.terrain.mesh.geometry,new THREE.ShadowMaterial({opacity:0.05}));
     this.shadowGround.receiveShadow=true;this.shadowGround.position.y=0.025;this.group.add(this.shadowGround);
-    progress((total+2.5)/(total+3),`Building ${LEVEL_NAMES[level-1]} · gardens`);await paint();
+    progress((total+2.5)/(total+3));await paint();
     await this.grass.load(this.group);
   }
   setLighting(mode:string){
