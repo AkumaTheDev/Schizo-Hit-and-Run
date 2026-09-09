@@ -381,16 +381,6 @@ const CAST_FALLBACK:Record<string,string>={
   hom_jump_run:'hom_loco_run',
 };
 
-/** The seated pose, copied bone for bone from the sibling project's driving pose. */
-const DRIVING_POSE:Record<string,{x?:number;y?:number;z?:number}>={
-  hips:{x:-0.28},spine:{x:0.16},chest:{x:0.1},
-  leftUpperLeg:{x:-1.28,z:0.08},rightUpperLeg:{x:-1.28,z:-0.08},
-  leftLowerLeg:{x:1.46},rightLowerLeg:{x:1.46},
-  leftUpperArm:{x:-0.42,z:0.65},rightUpperArm:{x:-0.42,z:-0.65},
-  leftLowerArm:{x:-1.22},rightLowerArm:{x:-1.22},
-  leftHand:{y:0.2},rightHand:{y:-0.2},head:{x:0},
-};
-
 export class VrmAvatar {
   /** The node the game moves. The VRM hangs inside it so the game never touches VRM internals. */
   group=new THREE.Group();
@@ -670,8 +660,34 @@ export class VrmAvatar {
     // the hips land on 0.298 whatever the grounding had to do to the feet.
     this.group.position.set(-0.48,0.298-this.hipsHeight-this.footOffset,-0.15);
     this.group.rotation.set(0,Math.PI,0);this.group.scale.setScalar(1);
-    this.seated=true;this.mixer?.stopAllAction();this.active='hom_in_car_idle';
+    this.seated=true;
+    // Sit in the game's own driving animation, retargeted like every other clip. The
+    // hand-written pose this replaces was authored in the other handedness: on a VRM 0
+    // body it put the thighs 180 degrees out, pointing back down the car.
+    this.play('hom_in_car_idle');
+    void this.seatClip();
   }
+  /**
+   * Borrow the cast's driving animation when the Mixamo-only set is loaded.
+   *
+   * Mixamo has no seated clip, so that mode would otherwise stand up in the driver's
+   * seat. Every other mode already retargeted this one with the rest of the set.
+   */
+  private async seatClip(){
+    if(this.source!=='mixamo'||this.seatBorrowed||!this.vrm||!this.mixer)return;
+    this.seatBorrowed=true;
+    const {scene,clips}=await gameRig(this.cast);
+    const clip=clips.get('hom_in_car_idle');
+    if(!clip||!this.vrm||!this.mixer)return;
+    const retargeted=retargetMixamoClip(clip,scene,this.vrm);
+    if(!retargeted.tracks.length)return;
+    const action=this.mixer.clipAction(retargeted);
+    action.setLoop(THREE.LoopRepeat,Infinity);
+    this.actions.set('hom_in_car_idle',action);
+    if(this.seated){this.active='';this.play('hom_in_car_idle');}
+  }
+  private seatBorrowed=false;
+
   walk(scene:THREE.Scene,position:THREE.Vector3,heading:number){
     scene.add(this.group);this.group.position.copy(position);this.group.rotation.set(0,heading,0);
     this.seated=false;this.active='';this.play('hom_loco_idle_rest');
@@ -680,13 +696,6 @@ export class VrmAvatar {
   update(dt:number){
     if(!this.vrm)return;
     this.mixer?.update(dt);
-    // The seated pose is written straight onto the humanoid, so it goes on after the
-    // mixer and before `vrm.update`, which is what pushes normalized bones onto the rig.
-    if(this.seated)for(const [bone,angles] of Object.entries(DRIVING_POSE)){
-      const node=this.vrm.humanoid.getNormalizedBoneNode(bone as never);
-      if(!node)continue;
-      node.rotation.set(angles.x??0,angles.y??0,angles.z??0);
-    }
     this.vrm.update(dt);
   }
 
