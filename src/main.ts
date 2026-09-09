@@ -21,6 +21,7 @@ import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,rese
 import { HUD, element } from './hud';
 import { Challenge } from './challenge';
 import { Traffic,type TrafficCar } from './traffic';
+import { Pedestrians } from './pedestrians';
 import { Sound } from './audio';
 import { Character } from './character';
 import { DEFAULT_VRM,isVrmSkin,VRM_MODELS,VrmAvatar,type AnimationSource,type Avatar } from './vrm-avatar';
@@ -48,7 +49,7 @@ let nativeMenu:OriginalMenu|undefined,menuRoom:FrontendRoom|undefined;const nati
 let coins:Coins|undefined;let campaignAssets:CampaignAssets;let kickUntil=0;let police:Pursuit|undefined,freeMoney=0;
 // Multiplayer. The net object only ever reads the local state and writes remote avatars —
 // it is never allowed to move `state`, so a bad connection cannot touch your own driving.
-const net=new Net();let remotes:RemotePlayers|undefined;let playerName=localStorage.getItem('hit-and-run:name')??'';let playerSkin=localStorage.getItem('hit-and-run:skin')??DEFAULT_VRM;
+const net=new Net();let remotes:RemotePlayers|undefined;let pedestrians:Pedestrians|undefined;let playerName=localStorage.getItem('hit-and-run:name')??'';let playerSkin=localStorage.getItem('hit-and-run:skin')??DEFAULT_VRM;
 // Where a VRM's motion comes from. The cast's own converted clips by default, so a VRM
 // moves exactly like Homer does; Mixamo is opt-in, and covers what the game never had.
 // The menu's ANIMATIONS choice, verbatim: 'game' (this level's character), 'cast:<id>'
@@ -157,7 +158,7 @@ async function setCar(id:string){
 }
 async function loadLevel(nextLevel:number){
   lock(true);paused=true;element('loading').hidden=false;startLoadMessages();element('hud').hidden=true;challenge.stop();
-  remotes?.dispose();remotes=undefined;police?.dispose();police=undefined;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
+  remotes?.dispose();remotes=undefined;pedestrians?.dispose();pedestrians=undefined;police?.dispose();police=undefined;traffic?.dispose();coins?.dispose();character?.dispose();character=undefined;onFoot=false;cruise=false;car?.removeFromParent();world?.dispose();carModels.clear();
   level=nextLevel;levelSelect.value=String(nextLevel);lighting.value=level===7?'night':level>=4?'golden':'day';world=new World(scene,catalog);
   try{
     const chapterPromise=json<Chapter>(`campaign/level${level}.json`);await world.load(level,progress);coins=new Coins(scene,world.data);freeMoney=coins.collected;progress(0.9);
@@ -167,6 +168,10 @@ async function loadLevel(nextLevel:number){
     const [driver]=await Promise.all([makeAvatar(playerSkin),setCar(carId),traffic.load(),police.load(),coins.load(world.assets,world.objectData.coin)]);
     character=driver;character.drive(car!);
     remotes=new RemotePlayers(scene,world,campaignAssets);net.describe(level,carId,playerSkin);
+    // The cast walks in behind the loading bar rather than through it: eleven VRM bodies
+    // is tens of megabytes, and none of it is needed before the world is playable.
+    pedestrians=new Pedestrians(world,scene);
+    void pedestrians.populate(state.position,{exclude:playerSkin,animations:animationSource(),cast:campaignAssets.characters[animationCast()]??animationCast()});
     sound.setCharacter(VOICE_ACTORS[level-1],campaignAssets.dialogue);
         element('district').textContent=`SPRINGFIELD · LEVEL ${String(level).padStart(2,'0')}`;
     element('menu-place').textContent=level===1?'742 Evergreen Terrace':LEVEL_NAMES[level-1];
@@ -329,6 +334,7 @@ function animate(now:number){
     if(onFoot&&character){character.group.position.copy(motion.position);character.group.rotation.y+=THREE.MathUtils.euclideanModulo(footHeading-character.group.rotation.y+Math.PI,Math.PI*2)-Math.PI;}
     character?.update(paused?dt*0.35:dt);
     if(coins){const gained=coins.update(frozen?0:dt,state.position,!frozen,!onFoot);if(gained){freeMoney+=gained;sound.coin();saveGame();toast(`+${gained} coin${gained===1?'':'s'}`);}element('coin-count').textContent=String(freeMoney);}
+    pedestrians?.update(frozen?0:dt,state.position);
     const worldStart=performance.now();world.update(state.position);const worldMs=performance.now()-worldStart;metrics.record(frameMs,worldMs);updateCamera(dt);
     if(now-metricTime>500){metricText=metrics.summary();metricTime=now;}
     hud.update(dt,state,world.data,challenge,traffic);nativeHUD.draw(dt,state,world.data,challenge,traffic,hud.bigMap,onFoot);
@@ -408,6 +414,7 @@ async function jack(target:TrafficCar){
 }
 async function changeSkin(id:string){
   playerSkin=id;try{localStorage.setItem('hit-and-run:skin',id);}catch{}
+  pedestrians?.exclude(id);
   const next=await makeAvatar(id);character?.dispose();character=next;
   if(onFoot)character.walk(scene,state.position,state.heading);else character.drive(car!);
   net.describe(level,carId,playerSkin);
@@ -574,6 +581,6 @@ async function init(){
 }
 void init();
 const removeDevTools=devTools(input,{place:value=>{const parts=value.trim().split(/\s+/),numbers=parts.slice(0,4).map(Number);if(numbers.length!==4||numbers.some(n=>!Number.isFinite(n))||!['foot','car'].includes(parts[4]))throw new Error('Use x y z heading-degrees foot/car');placePlayer(numbers.slice(0,3) as Vec3,THREE.MathUtils.degToRad(numbers[3]),parts[4]==='foot',parkedPosition.toArray());},state:()=>`${onFoot?'foot':'car'} ${state.speed.toFixed(1)} m/s ${state.grounded?'ground':'air'} · jumps ${walking.jumps} · coins ${freeMoney} · heat ${police?.meter.heat.toFixed(1)??0} · police ${police?.cars.length??0} · net ${net.status} ${net.peers.size} peers`,resume:()=>pause(false),pursuit:()=>police?.command({op:'SetHitAndRunMeter',args:[100],line:0}),clearPursuit:()=>police?.reset(),testCoins:()=>{freeMoney+=75;}});
-function dispose(){stopLoadMessages();removeDevTools();net.close();remotes?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
+function dispose(){stopLoadMessages();removeDevTools();net.close();remotes?.dispose();pedestrians?.dispose();controller.abort();renderer.setAnimationLoop(null);input.dispose();sound.dispose();nativeMenu?.dispose();nativeHUD.canvas.remove();menuRoom?.dispose();coins?.dispose();character?.dispose();challenge.dispose();police?.dispose();traffic?.dispose();world?.dispose();composer.passes.forEach(pass=>pass.dispose());composer.dispose();renderer.dispose();renderer.domElement.remove();}
 window.addEventListener('pagehide',dispose,{once:true});
 if(import.meta.hot)import.meta.hot.dispose(dispose);
