@@ -20,7 +20,7 @@ import { cameraRelative,PlayerMovement } from './player-movement';
 import { renderVehicleWheels,simulateVehicle,vehicleProfile,DEFAULT_VEHICLE,resetVehicle,type VehicleProfile } from './vehicle-physics';
 import { HUD, element } from './hud';
 import { Challenge } from './challenge';
-import { Traffic } from './traffic';
+import { Traffic,type TrafficCar } from './traffic';
 import { Sound } from './audio';
 import { Character } from './character';
 import { DEFAULT_VRM,isVrmSkin,VRM_MODELS,VrmAvatar,type AnimationSource,type Avatar } from './vrm-avatar';
@@ -258,8 +258,11 @@ function animate(now:number){
       if(input.consume('KeyH')&&!onFoot){cruise=!cruise;toast(cruise?'Cruise control · 50 km/h. Brake to cancel.':'Cruise control off.');}
       if(input.consume('KeyE')&&character&&car&&!police?.frozen){
         if(onFoot){
-          if(state.position.distanceTo(parkedPosition)<6){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;state.speed=0;character.drive(car);sound.ignite();sound.bark();element('car-label').textContent=(CAR_NAMES[carId]??carId).toUpperCase();element('drive-hints').innerHTML='<span><kbd>W A S D</kbd> Drive</span><span><kbd>SPACE</kbd> Drift</span><span><kbd>E</kbd> Get out</span><span><kbd>H</kbd> Cruise</span><span><kbd>C</kbd> Camera</span>';toast('Back behind the wheel.');}
-          else toast('Get closer to your car.');
+          // Your own car first if you are standing at it, otherwise anything on the street.
+          const street=state.position.distanceTo(parkedPosition)<6?undefined:traffic?.nearest(state.position,JACK_REACH);
+          if(state.position.distanceTo(parkedPosition)<6){onFoot=false;state.position.copy(parkedPosition);state.heading=parkedHeading;state.speed=0;character.drive(car);sound.ignite();sound.bark();element('car-label').textContent=(CAR_NAMES[carId]??carId).toUpperCase();element('drive-hints').innerHTML=DRIVE_HINTS;toast('Back behind the wheel.');}
+          else if(street)void jack(street);
+          else toast('Get closer to a car.');
         }else if(Math.abs(state.speed)<2){
           onFoot=true;car.visible=true;cruise=false;parkedPosition.copy(state.position);parkedHeading=state.heading;footHeading=state.heading;
           state.position.add(new THREE.Vector3(Math.cos(state.heading)*2,0,-Math.sin(state.heading)*2));state.speed=0;
@@ -370,6 +373,38 @@ function placePlayer(position:Vec3,heading:number,foot:boolean,parked?:Vec3){
   if(car){car.position.copy(foot?parkedPosition:state.position);car.position.y+=carOffset;car.rotation.y=heading+Math.PI;car.visible=true;}
   if(character&&car){if(foot)character.walk(scene,state.position,heading);else character.drive(car);}
   camYaw=heading;camPitch=.12;lastLook=-99;motion.reset(state);smoothLook.copy(state.position);updateCamera(1,true);
+}
+const DRIVE_HINTS='<span><kbd>W A S D</kbd> Drive</span><span><kbd>SPACE</kbd> Drift</span><span><kbd>E</kbd> Get out</span><span><kbd>H</kbd> Cruise</span><span><kbd>C</kbd> Camera</span>';
+/** How close a pedestrian has to be to open somebody else's door. */
+const JACK_REACH=5;
+let jacking=false;
+/**
+ * Take a car off the street.
+ *
+ * The traffic pool is fixed, so the car is not destroyed: it leaves the world here and is
+ * free to stream back in somewhere else with a fresh driver, while the player's own
+ * vehicle becomes that model, standing exactly where it stood. Whatever was being driven
+ * before is left behind — the one you are holding the keys to is the one you are in.
+ *
+ * The model has to load before any of that can happen, so this is asynchronous and holds
+ * a latch: pressing the button again mid-load must not take two cars.
+ */
+async function jack(target:TrafficCar){
+  if(jacking||!character)return;
+  jacking=true;
+  const id=target.id,position=target.position.clone(),heading=target.heading;
+  traffic?.release(target);
+  try{
+    await setCar(id);
+    placePlayer(position.toArray() as Vec3,heading,false,position.toArray() as Vec3);
+    police?.enterVehicle(id);net.describe(level,id,playerSkin);
+    sound.ignite();sound.bark();
+    element('car-label').textContent=(CAR_NAMES[id]??id).toUpperCase();
+    element('drive-hints').innerHTML=DRIVE_HINTS;
+    toast(`${(CAR_NAMES[id]??id).toUpperCase()} — out you get.`);
+    saveGame();
+  }catch(error){console.warn(`could not take ${id}`,error);toast('That one would not start.');}
+  finally{jacking=false;}
 }
 async function changeSkin(id:string){
   playerSkin=id;try{localStorage.setItem('hit-and-run:skin',id);}catch{}

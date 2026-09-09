@@ -122,6 +122,34 @@ export class Traffic {
       renderVehicleWheels(car.mesh,car.vehicleMotion,car.profile,this.tuning[car.id]);
     }
   }
+  /**
+   * The nearest car a pedestrian could reach, for taking one off the street.
+   *
+   * Measured to the car's own position rather than its mesh, which is the same thing a
+   * frame later but is the value everything else here reasons about.
+   */
+  nearest(point:THREE.Vector3,radius:number){
+    let closest:TrafficCar|undefined,distance=radius;
+    for(const car of this.cars){
+      if(!car.active)continue;
+      const away=car.position.distanceTo(point);
+      if(away<distance){distance=away;closest=car;}
+    }
+    return closest;
+  }
+  /**
+   * Hand a car over to whoever just opened its door.
+   *
+   * The pool is fixed, so a car is never destroyed: it goes back to being inactive and is
+   * free to stream in again somewhere else, with its driver's state wiped so it does not
+   * arrive mid-reverse or still counting itself blocked.
+   */
+  release(car:TrafficCar){
+    car.active=false;car.mesh.visible=false;
+    car.stopped=0;car.hitCooldown=0;car.blockedTime=0;car.reverseFor=0;
+    car.driver.reset();
+  }
+
   resetInterpolation(){for(const car of this.cars)car.motion.reset(car);}
   dispose(){this.group.removeFromParent();}
 }
