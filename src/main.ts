@@ -84,11 +84,11 @@ const play=element<HTMLButtonElement>('play'),run=element<HTMLButtonElement>('ch
  * so the line under it just cycles these while the level builds.
  */
 const LOAD_MESSAGES=[
-  'this game is Ai vibe coded slop',
-  'this game is for experimental purposes only',
-  'this game is a port of a game',
-  'this game is a game',
-  'hey honey I shrunk my dick',
+  'This game is Ai vibe coded slop',
+  'This game is for experimental purposes only',
+  'This game is a port of a game',
+  'This game is a game',
+  'Hey honey I shrunk my dick',
 ];
 let loadLine=0,loadTicker=0;
 function progress(value:number){element('load-progress').style.width=`${value*100}%`;}
