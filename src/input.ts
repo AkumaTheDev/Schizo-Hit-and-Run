@@ -66,12 +66,17 @@ export class Input {
     for(const event of ['pointerup','pointercancel','lostpointercapture'])
       this.base?.addEventListener(event,e=>{if((e as PointerEvent).pointerId===this.stickPointer)this.releaseStick();},options);
 
-    // Right thumb orbits the camera. Anything that is already a control keeps its own
-    // touch, and on a phone the left half is left alone so the stick is never stolen.
+    // Right thumb orbits the camera. Menus and the stick keep their own touch, and on a
+    // phone the left half is left alone so the stick is never stolen.
+    //
+    // The face buttons deliberately do NOT stop a look. A thumb resting on one of them
+    // captures its pointer, but the move still reaches this window listener, so pressing
+    // or holding a button and dragging turns the camera at the same time. #touch-controls
+    // spans the whole screen, so excluding it used to refuse a look almost everywhere.
     window.addEventListener('pointerdown',event=>{
       if(this.lookPointer>=0||event.pointerId===this.stickPointer)return;
       const target=event.target as Element|null;
-      if(target?.closest('#touch-controls,#touch-stick,#menu,#loading,button,select,input'))return;
+      if(target?.closest('#touch-stick,#menu,#loading,button,select,input'))return;
       if(event.pointerType!=='mouse'&&event.clientX<innerWidth*0.45)return;
       this.lookPointer=event.pointerId;this.lookLastX=event.clientX;this.lookLastY=event.clientY;
     },options);
